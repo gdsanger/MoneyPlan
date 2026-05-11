@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
@@ -114,7 +115,7 @@ def booking_create(request):
                 }
                 response = render(request, 'bookings/_booking_row.html', context)
                 # Trigger a page reload to refresh the list
-                response['HX-Redirect'] = request.META.get('HTTP_REFERER', '/buchungen/')
+                response['HX-Redirect'] = request.META.get('HTTP_REFERER', reverse('bookings:list'))
                 return response
 
             return redirect('bookings:list')
@@ -155,7 +156,7 @@ def booking_edit(request, booking_id):
                 }
                 response = render(request, 'bookings/_booking_row.html', context)
                 # Trigger a page reload to refresh the list
-                response['HX-Redirect'] = request.META.get('HTTP_REFERER', '/buchungen/')
+                response['HX-Redirect'] = request.META.get('HTTP_REFERER', reverse('bookings:list'))
                 return response
 
             return redirect('bookings:list')
@@ -495,7 +496,7 @@ def receipt_confirm(request):
     # For HTMX: redirect to booking list
     if request.htmx:
         response = HttpResponse('')
-        response['HX-Redirect'] = '/buchungen/'
+        response['HX-Redirect'] = reverse('bookings:list')
         return response
 
     return redirect('bookings:list')
