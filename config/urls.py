@@ -30,6 +30,7 @@ urlpatterns = [
     path('alerts/', include('alerts.urls')),
     path('attachments/', include('attachments.urls')),
     path('aufgaben/', include('tasks.urls')),
+    path('ki/', include('ai.urls')),
 ]
 
 if settings.DEBUG:
