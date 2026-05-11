@@ -31,6 +31,9 @@
                     <div class="h5 mb-0 {% if carry_forward >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ carry_forward|floatformat:2 }} €
                     </div>
+                    <div class="small text-muted">
+                        ({{ planned_carry_forward|floatformat:2 }} €)
+                    </div>
                 </div>
             </div>
             <div class="col-md">
@@ -55,6 +58,9 @@
                     <div class="h5 mb-0 {% if month_result >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ month_result|floatformat:2 }} €
                     </div>
+                    <div class="small text-muted">
+                        ({{ prev_month_cumulative_result|floatformat:2 }} €)
+                    </div>
                 </div>
             </div>
             <div class="col-md">
@@ -62,6 +68,9 @@
                     <div class="text-muted small">Endsaldo</div>
                     <div class="h5 mb-0 {% if end_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ end_balance|floatformat:2 }} €
+                    </div>
+                    <div class="small text-muted">
+                        ({{ prev_month_end_balance|floatformat:2 }} €)
                     </div>
                 </div>
             </div>

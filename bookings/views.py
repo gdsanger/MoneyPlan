@@ -10,7 +10,13 @@ from calendar import monthrange
 from decimal import Decimal
 from .models import Booking, Category, RecurringSeries
 from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm
-from .services import get_monthly_carry_forward, get_bookings_for_month
+from .services import (
+    get_monthly_carry_forward,
+    get_bookings_for_month,
+    get_planned_carry_forward,
+    get_previous_month_cumulative_result,
+    get_previous_month_end_balance,
+)
 from .wizard import preview_series_bookings, create_series_bookings
 
 
@@ -495,6 +501,13 @@ def month_view(request, year=None, month=None):
     # Get carry forward balance (all booked bookings before this month)
     carry_forward = get_monthly_carry_forward(year, month)
 
+    # Get planned carry forward (all bookings, booked + planned, before this month)
+    planned_carry_forward = get_planned_carry_forward(year, month)
+
+    # Get previous month cumulative values
+    prev_month_cumulative_result = get_previous_month_cumulative_result(year, month)
+    prev_month_end_balance = get_previous_month_end_balance(year, month)
+
     # Get all bookings for this month
     bookings = get_bookings_for_month(year, month).select_related('category', 'series')
 
@@ -549,10 +562,13 @@ def month_view(request, year=None, month=None):
         'month': month,
         'month_label': month_label,
         'carry_forward': carry_forward,
+        'planned_carry_forward': planned_carry_forward,
         'month_income': month_income,
         'month_expenses': month_expenses,
         'month_result': month_result,
+        'prev_month_cumulative_result': prev_month_cumulative_result,
         'end_balance': end_balance,
+        'prev_month_end_balance': prev_month_end_balance,
         'bookings_with_balance': bookings_with_balance,
         'prev_year': prev_year,
         'prev_month': prev_month,

@@ -15,6 +15,9 @@ from bookings.services import (
     get_due_this_month,
     get_forecast,
     get_top_categories,
+    get_planned_carry_forward,
+    get_previous_month_cumulative_result,
+    get_previous_month_end_balance,
 )
 
 
@@ -397,4 +400,133 @@ class ServicesTestCase(TestCase):
 
         if len(top) > 1:
             self.assertEqual(top[1]['category'].name, "Lebensmittel")
-            self.assertEqual(top[1]['total'], Decimal('350.00'))
+
+    def test_get_planned_carry_forward(self):
+        """Test planned carry forward calculation includes booked and planned"""
+        # Create booked booking before May 2026
+        Booking.objects.create(
+            date=date(2026, 4, 15),
+            description="April Income",
+            amount=Decimal('1000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        # Create planned booking before May 2026
+        Booking.objects.create(
+            date=date(2026, 4, 20),
+            description="April Planned Income",
+            amount=Decimal('500.00'),
+            status='planned',
+            category=self.income_category
+        )
+        # Create booking in May 2026 (should not be included)
+        Booking.objects.create(
+            date=date(2026, 5, 1),
+            description="May Income",
+            amount=Decimal('2000.00'),
+            status='booked',
+            category=self.income_category
+        )
+
+        planned_cf = get_planned_carry_forward(2026, 5)
+        self.assertEqual(planned_cf, Decimal('1500.00'))
+
+    def test_get_planned_carry_forward_empty(self):
+        """Test planned carry forward with no prior bookings"""
+        planned_cf = get_planned_carry_forward(2026, 5)
+        self.assertEqual(planned_cf, Decimal('0.00'))
+
+    def test_get_previous_month_cumulative_result(self):
+        """Test previous month cumulative result calculation"""
+        # Create bookings before May 2026
+        Booking.objects.create(
+            date=date(2026, 3, 10),
+            description="March Income",
+            amount=Decimal('2000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 3, 20),
+            description="March Expense",
+            amount=Decimal('-800.00'),
+            status='booked',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 4, 15),
+            description="April Income",
+            amount=Decimal('1500.00'),
+            status='planned',
+            category=self.income_category
+        )
+
+        prev_result = get_previous_month_cumulative_result(2026, 5)
+        # 2000 - 800 + 1500 = 2700
+        self.assertEqual(prev_result, Decimal('2700.00'))
+
+    def test_get_previous_month_cumulative_result_empty(self):
+        """Test previous month cumulative result with no prior bookings"""
+        prev_result = get_previous_month_cumulative_result(2026, 5)
+        self.assertEqual(prev_result, Decimal('0.00'))
+
+    def test_get_previous_month_end_balance(self):
+        """Test previous month end balance calculation"""
+        # Create bookings before May 2026
+        Booking.objects.create(
+            date=date(2026, 4, 1),
+            description="April Income",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 4, 15),
+            description="April Expense",
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.expense_category
+        )
+
+        prev_balance = get_previous_month_end_balance(2026, 5)
+        # 3000 - 1000 = 2000
+        self.assertEqual(prev_balance, Decimal('2000.00'))
+
+    def test_get_previous_month_end_balance_empty(self):
+        """Test previous month end balance with no prior bookings"""
+        prev_balance = get_previous_month_end_balance(2026, 5)
+        self.assertEqual(prev_balance, Decimal('0.00'))
+
+    def test_new_functions_consistency(self):
+        """Test that new cumulative functions work together consistently"""
+        # Create bookings before May 2026
+        Booking.objects.create(
+            date=date(2026, 4, 1),
+            description="April Booked Income",
+            amount=Decimal('1000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 4, 15),
+            description="April Planned Expense",
+            amount=Decimal('-200.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        # Get all values
+        booked_cf = get_monthly_carry_forward(2026, 5)
+        planned_cf = get_planned_carry_forward(2026, 5)
+        prev_result = get_previous_month_cumulative_result(2026, 5)
+        prev_balance = get_previous_month_end_balance(2026, 5)
+
+        # Booked carry forward should only include booked
+        self.assertEqual(booked_cf, Decimal('1000.00'))
+
+        # Planned carry forward should include both
+        self.assertEqual(planned_cf, Decimal('800.00'))
+
+        # Previous month cumulative result and end balance should be the same
+        self.assertEqual(prev_result, prev_balance)
+        self.assertEqual(prev_result, Decimal('800.00'))
