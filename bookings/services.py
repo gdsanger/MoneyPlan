@@ -319,3 +319,111 @@ def get_top_categories(limit: int = 10, months_back: int = 3) -> list[dict]:
             continue
 
     return result
+
+
+def get_year_overview(year: int) -> list[dict]:
+    """
+    Return overview data for all 12 months of a given year.
+
+    Args:
+        year: The year to generate overview for
+
+    Returns:
+        list[dict]: List of 12 dicts (one per month) with structure:
+            {
+                'month': 1,
+                'label': 'Januar',
+                'year': 2025,
+                'income_booked': Decimal('...'),
+                'income_planned': Decimal('...'),
+                'expenses_booked': Decimal('...'),     # positive number
+                'expenses_planned': Decimal('...'),    # positive number
+                'result_booked': Decimal('...'),       # income - expenses (booked only)
+                'result_total': Decimal('...'),        # including planned
+                'booking_count': 12,
+                'is_future': bool,                     # True if month is in the future
+                'is_current': bool,                    # True if current month
+            }
+    """
+    today = date.today()
+
+    # German month names
+    month_names = [
+        'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+        'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+    ]
+
+    result = []
+
+    for month in range(1, 13):
+        first_day = date(year, month, 1)
+        last_day = date(year, month, monthrange(year, month)[1])
+
+        # Determine if month is future or current
+        is_future = first_day > today
+        is_current = (year == today.year and month == today.month)
+
+        # Get booked income for this month
+        income_booked_qs = Booking.objects.filter(
+            status='booked',
+            amount__gt=0,
+            date__gte=first_day,
+            date__lte=last_day
+        )
+        income_booked = income_booked_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        # Get planned income for this month
+        income_planned_qs = Booking.objects.filter(
+            status='planned',
+            amount__gt=0,
+            date__gte=first_day,
+            date__lte=last_day
+        )
+        income_planned = income_planned_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        # Get booked expenses for this month (as positive number)
+        expenses_booked_qs = Booking.objects.filter(
+            status='booked',
+            amount__lt=0,
+            date__gte=first_day,
+            date__lte=last_day
+        )
+        expenses_booked_total = expenses_booked_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        expenses_booked = abs(expenses_booked_total)
+
+        # Get planned expenses for this month (as positive number)
+        expenses_planned_qs = Booking.objects.filter(
+            status='planned',
+            amount__lt=0,
+            date__gte=first_day,
+            date__lte=last_day
+        )
+        expenses_planned_total = expenses_planned_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        expenses_planned = abs(expenses_planned_total)
+
+        # Calculate results
+        result_booked = income_booked - expenses_booked
+        result_total = (income_booked + income_planned) - (expenses_booked + expenses_planned)
+
+        # Get booking count for this month
+        booking_count = Booking.objects.filter(
+            date__gte=first_day,
+            date__lte=last_day
+        ).count()
+
+        result.append({
+            'month': month,
+            'label': month_names[month - 1],
+            'year': year,
+            'income_booked': income_booked,
+            'income_planned': income_planned,
+            'expenses_booked': expenses_booked,
+            'expenses_planned': expenses_planned,
+            'result_booked': result_booked,
+            'result_total': result_total,
+            'booking_count': booking_count,
+            'is_future': is_future,
+            'is_current': is_current,
+        })
+
+    return result
