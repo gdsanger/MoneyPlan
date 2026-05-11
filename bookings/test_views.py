@@ -441,3 +441,167 @@ class BookingDuplicateTestCase(TestCase):
         response = self.client.post(reverse('bookings:duplicate', args=[99999]))
 
         self.assertEqual(response.status_code, 404)
+
+
+class QuickCreateTestCase(TestCase):
+    """Test cases for quick create functionality"""
+
+    def setUp(self):
+        """Set up test data"""
+        self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+
+        # Create test category
+        self.category = Category.objects.create(
+            name='Test Kategorie',
+            icon='wallet',
+            color='#007bff'
+        )
+
+    def test_quick_create_requires_login(self):
+        """Test that quick create requires login"""
+        response = self.client.get(reverse('bookings:quick_create'))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith('/accounts/login/'))
+
+    def test_quick_create_get_returns_form(self):
+        """Test GET request returns quick entry form"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.get(
+            reverse('bookings:quick_create'),
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'bookings/_quick_entry.html')
+        self.assertIn('form', response.context)
+
+    def test_quick_create_post_creates_booking(self):
+        """Test POST request creates booking"""
+        self.client.login(username='testuser', password='testpass123')
+
+        data = {
+            'date': date.today(),
+            'description': 'Quick Entry Test',
+            'amount': '150.50',
+            'category': self.category.id,
+            'status': 'booked',
+        }
+
+        response = self.client.post(
+            reverse('bookings:quick_create'),
+            data,
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify booking was created
+        booking = Booking.objects.filter(description='Quick Entry Test').first()
+        self.assertIsNotNone(booking)
+        self.assertEqual(booking.amount, Decimal('150.50'))
+        self.assertEqual(booking.status, 'booked')
+        self.assertEqual(booking.category, self.category)
+
+    def test_quick_create_post_with_negative_amount(self):
+        """Test POST request with negative amount (expense)"""
+        self.client.login(username='testuser', password='testpass123')
+
+        data = {
+            'date': date.today(),
+            'description': 'Quick Expense',
+            'amount': '-75.25',
+            'category': self.category.id,
+            'status': 'planned',
+        }
+
+        response = self.client.post(
+            reverse('bookings:quick_create'),
+            data,
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Verify expense booking was created
+        booking = Booking.objects.filter(description='Quick Expense').first()
+        self.assertIsNotNone(booking)
+        self.assertEqual(booking.amount, Decimal('-75.25'))
+        self.assertTrue(booking.is_expense)
+
+    def test_quick_create_validation_errors(self):
+        """Test POST request with invalid data shows validation errors"""
+        self.client.login(username='testuser', password='testpass123')
+
+        # Missing required fields
+        data = {
+            'date': date.today(),
+            'description': '',  # Required field empty
+            'amount': '',  # Required field empty
+            'category': '',  # Required field empty
+            'status': 'booked',
+        }
+
+        response = self.client.post(
+            reverse('bookings:quick_create'),
+            data,
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertTrue(response.context['form'].errors)
+
+    def test_quick_create_htmx_triggers_booking_created(self):
+        """Test that successful POST returns HX-Trigger header"""
+        self.client.login(username='testuser', password='testpass123')
+
+        data = {
+            'date': date.today(),
+            'description': 'Test Booking',
+            'amount': '100.00',
+            'category': self.category.id,
+            'status': 'booked',
+        }
+
+        response = self.client.post(
+            reverse('bookings:quick_create'),
+            data,
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['HX-Trigger'], 'bookingCreated')
+
+    def test_quick_create_success_includes_kpi_context(self):
+        """Test that successful POST includes updated KPI data in context"""
+        self.client.login(username='testuser', password='testpass123')
+
+        data = {
+            'date': date.today(),
+            'description': 'Test Booking',
+            'amount': '200.00',
+            'category': self.category.id,
+            'status': 'booked',
+        }
+
+        response = self.client.post(
+            reverse('bookings:quick_create'),
+            data,
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('booking_created', response.context)
+        self.assertTrue(response.context['booking_created'])
+        self.assertIn('created_booking', response.context)
+        self.assertIn('current_balance', response.context)
+        self.assertIn('planned_income', response.context)
+
+    def test_quick_create_non_htmx_redirects(self):
+        """Test that non-HTMX GET request redirects to dashboard"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.get(reverse('bookings:quick_create'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard:index'))

@@ -2,6 +2,61 @@ from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, Submit, HTML, Div
 from .models import Booking, Category, RecurringSeries
+from datetime import date
+
+
+class QuickBookingForm(forms.ModelForm):
+    """Compact form for quick booking entry on dashboard"""
+
+    class Meta:
+        model = Booking
+        fields = ['date', 'description', 'amount', 'category', 'status']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'z.B. Einkauf Supermarkt'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+        }
+        labels = {
+            'date': 'Datum',
+            'description': 'Beschreibung',
+            'amount': 'Betrag',
+            'category': 'Kategorie',
+            'status': 'Status',
+        }
+        help_texts = {
+            'amount': 'Positiv = Einnahme, Negativ = Ausgabe',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_tag = False  # We'll add form tag in template
+
+        # Compact layout: all fields in a single row on desktop
+        self.helper.layout = Layout(
+            Row(
+                Column('date', css_class='col-md-2 col-12'),
+                Column('description', css_class='col-md-3 col-12'),
+                Column('amount', css_class='col-md-2 col-12'),
+                Column('category', css_class='col-md-3 col-12'),
+                Column('status', css_class='col-md-2 col-12'),
+            ),
+        )
+
+        # Make all fields required
+        self.fields['date'].required = True
+        self.fields['description'].required = True
+        self.fields['amount'].required = True
+        self.fields['category'].required = True
+        self.fields['status'].required = True
+
+        # Set default date to today
+        if not self.instance.pk:
+            self.fields['date'].initial = date.today()
+            self.fields['status'].initial = 'booked'  # Default to "Gebucht"
 
 
 class BookingForm(forms.ModelForm):

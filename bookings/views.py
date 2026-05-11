@@ -9,7 +9,7 @@ from datetime import date, datetime
 from calendar import monthrange
 from decimal import Decimal
 from .models import Booking, Category, RecurringSeries
-from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm
+from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
@@ -222,6 +222,49 @@ def booking_duplicate(request, booking_id):
         return render(request, 'bookings/_booking_form.html', context)
 
     return render(request, 'bookings/booking_form.html', context)
+
+
+@login_required
+def quick_create(request):
+    """
+    Quick-entry form for creating bookings on the dashboard.
+    GET: Returns the form (or button)
+    POST: Saves booking and returns KPI cards for OOB swap
+    """
+    if request.method == 'POST':
+        form = QuickBookingForm(request.POST)
+        if form.is_valid():
+            booking = form.save()
+
+            # For HTMX requests, return updated KPI cards and success state
+            if request.htmx:
+                # Import here to avoid circular imports
+                from dashboard.views import get_kpi_context
+
+                # Get updated KPI data
+                context = get_kpi_context()
+                context['booking_created'] = True
+                context['created_booking'] = booking
+
+                # Return the quick entry form in success state (will reset to button)
+                response = render(request, 'bookings/_quick_entry.html', context)
+                # Trigger custom event for dashboard to listen to
+                response['HX-Trigger'] = 'bookingCreated'
+                return response
+
+            messages.success(request, f'Buchung "{booking.description}" wurde erstellt.')
+            return redirect('dashboard:index')
+    else:
+        form = QuickBookingForm()
+
+    context = {'form': form}
+
+    # If HTMX request, return the form partial
+    if request.htmx:
+        return render(request, 'bookings/_quick_entry.html', context)
+
+    # Non-HTMX fallback: redirect to dashboard
+    return redirect('dashboard:index')
 
 
 @login_required

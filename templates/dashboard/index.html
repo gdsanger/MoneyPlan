@@ -4,78 +4,19 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="mb-4">
-        <i class="bi bi-speedometer2"></i> Dashboard
-    </h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </h1>
+        <!-- Quick Entry Container -->
+        <div id="quick-entry-container">
+            {% include 'bookings/_quick_entry_button.html' %}
+        </div>
+    </div>
 
-    <!-- KPI Cards (2x3 grid on desktop, stacked on mobile) -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title text-muted mb-2">Geldmittel verfügbar</h6>
-                    <h2 class="mb-1 {% if current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        {{ current_balance|floatformat:2 }} €
-                    </h2>
-                    <small class="text-muted">Ist-Saldo (gebucht)</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title text-muted mb-2">Offene Ausgaben</h6>
-                    <h2 class="mb-1 text-danger">
-                        {{ planned_expenses|floatformat:2 }} €
-                    </h2>
-                    <small class="text-muted">Geplante Ausgaben</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title text-muted mb-2">Offene Einnahmen</h6>
-                    <h2 class="mb-1 text-success">
-                        {{ planned_income|floatformat:2 }} €
-                    </h2>
-                    <small class="text-muted">Geplante Einnahmen</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title text-muted mb-2">Verfügbare Mittel (Monat)</h6>
-                    <h2 class="mb-1 text-info">
-                        {{ available_funds_month|floatformat:2 }} €
-                    </h2>
-                    <small class="text-muted">Projektion (aktueller Monat)</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title text-muted mb-2">Verfügbare Mittel (Gesamt)</h6>
-                    <h2 class="mb-1 text-info">
-                        {{ available_funds_total|floatformat:2 }} €
-                    </h2>
-                    <small class="text-muted">Projektion (Gesamt)</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title text-muted mb-2">Aktive Alerts</h6>
-                    <h2 class="mb-1 {% if active_alerts_count > 0 %}text-warning{% else %}text-muted{% endif %}">
-                        {{ active_alerts_count }}
-                    </h2>
-                    <small class="text-muted">Warnmeldungen</small>
-                </div>
-            </div>
-        </div>
+    <!-- KPI Cards (wrapped for HTMX targeting) -->
+    <div id="kpi-cards-container">
+        {% include 'dashboard/_kpi_cards.html' %}
     </div>
 
     <!-- Forecast Chart -->
