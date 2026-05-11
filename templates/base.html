@@ -89,6 +89,16 @@
             </div>
         </div>
     </nav>
+
+    <!-- Critical Alert Banner -->
+    {% if has_critical_alerts and not request.htmx %}
+    <div class="alert alert-warning alert-dismissible fade show m-3" role="alert">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>Achtung!</strong> Es gibt kritische Alerts (überfällige Buchungen oder Liquiditätsengpässe).
+        <a href="{% url 'alerts:list' %}" class="alert-link">Jetzt ansehen</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
     {% endif %}
 
     <!-- Main Content -->
