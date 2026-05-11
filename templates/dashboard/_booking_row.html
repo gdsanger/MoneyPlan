@@ -1,0 +1,32 @@
+<tr id="booking-row-{{ booking.id }}" class="{% if booking.date < today %}table-danger{% endif %}">
+    <td>{{ booking.date|date:"d.m.Y" }}</td>
+    <td>{{ booking.description }}</td>
+    <td class="{% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+        {{ booking.amount|floatformat:2 }} €
+    </td>
+    <td>
+        {% if booking.category %}
+        <span class="badge" style="background-color: {{ booking.category.color }};">
+            <i class="bi bi-{{ booking.category.icon }}"></i> {{ booking.category.name }}
+        </span>
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if booking.status == 'planned' %}
+        <button
+            class="btn btn-sm btn-success"
+            hx-post="{% url 'dashboard:mark_as_booked' booking.id %}"
+            hx-target="#booking-row-{{ booking.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Buchung '{{ booking.description }}' als gebucht markieren?">
+            <i class="bi bi-check-circle"></i> Als gebucht markieren
+        </button>
+        {% else %}
+        <span class="badge bg-success">
+            <i class="bi bi-check-circle-fill"></i> Gebucht
+        </span>
+        {% endif %}
+    </td>
+</tr>

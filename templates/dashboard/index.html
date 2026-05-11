@@ -8,70 +8,144 @@
         <i class="bi bi-speedometer2"></i> Dashboard
     </h1>
 
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card mb-4">
+    <!-- KPI Cards (2x3 grid on desktop, stacked on mobile) -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Geldmittel verfügbar</h5>
-                    <h2 class="text-success">0,00 €</h2>
+                    <h6 class="card-title text-muted mb-2">Geldmittel verfügbar</h6>
+                    <h2 class="mb-1 {% if current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ current_balance|floatformat:2 }} €
+                    </h2>
                     <small class="text-muted">Ist-Saldo (gebucht)</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card mb-4">
+        <div class="col-md-4">
+            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Offene Ausgaben</h5>
-                    <h2 class="text-danger">0,00 €</h2>
+                    <h6 class="card-title text-muted mb-2">Offene Ausgaben</h6>
+                    <h2 class="mb-1 text-danger">
+                        {{ planned_expenses|floatformat:2 }} €
+                    </h2>
                     <small class="text-muted">Geplante Ausgaben</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card mb-4">
+        <div class="col-md-4">
+            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Offene Einnahmen</h5>
-                    <h2 class="text-success">0,00 €</h2>
+                    <h6 class="card-title text-muted mb-2">Offene Einnahmen</h6>
+                    <h2 class="mb-1 text-success">
+                        {{ planned_income|floatformat:2 }} €
+                    </h2>
                     <small class="text-muted">Geplante Einnahmen</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card mb-4">
+        <div class="col-md-4">
+            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Verfügbare Mittel</h5>
-                    <h2 class="text-info">0,00 €</h2>
+                    <h6 class="card-title text-muted mb-2">Verfügbare Mittel (Monat)</h6>
+                    <h2 class="mb-1 text-info">
+                        {{ available_funds_month|floatformat:2 }} €
+                    </h2>
+                    <small class="text-muted">Projektion (aktueller Monat)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted mb-2">Verfügbare Mittel (Gesamt)</h6>
+                    <h2 class="mb-1 text-info">
+                        {{ available_funds_total|floatformat:2 }} €
+                    </h2>
                     <small class="text-muted">Projektion (Gesamt)</small>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card mb-4">
+        <div class="col-md-4">
+            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Saldoverlauf (Forecast +3 Monate)</h5>
-                    <canvas id="forecastChart"></canvas>
+                    <h6 class="card-title text-muted mb-2">Aktive Alerts</h6>
+                    <h2 class="mb-1 {% if active_alerts_count > 0 %}text-warning{% else %}text-muted{% endif %}">
+                        {{ active_alerts_count }}
+                    </h2>
+                    <small class="text-muted">Warnmeldungen</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card mb-4">
+    <!-- Forecast Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Top 10 Kategorien</h5>
-                    <p class="text-muted">Keine Daten verfügbar</p>
+                    <h5 class="card-title">
+                        <i class="bi bi-graph-up"></i> Saldoverlauf (Forecast +3 Monate)
+                    </h5>
+                    <canvas id="forecastChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Charts -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-bar-chart"></i> Top 10 Kategorien
+                    </h5>
+                    <canvas id="categoryChart" style="max-height: 300px;"></canvas>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="card mb-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Einnahmen vs. Ausgaben</h5>
-                    <p class="text-muted">Keine Daten verfügbar</p>
+                    <h5 class="card-title">
+                        <i class="bi bi-pie-chart"></i> Einnahmen vs. Ausgaben (aktueller Monat)
+                    </h5>
+                    <canvas id="donutChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fälligkeitsliste (Due This Month) -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-calendar-check"></i> Fälligkeitsliste ({{ due_bookings.count }} Einträge)
+                    </h5>
+                    {% if due_bookings %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Beschreibung</th>
+                                    <th>Betrag</th>
+                                    <th>Kategorie</th>
+                                    <th>Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in due_bookings %}
+                                {% include 'dashboard/_booking_row.html' %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Keine fälligen Buchungen im aktuellen Monat.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -81,25 +155,115 @@
 
 {% block extra_js %}
 <script>
-// Placeholder chart
-const ctx = document.getElementById('forecastChart');
-if (ctx) {
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun'],
-            datasets: [{
-                label: 'Saldoverlauf',
-                data: [0, 0, 0, 0, 0, 0],
-                borderColor: 'rgb(75, 192, 192)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true
+// Helper to format German currency
+function formatEuro(value) {
+    return new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR'
+    }).format(value);
+}
+
+// Forecast Chart
+fetch('{% url "dashboard:forecast_data" %}')
+    .then(response => response.json())
+    .then(data => {
+        const ctx = document.getElementById('forecastChart');
+        new Chart(ctx, {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatEuro(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return formatEuro(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+// Category Chart (Horizontal Bar)
+fetch('{% url "dashboard:category_data" %}')
+    .then(response => response.json())
+    .then(data => {
+        const ctx = document.getElementById('categoryChart');
+        if (data.labels.length > 0) {
+            new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return formatEuro(context.parsed.x);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                callback: function(value) {
+                                    return formatEuro(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            ctx.parentElement.innerHTML = '<p class="text-muted mt-3">Keine Kategoriedaten verfügbar</p>';
         }
     });
-}
+
+// Donut Chart
+fetch('{% url "dashboard:donut_data" %}')
+    .then(response => response.json())
+    .then(data => {
+        const ctx = document.getElementById('donutChart');
+        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+        if (total > 0) {
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + formatEuro(context.parsed);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            ctx.parentElement.innerHTML = '<p class="text-muted mt-3">Keine Daten für den aktuellen Monat</p>';
+        }
+    });
 </script>
 {% endblock %}
