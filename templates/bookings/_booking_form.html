@@ -32,3 +32,18 @@
         </button>
     </div>
 </form>
+
+{% if booking.pk %}
+<!-- Attachment panel only shown for existing bookings (not create) -->
+<hr class="my-4">
+<h6 class="text-muted mb-3">
+    <i class="bi bi-paperclip"></i> Anhänge
+</h6>
+{% include "attachments/_attachment_panel.html" with object=booking app_label='bookings' model_name='booking' attachments=attachments %}
+{% else %}
+<!-- Hint for new bookings -->
+<hr class="my-4">
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> <strong>Hinweis:</strong> Anhänge können nach dem Speichern der Buchung hinzugefügt werden.
+</div>
+{% endif %}

@@ -1,6 +1,13 @@
 <tr id="booking-row-{{ booking.id }}">
     <td>{{ booking.date|date:"d.m.Y" }}</td>
-    <td>{{ booking.description }}</td>
+    <td>
+        {{ booking.description }}
+        {% if booking.attachment_count %}
+        <a href="{% url 'bookings:edit' booking.id %}" class="text-decoration-none" title="{{ booking.attachment_count }} Anhang{{ booking.attachment_count|pluralize:'e' }}">
+            <i class="bi bi-paperclip"></i> {{ booking.attachment_count }}
+        </a>
+        {% endif %}
+    </td>
     <td class="{% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
         {{ booking.amount|floatformat:2 }} €
     </td>
