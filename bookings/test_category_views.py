@@ -118,7 +118,7 @@ class CategoryViewsTestCase(TestCase):
         self.assertFormError(
             response.context['form'],
             'name',
-            'Kategorie mit diesem Name existiert bereits.'
+            'Kategorie mit diesem Wert für das Feld Name existiert bereits.'
         )
 
     def test_category_edit_get(self):
