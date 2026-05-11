@@ -51,26 +51,33 @@ def index(request):
     # Open tasks for dashboard widget (max 5)
     # Show: overdue first, then due soon, then by priority
     today = date.today()
-    overdue_tasks = Task.objects.filter(
+    overdue_tasks = list(Task.objects.filter(
         status='open',
         due_date__lt=today
-    ).order_by('due_date', '-priority')
+    ).order_by('due_date'))
 
-    due_soon_tasks = Task.objects.filter(
+    due_soon_tasks = list(Task.objects.filter(
         status='open',
         due_date__gte=today,
         due_date__lte=today + timedelta(days=3)
-    ).order_by('due_date', '-priority')
+    ).order_by('due_date'))
 
-    other_open_tasks = Task.objects.filter(
+    other_open_tasks = list(Task.objects.filter(
         status='open'
     ).filter(
         models.Q(due_date__isnull=True) | models.Q(due_date__gt=today + timedelta(days=3))
-    ).order_by('due_date', '-priority')
+    ).order_by('due_date'))
 
-    # Combine and limit to 5
+    # Combine and sort by priority within each group, then limit to 5
+    def sort_by_priority(tasks):
+        return sorted(tasks, key=lambda t: t.priority_order)
+
+    overdue_sorted = sort_by_priority(overdue_tasks)
+    due_soon_sorted = sort_by_priority(due_soon_tasks)
+    other_sorted = sort_by_priority(other_open_tasks)
+
     from itertools import chain
-    open_tasks = list(chain(overdue_tasks, due_soon_tasks, other_open_tasks))[:5]
+    open_tasks = list(chain(overdue_sorted, due_soon_sorted, other_sorted))[:5]
     context['open_tasks'] = open_tasks
 
     return render(request, 'dashboard/index.html', context)

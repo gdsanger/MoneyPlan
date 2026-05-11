@@ -16,6 +16,13 @@ STATUS_CHOICES = [
 
 class Task(models.Model):
     """Aufgabe (Task) für finanzrelevante To-Dos"""
+
+    PRIORITY_ORDER = {
+        'high': 1,
+        'medium': 2,
+        'low': 3,
+    }
+
     title = models.CharField(max_length=255, verbose_name='Titel')
     description = models.TextField(blank=True, verbose_name='Beschreibung')
     due_date = models.DateField(null=True, blank=True, verbose_name='Fälligkeit')
@@ -35,12 +42,17 @@ class Task(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Aktualisiert am')
 
     class Meta:
-        ordering = ['due_date', '-priority', 'title']
+        ordering = ['due_date', 'title']
         verbose_name = 'Aufgabe'
         verbose_name_plural = 'Aufgaben'
 
     def __str__(self):
         return self.title
+
+    @property
+    def priority_order(self):
+        """Get numeric priority for ordering (lower is higher priority)"""
+        return self.PRIORITY_ORDER.get(self.priority, 999)
 
     @property
     def is_overdue(self):
