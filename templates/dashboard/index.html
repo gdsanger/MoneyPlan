@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">
+        <i class="bi bi-speedometer2"></i> Dashboard
+    </h1>
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Geldmittel verfügbar</h5>
+                    <h2 class="text-success">0,00 €</h2>
+                    <small class="text-muted">Ist-Saldo (gebucht)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Offene Ausgaben</h5>
+                    <h2 class="text-danger">0,00 €</h2>
+                    <small class="text-muted">Geplante Ausgaben</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Offene Einnahmen</h5>
+                    <h2 class="text-success">0,00 €</h2>
+                    <small class="text-muted">Geplante Einnahmen</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Verfügbare Mittel</h5>
+                    <h2 class="text-info">0,00 €</h2>
+                    <small class="text-muted">Projektion (Gesamt)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Saldoverlauf (Forecast +3 Monate)</h5>
+                    <canvas id="forecastChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Top 10 Kategorien</h5>
+                    <p class="text-muted">Keine Daten verfügbar</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Einnahmen vs. Ausgaben</h5>
+                    <p class="text-muted">Keine Daten verfügbar</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Placeholder chart
+const ctx = document.getElementById('forecastChart');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun'],
+            datasets: [{
+                label: 'Saldoverlauf',
+                data: [0, 0, 0, 0, 0, 0],
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true
+        }
+    });
+}
+</script>
+{% endblock %}
