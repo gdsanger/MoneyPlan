@@ -1,0 +1,69 @@
+<tr id="task-row-{{ task.id }}" class="{% if task.is_overdue %}table-danger{% elif task.is_due_soon %}table-warning{% endif %}{% if task.status == 'done' %} text-decoration-line-through opacity-50{% endif %}">
+    <td>
+        {% if task.priority == 'high' %}
+        <span class="badge bg-danger">Hoch</span>
+        {% elif task.priority == 'medium' %}
+        <span class="badge bg-warning">Mittel</span>
+        {% else %}
+        <span class="badge bg-secondary">Niedrig</span>
+        {% endif %}
+    </td>
+    <td class="{% if task.status == 'done' %}text-decoration-line-through opacity-75{% endif %}">
+        {{ task.title }}
+    </td>
+    <td class="{% if task.status == 'done' %}text-decoration-line-through opacity-75{% endif %}">
+        {% if task.description %}
+            {{ task.description|truncatewords:10 }}
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if task.due_date %}
+            {{ task.due_date|date:"d.m.Y" }}
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if task.status == 'open' %}
+        <span class="badge bg-primary">Offen</span>
+        {% else %}
+        <span class="badge bg-success">Erledigt</span>
+        {% endif %}
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            <!-- Toggle Status -->
+            <button
+                class="btn btn-outline-secondary"
+                hx-post="{% url 'tasks:toggle_done' task.id %}"
+                hx-target="#task-row-{{ task.id }}"
+                hx-swap="outerHTML"
+                title="Status ändern">
+                <i class="bi bi-{% if task.status == 'open' %}check-square{% else %}x-square{% endif %}"></i>
+            </button>
+
+            <!-- Edit -->
+            <a
+                href="{% url 'tasks:edit' task.id %}"
+                class="btn btn-outline-primary"
+                hx-get="{% url 'tasks:edit' task.id %}"
+                hx-target="#form-modal-content"
+                hx-swap="innerHTML"
+                data-bs-toggle="modal"
+                data-bs-target="#formModal"
+                title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </a>
+
+            <!-- Delete -->
+            <button
+                class="btn btn-outline-danger"
+                onclick="showDeleteModal({{ task.id }}, '{{ task.title|escapejs }}', '{% url 'tasks:delete' task.id %}')"
+                title="Löschen">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr>

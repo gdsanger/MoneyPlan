@@ -75,6 +75,14 @@
                             <i class="bi bi-bell"></i> Fälligkeiten
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'tasks:list' %}">
+                            <i class="bi bi-check2-square"></i> Aufgaben
+                            {% if task_badge_count > 0 %}
+                            <span class="badge bg-danger">{{ task_badge_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}

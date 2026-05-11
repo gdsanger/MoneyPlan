@@ -91,6 +91,76 @@
             </div>
         </div>
     </div>
+
+    <!-- Offene Aufgaben Widget -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-check2-square"></i> Offene Aufgaben
+                        </h5>
+                        <a href="{% url 'tasks:list' %}" class="btn btn-sm btn-outline-primary">
+                            Alle Aufgaben anzeigen →
+                        </a>
+                    </div>
+                    {% if open_tasks %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Priorität</th>
+                                    <th>Titel</th>
+                                    <th style="width: 120px;">Fälligkeit</th>
+                                    <th style="width: 120px;">Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in open_tasks %}
+                                <tr id="task-row-{{ task.id }}" class="{% if task.is_overdue %}table-danger{% elif task.is_due_soon %}table-warning{% endif %}">
+                                    <td>
+                                        {% if task.priority == 'high' %}
+                                        <span class="badge bg-danger">Hoch</span>
+                                        {% elif task.priority == 'medium' %}
+                                        <span class="badge bg-warning">Mittel</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Niedrig</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.title }}</td>
+                                    <td>
+                                        {% if task.due_date %}
+                                            {{ task.due_date|date:"d.m.Y" }}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button
+                                            class="btn btn-sm btn-outline-success"
+                                            hx-post="{% url 'tasks:toggle_done' task.id %}"
+                                            hx-target="#task-row-{{ task.id }}"
+                                            hx-swap="outerHTML"
+                                            title="Als erledigt markieren">
+                                            <i class="bi bi-check-square"></i> Erledigt
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success text-center mb-0">
+                        <i class="bi bi-check-circle"></i>
+                        <strong>Keine offenen Aufgaben — alles erledigt ✓</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

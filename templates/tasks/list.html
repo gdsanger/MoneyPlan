@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Aufgaben - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-check2-square"></i> Aufgaben</h2>
+            <a href="{% url 'tasks:create' %}"
+               class="btn btn-primary"
+               hx-get="{% url 'tasks:create' %}"
+               hx-target="#form-modal-content"
+               hx-swap="innerHTML"
+               data-bs-toggle="modal"
+               data-bs-target="#formModal">
+                <i class="bi bi-plus-circle"></i> Neue Aufgabe
+            </a>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="filter-form" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select"
+                                hx-get="{% url 'tasks:list' %}"
+                                hx-trigger="change"
+                                hx-target="#task-list-container"
+                                hx-swap="innerHTML"
+                                hx-include="#filter-form">
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Alle</option>
+                            <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Offen</option>
+                            <option value="done" {% if status_filter == 'done' %}selected{% endif %}>Erledigt</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Priorität</label>
+                        <select name="priority" class="form-select"
+                                hx-get="{% url 'tasks:list' %}"
+                                hx-trigger="change"
+                                hx-target="#task-list-container"
+                                hx-swap="innerHTML"
+                                hx-include="#filter-form">
+                            <option value="all" {% if priority_filter == 'all' %}selected{% endif %}>Alle</option>
+                            <option value="high" {% if priority_filter == 'high' %}selected{% endif %}>Hoch</option>
+                            <option value="medium" {% if priority_filter == 'medium' %}selected{% endif %}>Mittel</option>
+                            <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Niedrig</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Fälligkeit</label>
+                        <select name="due" class="form-select"
+                                hx-get="{% url 'tasks:list' %}"
+                                hx-trigger="change"
+                                hx-target="#task-list-container"
+                                hx-swap="innerHTML"
+                                hx-include="#filter-form">
+                            <option value="all" {% if due_filter == 'all' %}selected{% endif %}>Alle</option>
+                            <option value="today" {% if due_filter == 'today' %}selected{% endif %}>Heute</option>
+                            <option value="week" {% if due_filter == 'week' %}selected{% endif %}>Diese Woche</option>
+                            <option value="overdue" {% if due_filter == 'overdue' %}selected{% endif %}>Überfällig</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <div id="task-list-container">
+            {% include 'tasks/_list.html' %}
+        </div>
+    </div>
+</div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Aufgabe</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content">
+                <!-- Form loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Aufgabe löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Möchten Sie diese Aufgabe wirklich löschen?</p>
+                <p><strong id="delete-task-title"></strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form id="delete-form" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Löschen</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showDeleteModal(taskId, taskTitle, deleteUrl) {
+    document.getElementById('delete-task-title').textContent = taskTitle;
+    document.getElementById('delete-form').action = deleteUrl;
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+
+// Reload page after successful delete
+document.getElementById('delete-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    fetch(this.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        }
+    }).then(() => {
+        window.location.reload();
+    });
+});
+</script>
+{% endblock %}
