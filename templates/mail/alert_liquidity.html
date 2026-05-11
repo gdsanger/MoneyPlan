@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquiditätswarnung</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #ffc107; padding: 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #000000; font-size: 24px; font-weight: bold;">MoneyPlan</h1>
+                            <p style="margin: 5px 0 0 0; color: #000000; font-size: 14px;">Liquiditätswarnung</p>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 30px;">
+                            <h2 style="margin: 0 0 20px 0; color: #856404; font-size: 20px;">⚠️ Liquiditätsengpass prognostiziert</h2>
+                            <p style="margin: 0 0 15px 0; color: #666666; font-size: 16px; line-height: 1.5;">
+                                Die Liquiditätsprognose zeigt, dass in den nächsten Monaten Ihr Kontostand unter die konfigurierte Schwelle fallen könnte.
+                            </p>
+
+                            <!-- Alert Message -->
+                            <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                                <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.5; white-space: pre-line;">
+                                    {{ alert.message }}
+                                </p>
+                            </div>
+
+                            <!-- Information Box -->
+                            <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color: #f8f9fa; border-radius: 4px; margin: 20px 0;">
+                                <tr>
+                                    <td style="padding: 15px;">
+                                        <p style="margin: 0 0 10px 0; color: #333333; font-size: 14px;">
+                                            <strong>Liquiditätsschwelle:</strong> {{ config.liquidity_threshold }} €
+                                        </p>
+                                        <p style="margin: 0; color: #666666; font-size: 13px; line-height: 1.5;">
+                                            Die Schwelle wurde in den Einstellungen festgelegt. Wenn Ihr prognostizierter Kontostand unter diesen Wert fällt, erhalten Sie diese Warnung.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Action Box -->
+                            <div style="margin: 20px 0; padding: 15px; background-color: #d1ecf1; border-left: 4px solid #0dcaf0; border-radius: 4px;">
+                                <p style="margin: 0 0 10px 0; color: #055160; font-size: 14px;">
+                                    <strong>Empfohlene Maßnahmen:</strong>
+                                </p>
+                                <ul style="margin: 0; padding-left: 20px; color: #055160; font-size: 13px; line-height: 1.6;">
+                                    <li>Prüfen Sie Ihre geplanten Ausgaben</li>
+                                    <li>Überprüfen Sie eingeplante Einnahmen</li>
+                                    <li>Erwägen Sie das Verschieben nicht-kritischer Ausgaben</li>
+                                    <li>Bereiten Sie ggf. zusätzliche Liquidität vor</li>
+                                </ul>
+                            </div>
+
+                            <p style="margin: 20px 0 0 0; color: #999999; font-size: 14px; line-height: 1.5;">
+                                Diese Prognose basiert auf Ihren geplanten Buchungen und dem aktuellen Kontostand. Bitte melden Sie sich in MoneyPlan an, um Details zu überprüfen.
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #dee2e6;">
+                            <p style="margin: 0; color: #999999; font-size: 12px;">
+                                Diese E-Mail wurde automatisch von MoneyPlan generiert.<br>
+                                Bitte antworten Sie nicht auf diese E-Mail.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

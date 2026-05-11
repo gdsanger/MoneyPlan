@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Überfällige Buchung</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #dc3545; padding: 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;">MoneyPlan</h1>
+                            <p style="margin: 5px 0 0 0; color: #ffffff; font-size: 14px;">Überfällige Buchung</p>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 30px;">
+                            <h2 style="margin: 0 0 20px 0; color: #dc3545; font-size: 20px;">⚠️ Buchung ist überfällig</h2>
+                            <p style="margin: 0 0 15px 0; color: #666666; font-size: 16px; line-height: 1.5;">
+                                Eine geplante Buchung ist überfällig und sollte zeitnah bearbeitet werden.
+                            </p>
+
+                            <!-- Booking Details Table -->
+                            <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color: #f8f9fa; border-radius: 4px; margin: 20px 0;">
+                                <tr>
+                                    <td style="padding: 15px; border-bottom: 1px solid #dee2e6;">
+                                        <strong style="color: #333333;">Beschreibung:</strong>
+                                    </td>
+                                    <td style="padding: 15px; border-bottom: 1px solid #dee2e6; color: #666666;">
+                                        {{ booking.description }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 15px; border-bottom: 1px solid #dee2e6;">
+                                        <strong style="color: #333333;">Betrag:</strong>
+                                    </td>
+                                    <td style="padding: 15px; border-bottom: 1px solid #dee2e6; color: #666666;">
+                                        {{ booking.amount }} €
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 15px; border-bottom: 1px solid #dee2e6;">
+                                        <strong style="color: #333333;">Fälligkeitsdatum:</strong>
+                                    </td>
+                                    <td style="padding: 15px; border-bottom: 1px solid #dee2e6; color: #dc3545; font-weight: bold;">
+                                        {{ booking.date|date:"d.m.Y" }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 15px;">
+                                        <strong style="color: #333333;">Kategorie:</strong>
+                                    </td>
+                                    <td style="padding: 15px; color: #666666;">
+                                        {{ booking.category.name }}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {% if booking.notes %}
+                            <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                                <p style="margin: 0; color: #856404; font-size: 14px;">
+                                    <strong>Notizen:</strong> {{ booking.notes }}
+                                </p>
+                            </div>
+                            {% endif %}
+
+                            <div style="margin: 20px 0; padding: 15px; background-color: #f8d7da; border-left: 4px solid #dc3545; border-radius: 4px;">
+                                <p style="margin: 0; color: #721c24; font-size: 14px;">
+                                    <strong>Aktion erforderlich:</strong> Bitte buchen Sie diese Transaktion oder aktualisieren Sie den Status.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #dee2e6;">
+                            <p style="margin: 0; color: #999999; font-size: 12px;">
+                                Diese E-Mail wurde automatisch von MoneyPlan generiert.<br>
+                                Bitte antworten Sie nicht auf diese E-Mail.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
