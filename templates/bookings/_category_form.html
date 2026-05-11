@@ -1,0 +1,47 @@
+{% load crispy_forms_tags %}
+
+<form method="post" hx-post="{% if category %}{% url 'category_edit' category.id %}{% else %}{% url 'category_create' %}{% endif %}">
+    {% csrf_token %}
+
+    {{ form|crispy }}
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Abbrechen
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Speichern
+        </button>
+    </div>
+</form>
+
+<script>
+    // Icon preview update
+    const iconInput = document.getElementById('id_icon');
+    const iconPreview = document.getElementById('icon-preview');
+
+    if (iconInput && iconPreview) {
+        iconInput.addEventListener('input', function() {
+            let iconValue = this.value.trim();
+            if (iconValue) {
+                // Ensure icon value has 'bi-' prefix
+                if (!iconValue.startsWith('bi-')) {
+                    iconValue = 'bi-' + iconValue;
+                }
+                iconPreview.innerHTML = '<i class="bi ' + iconValue + '"></i>';
+            } else {
+                iconPreview.innerHTML = '<i class="bi bi-question-circle"></i>';
+            }
+        });
+    }
+
+    // Color hex value display update
+    const colorInput = document.getElementById('id_color');
+    const hexDisplay = document.getElementById('hex-value-display');
+
+    if (colorInput && hexDisplay) {
+        colorInput.addEventListener('input', function() {
+            hexDisplay.value = this.value.toUpperCase();
+        });
+    }
+</script>

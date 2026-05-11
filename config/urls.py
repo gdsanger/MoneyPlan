@@ -24,5 +24,6 @@ urlpatterns = [
     path('', RedirectView.as_view(pattern_name='dashboard:index', permanent=False)),
     path('dashboard/', include('dashboard.urls')),
     path('bookings/', include('bookings.urls')),
+    path('kategorien/', include('bookings.category_urls')),
     path('alerts/', include('alerts.urls')),
 ]

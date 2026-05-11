@@ -3,12 +3,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.contrib import messages
 from datetime import date, datetime
 from calendar import monthrange
 from decimal import Decimal
 from .models import Booking, Category, RecurringSeries
-from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm
+from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm
 from .services import get_monthly_carry_forward, get_bookings_for_month
 from .wizard import preview_series_bookings, create_series_bookings
 
@@ -185,8 +186,114 @@ def booking_toggle_status(request, booking_id):
 
 @login_required
 def category_list(request):
-    """Liste aller Kategorien"""
-    return render(request, 'bookings/category_list.html')
+    """Liste aller Kategorien mit Buchungsanzahl"""
+    # Get all categories with booking count
+    categories = Category.objects.annotate(
+        booking_count=Count('bookings')
+    ).order_by('name')
+
+    context = {
+        'categories': categories,
+    }
+
+    return render(request, 'bookings/category_list.html', context)
+
+
+@login_required
+def category_create(request):
+    """Erstelle eine neue Kategorie"""
+    if request.method == 'POST':
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save()
+
+            # If HTMX request, redirect to reload the page
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = request.META.get('HTTP_REFERER', '/kategorien/')
+                return response
+
+            messages.success(request, f'Kategorie "{category.name}" wurde erstellt.')
+            return redirect('category_list')
+    else:
+        form = CategoryForm()
+
+    context = {'form': form}
+
+    # If HTMX request, return only the form
+    if request.htmx:
+        return render(request, 'bookings/_category_form.html', context)
+
+    return render(request, 'bookings/category_form.html', context)
+
+
+@login_required
+def category_edit(request, category_id):
+    """Bearbeite eine Kategorie"""
+    category = get_object_or_404(Category, pk=category_id)
+
+    if request.method == 'POST':
+        form = CategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            category = form.save()
+
+            # If HTMX request, redirect to reload the page
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = request.META.get('HTTP_REFERER', '/kategorien/')
+                return response
+
+            messages.success(request, f'Kategorie "{category.name}" wurde aktualisiert.')
+            return redirect('category_list')
+    else:
+        form = CategoryForm(instance=category)
+
+    context = {
+        'form': form,
+        'category': category,
+    }
+
+    # If HTMX request, return only the form
+    if request.htmx:
+        return render(request, 'bookings/_category_form.html', context)
+
+    return render(request, 'bookings/category_form.html', context)
+
+
+@login_required
+def category_delete(request, category_id):
+    """Lösche eine Kategorie"""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    category = get_object_or_404(Category, pk=category_id)
+
+    # Check if category has bookings
+    booking_count = category.bookings.count()
+    if booking_count > 0:
+        # Return error message
+        if request.htmx:
+            return HttpResponse(
+                f'<div class="alert alert-danger">Kategorie kann nicht gelöscht werden. '
+                f'Es sind noch {booking_count} Buchung{"en" if booking_count != 1 else ""} dieser Kategorie zugeordnet.</div>',
+                status=400
+            )
+        messages.error(
+            request,
+            f'Kategorie "{category.name}" kann nicht gelöscht werden. '
+            f'Es sind noch {booking_count} Buchung{"en" if booking_count != 1 else ""} dieser Kategorie zugeordnet.'
+        )
+        return redirect('category_list')
+
+    category_name = category.name
+    category.delete()
+
+    # If HTMX request, return empty response (row will be removed)
+    if request.htmx:
+        return HttpResponse('')
+
+    messages.success(request, f'Kategorie "{category_name}" wurde gelöscht.')
+    return redirect('category_list')
 
 
 @login_required

@@ -1,6 +1,6 @@
 from django import forms
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Row, Column, Submit, HTML
+from crispy_forms.layout import Layout, Row, Column, Submit, HTML, Div
 from .models import Booking, Category, RecurringSeries
 
 
@@ -109,6 +109,33 @@ class BookingFilterForm(forms.Form):
                 pass
 
 
+class CategoryForm(forms.ModelForm):
+    """Form for creating and editing categories"""
+
+    class Meta:
+        model = Category
+        fields = ['name', 'icon', 'color']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'icon': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'z.B. bi-house',
+                'id': 'id_icon',
+            }),
+            'color': forms.TextInput(attrs={
+                'type': 'color',
+                'class': 'form-control form-control-color',
+                'id': 'id_color',
+            }),
+        }
+        labels = {
+            'name': 'Name',
+            'icon': 'Bootstrap Icon',
+            'color': 'Farbe',
+        }
+        help_texts = {
+            'icon': 'Bootstrap Icon Klasse (z.B. bi-house, bi-cart)',
+            'color': 'Farbe als Hex-Wert',
 class RecurringSeriesForm(forms.ModelForm):
     """Form for creating recurring series"""
 
@@ -144,6 +171,40 @@ class RecurringSeriesForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.layout = Layout(
+            'name',
+            Div(
+                'icon',
+                HTML('''
+                    <div class="mt-2 mb-3">
+                        <label class="form-label">Vorschau:</label>
+                        <div id="icon-preview" class="fs-1">
+                            <i class="bi {% if form.icon.value %}bi-{{ form.icon.value }}{% else %}bi-question-circle{% endif %}"></i>
+                        </div>
+                    </div>
+                '''),
+            ),
+            Div(
+                'color',
+                HTML('''
+                    <div class="mt-2 mb-3">
+                        <label class="form-label">Hex-Wert:</label>
+                        <input type="text" id="hex-value-display" class="form-control" readonly value="{{ form.color.value|default:'#6c757d' }}">
+                    </div>
+                '''),
+            ),
+        )
+
+        # Make fields required
+        self.fields['name'].required = True
+        self.fields['icon'].required = False
+        self.fields['color'].required = True
+
+    def clean_icon(self):
+        """Ensure icon always has 'bi-' prefix"""
+        icon = self.cleaned_data.get('icon', '').strip()
+        if icon and not icon.startswith('bi-'):
+            icon = 'bi-' + icon
+        return icon
             'description',
             Row(
                 Column('amount', css_class='col-md-6'),
