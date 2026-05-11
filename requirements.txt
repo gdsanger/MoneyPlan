@@ -1,4 +1,4 @@
-Django>=4.2,<5.0
+Django>=5.0
 django-htmx>=1.17
 crispy-bootstrap5>=2024.2
 django-crispy-forms>=2.1
