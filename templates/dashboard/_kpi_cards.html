@@ -66,4 +66,15 @@
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-2">Überfällige Aufgaben</h6>
+                <h2 class="mb-1 {% if overdue_tasks_count > 0 %}text-danger{% else %}text-muted{% endif %}">
+                    {{ overdue_tasks_count }}
+                </h2>
+                <small class="text-muted">Aufgaben</small>
+            </div>
+        </div>
+    </div>
 </div>
