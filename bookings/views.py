@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Subquery, OuterRef
+from django.contrib.contenttypes.models import ContentType
 from django.contrib import messages
 from datetime import date, datetime
 from calendar import monthrange
@@ -18,13 +19,26 @@ from .services import (
     get_previous_month_end_balance,
 )
 from .wizard import preview_series_bookings, create_series_bookings
+from attachments.services import get_attachments_for
+from attachments.models import Attachment
 
 
 @login_required
 def booking_list(request):
     """Liste aller Buchungen mit Filtern und Pagination"""
-    # Get all bookings
-    bookings = Booking.objects.select_related('category', 'series').all()
+    # Get ContentType for Booking model to use in annotation
+    booking_content_type = ContentType.objects.get_for_model(Booking)
+
+    # Get all bookings with attachment count annotation
+    # Using subquery to count attachments for each booking
+    attachment_count_subquery = Attachment.objects.filter(
+        content_type=booking_content_type,
+        object_id=OuterRef('pk')
+    ).values('object_id').annotate(count=Count('id')).values('count')
+
+    bookings = Booking.objects.select_related('category', 'series').annotate(
+        attachment_count=Subquery(attachment_count_subquery)
+    )
 
     # Apply filters
     filter_form = BookingFilterForm(request.GET)
@@ -125,6 +139,13 @@ def booking_edit(request, booking_id):
 
             # If HTMX request, return the updated row
             if request.htmx:
+                # Add attachment count for the row
+                booking_content_type = ContentType.objects.get_for_model(Booking)
+                booking.attachment_count = Attachment.objects.filter(
+                    content_type=booking_content_type,
+                    object_id=booking.pk
+                ).count()
+
                 context = {
                     'booking': booking,
                     'today': date.today(),
@@ -138,9 +159,13 @@ def booking_edit(request, booking_id):
     else:
         form = BookingForm(instance=booking)
 
+    # Get attachments for this booking
+    attachments = get_attachments_for(booking)
+
     context = {
         'form': form,
         'booking': booking,
+        'attachments': attachments,
     }
 
     # If HTMX request, return only the form
@@ -181,6 +206,13 @@ def booking_toggle_status(request, booking_id):
         booking.status = 'planned'
 
     booking.save()
+
+    # Add attachment count for the row
+    booking_content_type = ContentType.objects.get_for_model(Booking)
+    booking.attachment_count = Attachment.objects.filter(
+        content_type=booking_content_type,
+        object_id=booking.pk
+    ).count()
 
     # Return updated row
     context = {
@@ -586,7 +618,16 @@ def month_view(request, year=None, month=None):
     prev_month_end_balance = get_previous_month_end_balance(year, month)
 
     # Get all bookings for this month
-    bookings = get_bookings_for_month(year, month).select_related('category', 'series')
+    # Add attachment count annotation using the same pattern as booking_list
+    booking_content_type = ContentType.objects.get_for_model(Booking)
+    attachment_count_subquery = Attachment.objects.filter(
+        content_type=booking_content_type,
+        object_id=OuterRef('pk')
+    ).values('object_id').annotate(count=Count('id')).values('count')
+
+    bookings = get_bookings_for_month(year, month).select_related('category', 'series').annotate(
+        attachment_count=Subquery(attachment_count_subquery)
+    )
 
     # Calculate running balance and month totals
     running_balance = carry_forward

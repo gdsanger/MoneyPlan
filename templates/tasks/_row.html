@@ -10,6 +10,11 @@
     </td>
     <td class="{% if task.status == 'done' %}text-decoration-line-through opacity-75{% endif %}">
         {{ task.title }}
+        {% if task.attachment_count %}
+        <a href="{% url 'tasks:edit' task.id %}" class="text-decoration-none" title="{{ task.attachment_count }} Anhang{{ task.attachment_count|pluralize:'e' }}">
+            <i class="bi bi-paperclip"></i> {{ task.attachment_count }}
+        </a>
+        {% endif %}
     </td>
     <td class="{% if task.status == 'done' %}text-decoration-line-through opacity-75{% endif %}">
         {% if task.description %}

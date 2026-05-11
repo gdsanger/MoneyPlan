@@ -14,3 +14,18 @@
         </button>
     </div>
 </form>
+
+{% if task.pk %}
+<!-- Attachment panel only shown for existing tasks (not create) -->
+<hr class="my-4">
+<h6 class="text-muted mb-3">
+    <i class="bi bi-paperclip"></i> Anhänge
+</h6>
+{% include "attachments/_attachment_panel.html" with object=task app_label='tasks' model_name='task' attachments=attachments %}
+{% else %}
+<!-- Hint for new tasks -->
+<hr class="my-4">
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> <strong>Hinweis:</strong> Anhänge können nach dem Speichern der Aufgabe hinzugefügt werden.
+</div>
+{% endif %}

@@ -1,9 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
+from django.db.models import Count, Subquery, OuterRef
+from django.contrib.contenttypes.models import ContentType
 from datetime import date, timedelta
 from .models import Task
 from .forms import TaskForm
+from attachments.services import get_attachments_for
+from attachments.models import Attachment
 
 
 @login_required
@@ -14,8 +18,18 @@ def task_list(request):
     priority_filter = request.GET.get('priority', 'all')
     due_filter = request.GET.get('due', 'all')
 
-    # Start with all tasks
-    tasks = Task.objects.all()
+    # Get ContentType for Task model to use in annotation
+    task_content_type = ContentType.objects.get_for_model(Task)
+
+    # Start with all tasks and add attachment count annotation
+    attachment_count_subquery = Attachment.objects.filter(
+        content_type=task_content_type,
+        object_id=OuterRef('pk')
+    ).values('object_id').annotate(count=Count('id')).values('count')
+
+    tasks = Task.objects.annotate(
+        attachment_count=Subquery(attachment_count_subquery)
+    )
 
     # Apply filters
     if status_filter == 'open':
@@ -100,9 +114,13 @@ def task_edit(request, task_id):
     else:
         form = TaskForm(instance=task)
 
+    # Get attachments for this task
+    attachments = get_attachments_for(task)
+
     context = {
         'form': form,
         'task': task,
+        'attachments': attachments,
     }
 
     # If HTMX request, return only the form partial
@@ -143,6 +161,13 @@ def task_toggle_done(request, task_id):
     else:
         task.status = 'open'
     task.save()
+
+    # Add attachment count for the row
+    task_content_type = ContentType.objects.get_for_model(Task)
+    task.attachment_count = Attachment.objects.filter(
+        content_type=task_content_type,
+        object_id=task.pk
+    ).count()
 
     # Return updated row
     context = {
