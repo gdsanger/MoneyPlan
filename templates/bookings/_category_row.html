@@ -1,0 +1,42 @@
+<tr id="category-row-{{ category.id }}">
+    <td>
+        <span class="badge" style="background-color: {{ category.color }}; width: 40px; height: 25px; display: inline-block;"></span>
+    </td>
+    <td>
+        {% if category.icon %}
+        <span class="fs-4">
+            <i class="bi bi-{{ category.icon }}"></i>
+        </span>
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td>{{ category.name }}</td>
+    <td>
+        <span class="badge bg-secondary">{{ category.booking_count }}</span>
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            <!-- Edit -->
+            <a
+                href="{% url 'bookings:category_edit' category.id %}"
+                class="btn btn-outline-primary"
+                hx-get="{% url 'bookings:category_edit' category.id %}"
+                hx-target="#form-modal-content"
+                hx-swap="innerHTML"
+                data-bs-toggle="modal"
+                data-bs-target="#formModal"
+                title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </a>
+
+            <!-- Delete -->
+            <button
+                class="btn btn-outline-danger"
+                onclick="showDeleteModal({{ category.id }}, '{{ category.name|escapejs }}', '{% url 'bookings:category_delete' category.id %}')"
+                title="Löschen">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr>

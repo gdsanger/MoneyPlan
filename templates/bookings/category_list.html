@@ -1,17 +1,148 @@
 {% extends "base.html" %}
+{% load crispy_forms_tags %}
 
 {% block title %}Kategorien - MoneyPlan{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="mb-4">
-        <i class="bi bi-tags"></i> Kategorien
-    </h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-tags"></i> Kategorien
+        </h1>
+        <a href="{% url 'bookings:category_create' %}" class="btn btn-primary" hx-get="{% url 'bookings:category_create' %}" hx-target="#form-modal-content" hx-swap="innerHTML" data-bs-toggle="modal" data-bs-target="#formModal">
+            <i class="bi bi-plus-circle"></i> Neue Kategorie
+        </a>
+    </div>
 
+    <!-- Error message container for delete errors -->
+    <div id="error-message-container"></div>
+
+    <!-- Category Table -->
     <div class="card">
         <div class="card-body">
-            <p class="text-muted">Kategorienverwaltung wird in zukünftigen Issues implementiert.</p>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Farbe</th>
+                            <th>Icon</th>
+                            <th>Name</th>
+                            <th>Anzahl Buchungen</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in categories %}
+                            {% include 'bookings/_category_row.html' %}
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                <i class="bi bi-inbox"></i> Keine Kategorien gefunden
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-muted text-center mt-2 mb-0">
+                <small>{{ categories|length }} Kategorie{{ categories|length|pluralize:"n" }} gesamt</small>
+            </p>
         </div>
     </div>
 </div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="formModalLabel">Kategorie</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content">
+                <!-- Form will be loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Kategorie löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sind Sie sicher, dass Sie diese Kategorie löschen möchten?</p>
+                <p id="delete-category-name" class="text-muted"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
+                    <i class="bi bi-trash"></i> Löschen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Delete modal handling
+    let deleteUrl = '';
+
+    function showDeleteModal(categoryId, categoryName, url) {
+        deleteUrl = url;
+        document.getElementById('delete-category-name').textContent = categoryName;
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+
+    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+        if (deleteUrl) {
+            // Clear previous error messages
+            document.getElementById('error-message-container').innerHTML = '';
+
+            // Use HTMX to delete and remove the row
+            fetch(deleteUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                                   document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1],
+                    'HX-Request': 'true'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Success - remove row
+                    const categoryId = deleteUrl.split('/').filter(x => x).slice(-2)[0];
+                    const row = document.getElementById('category-row-' + categoryId);
+                    if (row) {
+                        row.remove();
+                    }
+                    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                    deleteModal.hide();
+                } else {
+                    // Error - show error message
+                    return response.text().then(text => {
+                        document.getElementById('error-message-container').innerHTML = text;
+                        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                        deleteModal.hide();
+                        // Scroll to error message
+                        document.getElementById('error-message-container').scrollIntoView({ behavior: 'smooth' });
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('error-message-container').innerHTML =
+                    '<div class="alert alert-danger">Ein Fehler ist aufgetreten.</div>';
+                const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                deleteModal.hide();
+            });
+        }
+    });
+</script>
 {% endblock %}
