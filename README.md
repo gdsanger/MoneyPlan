@@ -1,9 +1,80 @@
 # Finanzplanungs-App — Konsolidiertes Konzept v2.0
 
-**Technologie-Stack:** Python · Django · HTMX · Bootstrap 5 (Dark only)  
-**Datenbank:** SQLite  
-**Deployment:** Self-hosted, Linux / macOS x86  
+**Technologie-Stack:** Python · Django · HTMX · Bootstrap 5 (Dark only)
+**Datenbank:** SQLite
+**Deployment:** Self-hosted, Linux / macOS x86
 **Nutzer:** Single-User mit Django-Auth (Basic Login)
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+- Python 3.11 or higher
+- pip (Python package manager)
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/gdsanger/MoneyPlan.git
+cd MoneyPlan
+```
+
+2. **Create and activate a virtual environment**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. **Install dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+4. **Run database migrations**
+```bash
+python manage.py migrate
+```
+
+5. **Create a superuser**
+```bash
+python manage.py createsuperuser
+```
+Follow the prompts to create your admin account.
+
+6. **Start the development server**
+```bash
+python manage.py runserver
+```
+
+The application will be available at `http://127.0.0.1:8000/`
+
+### Cron Setup for Alerts
+
+To enable automated alert checks, add the following cron job (runs daily at 8:00 AM):
+
+```bash
+0 8 * * * /path/to/venv/bin/python /path/to/MoneyPlan/manage.py run_alerts
+```
+
+Example with full paths:
+```bash
+0 8 * * * /home/user/MoneyPlan/venv/bin/python /home/user/MoneyPlan/manage.py run_alerts
+```
+
+### Environment Variables (Production)
+
+For production deployment, set the following environment variables:
+
+- `SECRET_KEY`: Django secret key (required for production)
+- `DEBUG`: Set to `False` for production (default: `True`)
+
+Example:
+```bash
+export SECRET_KEY='your-secret-key-here'
+export DEBUG='False'
+```
 
 ---
 

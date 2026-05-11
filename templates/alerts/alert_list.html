@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">
+        <i class="bi bi-bell"></i> Alerts & Fälligkeiten
+    </h1>
+
+    <div class="card">
+        <div class="card-body">
+            {% if alerts %}
+            <div class="list-group">
+                {% for alert in alerts %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">
+                            <i class="bi bi-exclamation-triangle text-warning"></i>
+                            {{ alert.get_alert_type_display }}
+                        </h5>
+                        <small>{{ alert.created_at|date:"d.m.Y H:i" }}</small>
+                    </div>
+                    <p class="mb-1">{{ alert.message }}</p>
+                    {% if alert.booking %}
+                    <small class="text-muted">Buchung: {{ alert.booking.description }} ({{ alert.booking.amount }}€)</small>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">Keine Alerts vorhanden.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
