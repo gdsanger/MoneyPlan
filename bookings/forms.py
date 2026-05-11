@@ -136,6 +136,7 @@ class CategoryForm(forms.ModelForm):
         help_texts = {
             'icon': 'Bootstrap Icon Klasse (z.B. bi-house, bi-cart)',
             'color': 'Farbe als Hex-Wert',
+        }
 class RecurringSeriesForm(forms.ModelForm):
     """Form for creating recurring series"""
 
@@ -205,20 +206,24 @@ class RecurringSeriesForm(forms.ModelForm):
         if icon and not icon.startswith('bi-'):
             icon = 'bi-' + icon
         return icon
-            'description',
-            Row(
-                Column('amount', css_class='col-md-6'),
-                Column('category', css_class='col-md-6'),
-            ),
-            Row(
-                Column('interval', css_class='col-md-6'),
-                Column('start_date', css_class='col-md-6'),
-            ),
-            'end_date',
-            'notes',
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper.layout = Layout(
+        'description',
+        Row(
+            Column('amount', css_class='col-md-6'),
+            Column('category', css_class='col-md-6'),
+        ),
+        Row(
+            Column('interval', css_class='col-md-6'),
+            Column('start_date', css_class='col-md-6'),
+        ),
+        'end_date',
+        'notes',
         )
 
-        # Make fields required
         self.fields['description'].required = True
         self.fields['amount'].required = True
         self.fields['interval'].required = True
