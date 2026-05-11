@@ -295,3 +295,149 @@ class BookingFormTestCase(TestCase):
         self.assertEqual(form.cleaned_data['status'], 'planned')
         self.assertEqual(form.cleaned_data['type'], 'income')
         self.assertEqual(form.cleaned_data['category'], self.category)
+
+
+class BookingDuplicateTestCase(TestCase):
+    """Test cases for booking duplicate functionality"""
+
+    def setUp(self):
+        """Set up test data"""
+        self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+
+        # Create test category
+        self.category = Category.objects.create(
+            name='Test Kategorie',
+            icon='wallet',
+            color='#007bff'
+        )
+
+        # Create test series
+        self.series = RecurringSeries.objects.create(
+            description='Test Serie',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2025, 1, 1),
+            category=self.category
+        )
+
+        # Create test booking with series
+        self.booking_with_series = Booking.objects.create(
+            date=date(2025, 1, 15),
+            description='Test Booking',
+            amount=Decimal('1000.00'),
+            status='booked',
+            category=self.category,
+            series=self.series,
+            notes='Test notes'
+        )
+
+        # Create standalone booking
+        self.standalone_booking = Booking.objects.create(
+            date=date(2025, 1, 20),
+            description='Standalone Booking',
+            amount=Decimal('-500.00'),
+            status='planned',
+            category=self.category,
+            notes='Some notes'
+        )
+
+    def test_duplicate_requires_login(self):
+        """Test that duplicate requires login"""
+        response = self.client.post(reverse('bookings:duplicate', args=[self.booking_with_series.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith('/accounts/login/'))
+
+    def test_duplicate_only_post(self):
+        """Test that duplicate only accepts POST requests"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.get(reverse('bookings:duplicate', args=[self.booking_with_series.id]))
+
+        self.assertEqual(response.status_code, 405)
+
+    def test_duplicate_creates_new_booking(self):
+        """Test that duplicate creates a new booking"""
+        self.client.login(username='testuser', password='testpass123')
+        initial_count = Booking.objects.count()
+
+        response = self.client.post(reverse('bookings:duplicate', args=[self.booking_with_series.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Booking.objects.count(), initial_count + 1)
+
+    def test_duplicate_copies_fields_correctly(self):
+        """Test that duplicate copies the right fields"""
+        self.client.login(username='testuser', password='testpass123')
+
+        response = self.client.post(reverse('bookings:duplicate', args=[self.booking_with_series.id]))
+
+        # Get the newly created booking (last one)
+        new_booking = Booking.objects.order_by('-id').first()
+
+        # Check copied fields
+        self.assertEqual(new_booking.description, self.booking_with_series.description)
+        self.assertEqual(new_booking.amount, self.booking_with_series.amount)
+        self.assertEqual(new_booking.category, self.booking_with_series.category)
+        self.assertEqual(new_booking.notes, self.booking_with_series.notes)
+
+        # Check changed fields
+        self.assertEqual(new_booking.date, date.today())
+        self.assertEqual(new_booking.status, 'planned')
+        self.assertIsNone(new_booking.series)  # Series should not be copied
+
+    def test_duplicate_does_not_copy_series(self):
+        """Test that duplicate does not copy series reference"""
+        self.client.login(username='testuser', password='testpass123')
+
+        response = self.client.post(reverse('bookings:duplicate', args=[self.booking_with_series.id]))
+
+        new_booking = Booking.objects.order_by('-id').first()
+        self.assertIsNone(new_booking.series)
+
+    def test_duplicate_returns_form_with_is_duplicate_flag(self):
+        """Test that duplicate returns form with is_duplicate flag"""
+        self.client.login(username='testuser', password='testpass123')
+
+        response = self.client.post(reverse('bookings:duplicate', args=[self.standalone_booking.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('is_duplicate', response.context)
+        self.assertTrue(response.context['is_duplicate'])
+        self.assertIn('booking', response.context)
+        self.assertIn('form', response.context)
+
+    def test_duplicate_standalone_booking(self):
+        """Test duplicating a standalone booking (without series)"""
+        self.client.login(username='testuser', password='testpass123')
+
+        response = self.client.post(reverse('bookings:duplicate', args=[self.standalone_booking.id]))
+
+        new_booking = Booking.objects.order_by('-id').first()
+
+        self.assertEqual(new_booking.description, self.standalone_booking.description)
+        self.assertEqual(new_booking.amount, self.standalone_booking.amount)
+        self.assertEqual(new_booking.category, self.standalone_booking.category)
+        self.assertEqual(new_booking.notes, self.standalone_booking.notes)
+        self.assertEqual(new_booking.date, date.today())
+        self.assertEqual(new_booking.status, 'planned')
+        self.assertIsNone(new_booking.series)
+
+    def test_duplicate_htmx_request(self):
+        """Test duplicate with HTMX request"""
+        self.client.login(username='testuser', password='testpass123')
+
+        response = self.client.post(
+            reverse('bookings:duplicate', args=[self.standalone_booking.id]),
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'bookings/_booking_form.html')
+
+    def test_duplicate_nonexistent_booking(self):
+        """Test duplicating a non-existent booking"""
+        self.client.login(username='testuser', password='testpass123')
+
+        response = self.client.post(reverse('bookings:duplicate', args=[99999]))
+
+        self.assertEqual(response.status_code, 404)

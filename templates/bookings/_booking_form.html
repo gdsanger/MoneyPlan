@@ -14,6 +14,16 @@
     {{ form|crispy }}
 
     <div class="d-flex justify-content-end gap-2 mt-3">
+        {% if is_duplicate %}
+        <!-- Verwerfen button for duplicated bookings -->
+        <button type="button"
+                class="btn btn-danger"
+                hx-post="{% url 'bookings:delete' booking.id %}"
+                hx-confirm="Möchten Sie die duplizierte Buchung verwerfen?"
+                data-bs-dismiss="modal">
+            <i class="bi bi-x-circle"></i> Verwerfen
+        </button>
+        {% endif %}
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             Abbrechen
         </button>

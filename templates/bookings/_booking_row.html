@@ -45,6 +45,18 @@
                 <i class="bi bi-arrow-left-right"></i>
             </button>
 
+            <!-- Duplicate -->
+            <button
+                class="btn btn-outline-info"
+                hx-post="{% url 'bookings:duplicate' booking.id %}"
+                hx-target="#form-modal-content"
+                hx-swap="innerHTML"
+                data-bs-toggle="modal"
+                data-bs-target="#formModal"
+                title="Duplizieren — erstellt eine Kopie mit heutigem Datum">
+                <i class="bi bi-files"></i>
+            </button>
+
             <!-- Edit -->
             <a
                 href="{% url 'bookings:edit' booking.id %}"

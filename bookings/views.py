@@ -191,6 +191,40 @@ def booking_toggle_status(request, booking_id):
 
 
 @login_required
+def booking_duplicate(request, booking_id):
+    """Dupliziere eine Buchung mit heutigem Datum und Status 'planned'"""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    original = get_object_or_404(Booking, pk=booking_id)
+
+    # Create duplicate with today's date and planned status
+    new_booking = Booking.objects.create(
+        date=date.today(),
+        description=original.description,
+        amount=original.amount,
+        category=original.category,
+        notes=original.notes,
+        status='planned',
+        series=None,  # Duplicate is always standalone
+    )
+
+    # Return edit form for the new booking
+    form = BookingForm(instance=new_booking)
+    context = {
+        'form': form,
+        'booking': new_booking,
+        'is_duplicate': True,  # Flag to show "Verwerfen" button
+    }
+
+    # If HTMX request, return the form
+    if request.htmx:
+        return render(request, 'bookings/_booking_form.html', context)
+
+    return render(request, 'bookings/booking_form.html', context)
+
+
+@login_required
 def category_list(request):
     """Liste aller Kategorien mit Buchungsanzahl"""
     # Get all categories with booking count
