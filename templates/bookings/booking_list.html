@@ -1,17 +1,129 @@
 {% extends "base.html" %}
+{% load crispy_forms_tags %}
 
 {% block title %}Buchungen - MoneyPlan{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="mb-4">
-        <i class="bi bi-journal-text"></i> Buchungen
-    </h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-journal-text"></i> Buchungen
+        </h1>
+        <a href="{% url 'bookings:create' %}" class="btn btn-primary" hx-get="{% url 'bookings:create' %}" hx-target="#form-modal-content" hx-swap="innerHTML" data-bs-toggle="modal" data-bs-target="#formModal">
+            <i class="bi bi-plus-circle"></i> Neue Buchung
+        </a>
+    </div>
 
-    <div class="card">
+    <!-- Filter Bar -->
+    <div class="card mb-4">
         <div class="card-body">
-            <p class="text-muted">Buchungsliste wird in zukünftigen Issues implementiert.</p>
+            <h5 class="card-title mb-3">
+                <i class="bi bi-funnel"></i> Filter
+            </h5>
+            <form method="get" id="filter-form">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.status.id_for_label }}" class="form-label">Status</label>
+                        {{ filter_form.status }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.type.id_for_label }}" class="form-label">Typ</label>
+                        {{ filter_form.type }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.category.id_for_label }}" class="form-label">Kategorie</label>
+                        {{ filter_form.category }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.month.id_for_label }}" class="form-label">Monat</label>
+                        {{ filter_form.month }}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Booking List Container -->
+    <div id="booking-list-container">
+        {% include 'bookings/_booking_list.html' %}
+    </div>
+</div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="formModalLabel">Buchung</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content">
+                <!-- Form will be loaded here via HTMX -->
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Buchung löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sind Sie sicher, dass Sie diese Buchung löschen möchten?</p>
+                <p id="delete-booking-description" class="text-muted"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
+                    <i class="bi bi-trash"></i> Löschen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Update filter form HTMX attributes with correct URL
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterSelects = document.querySelectorAll('#filter-form select, #filter-form input[type="month"]');
+        filterSelects.forEach(function(select) {
+            select.setAttribute('hx-get', '{% url "bookings:list" %}');
+            select.setAttribute('hx-trigger', 'change');
+            select.setAttribute('hx-target', '#booking-list-container');
+            select.setAttribute('hx-swap', 'innerHTML');
+            select.setAttribute('hx-include', '#filter-form');
+        });
+
+        // Re-initialize HTMX after DOM updates
+        if (window.htmx) {
+            htmx.process(document.body);
+        }
+    });
+
+    // Delete modal handling
+    let deleteUrl = '';
+
+    function showDeleteModal(bookingId, description, url) {
+        deleteUrl = url;
+        document.getElementById('delete-booking-description').textContent = description;
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+
+    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+        if (deleteUrl) {
+            // Use HTMX to delete and remove the row
+            htmx.ajax('POST', deleteUrl, {
+                target: 'closest tr',
+                swap: 'outerHTML'
+            });
+            const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+            deleteModal.hide();
+        }
+    });
+</script>
 {% endblock %}

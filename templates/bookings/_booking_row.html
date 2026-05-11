@@ -1,0 +1,70 @@
+<tr id="booking-row-{{ booking.id }}">
+    <td>{{ booking.date|date:"d.m.Y" }}</td>
+    <td>{{ booking.description }}</td>
+    <td class="{% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+        {{ booking.amount|floatformat:2 }} €
+    </td>
+    <td>
+        {% if booking.category %}
+        <span class="badge" style="background-color: {{ booking.category.color }};">
+            <i class="bi bi-{{ booking.category.icon }}"></i> {{ booking.category.name }}
+        </span>
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if booking.status == 'planned' %}
+        <span class="badge bg-warning">
+            <i class="bi bi-clock"></i> Geplant
+        </span>
+        {% else %}
+        <span class="badge bg-success">
+            <i class="bi bi-check-circle-fill"></i> Gebucht
+        </span>
+        {% endif %}
+    </td>
+    <td>
+        {% if booking.series %}
+        <span class="badge bg-info">
+            <i class="bi bi-arrow-repeat"></i> {{ booking.series.description }}
+        </span>
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            <!-- Toggle Status -->
+            <button
+                class="btn btn-outline-secondary"
+                hx-post="{% url 'bookings:toggle_status' booking.id %}"
+                hx-target="#booking-row-{{ booking.id }}"
+                hx-swap="outerHTML"
+                title="Status ändern">
+                <i class="bi bi-arrow-left-right"></i>
+            </button>
+
+            <!-- Edit -->
+            <a
+                href="{% url 'bookings:edit' booking.id %}"
+                class="btn btn-outline-primary"
+                hx-get="{% url 'bookings:edit' booking.id %}"
+                hx-target="#form-modal-content"
+                hx-swap="innerHTML"
+                data-bs-toggle="modal"
+                data-bs-target="#formModal"
+                title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </a>
+
+            <!-- Delete -->
+            <button
+                class="btn btn-outline-danger"
+                onclick="showDeleteModal({{ booking.id }}, '{{ booking.description|escapejs }}', '{% url 'bookings:delete' booking.id %}')"
+                title="Löschen">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr>

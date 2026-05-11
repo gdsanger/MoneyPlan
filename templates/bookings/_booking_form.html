@@ -1,0 +1,24 @@
+{% load crispy_forms_tags %}
+
+<form method="post" hx-post="{% if booking %}{% url 'bookings:edit' booking.id %}{% else %}{% url 'bookings:create' %}{% endif %}">
+    {% csrf_token %}
+
+    {% if booking.series %}
+    <div class="alert alert-info mb-3">
+        <i class="bi bi-info-circle"></i>
+        <strong>Hinweis:</strong> Diese Buchung ist Teil der wiederkehrenden Serie
+        "<strong>{{ booking.series.description }}</strong>".
+    </div>
+    {% endif %}
+
+    {{ form|crispy }}
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Abbrechen
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Speichern
+        </button>
+    </div>
+</form>
