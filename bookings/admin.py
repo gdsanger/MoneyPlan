@@ -18,7 +18,7 @@ class RecurringSeriesAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ['date', 'description', 'amount', 'category', 'status', 'series']
+    list_display = ['date', 'description', 'amount', 'status', 'category', 'series']
     list_filter = ['status', 'category', 'date']
     search_fields = ['description', 'notes']
     date_hierarchy = 'date'

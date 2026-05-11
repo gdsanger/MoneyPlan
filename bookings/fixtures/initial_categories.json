@@ -1,0 +1,92 @@
+[
+  {
+    "model": "bookings.category",
+    "pk": 1,
+    "fields": {
+      "name": "Gehalt",
+      "icon": "bi-cash-coin",
+      "color": "#28a745"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 2,
+    "fields": {
+      "name": "Miete",
+      "icon": "bi-house",
+      "color": "#dc3545"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 3,
+    "fields": {
+      "name": "Lebensmittel",
+      "icon": "bi-cart",
+      "color": "#fd7e14"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 4,
+    "fields": {
+      "name": "Transport",
+      "icon": "bi-bus-front",
+      "color": "#0dcaf0"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 5,
+    "fields": {
+      "name": "Versicherungen",
+      "icon": "bi-shield-check",
+      "color": "#6610f2"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 6,
+    "fields": {
+      "name": "Telekommunikation",
+      "icon": "bi-phone",
+      "color": "#6f42c1"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 7,
+    "fields": {
+      "name": "Gesundheit",
+      "icon": "bi-heart-pulse",
+      "color": "#d63384"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 8,
+    "fields": {
+      "name": "Freizeit",
+      "icon": "bi-balloon",
+      "color": "#20c997"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 9,
+    "fields": {
+      "name": "Bildung",
+      "icon": "bi-book",
+      "color": "#0d6efd"
+    }
+  },
+  {
+    "model": "bookings.category",
+    "pk": 10,
+    "fields": {
+      "name": "Sonstiges",
+      "icon": "bi-three-dots",
+      "color": "#6c757d"
+    }
+  }
+]
