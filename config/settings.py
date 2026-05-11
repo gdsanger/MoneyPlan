@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'bookings',
     'dashboard',
     'alerts',
+    'attachments',
 ]
 
 MIDDLEWARE = [
@@ -126,6 +127,26 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# Media files (user uploads)
+MEDIA_ROOT = BASE_DIR / 'data'
+MEDIA_URL = '/media/'
+
+# File upload limits
+MAX_UPLOAD_SIZE_MB = 10
+ALLOWED_UPLOAD_MIME_TYPES = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/csv',
+    'text/plain',
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
