@@ -31,7 +31,7 @@ class RecurringSeries(models.Model):
     interval = models.CharField(max_length=20, choices=INTERVAL_CHOICES, verbose_name="Intervall")
     start_date = models.DateField(verbose_name="Startdatum")
     end_date = models.DateField(null=True, blank=True, verbose_name="Enddatum")
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, verbose_name="Kategorie")
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='series', verbose_name="Kategorie")
     notes = models.TextField(blank=True, verbose_name="Notizen")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
 
@@ -56,7 +56,7 @@ class Booking(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Betrag")
     notes = models.TextField(blank=True, verbose_name="Notizen")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planned', verbose_name="Status")
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, verbose_name="Kategorie")
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='bookings', verbose_name="Kategorie")
     series = models.ForeignKey(RecurringSeries, on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='bookings', verbose_name="Serie")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
@@ -65,14 +65,15 @@ class Booking(models.Model):
     class Meta:
         verbose_name = "Buchung"
         verbose_name_plural = "Buchungen"
-        ordering = ['-date', '-created_at']
+        ordering = ['date', 'id']
 
     def __str__(self):
-        return f"{self.date} - {self.description} ({self.amount}€)"
+        sign = '+' if self.amount >= 0 else ''
+        return f"{self.date} | {self.description} | {sign}{self.amount} €"
 
     @property
     def is_income(self):
-        return self.amount > 0
+        return self.amount >= 0
 
     @property
     def is_expense(self):

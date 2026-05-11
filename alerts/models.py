@@ -5,7 +5,7 @@ from bookings.models import Booking
 class AlertConfig(models.Model):
     """Singleton-Konfiguration für Alerts"""
     days_before_due = models.IntegerField(default=3, verbose_name="Tage vor Fälligkeit")
-    liquidity_threshold = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Liquiditätsschwelle (EUR)")
+    liquidity_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=500, verbose_name="Liquiditätsschwelle (EUR)")
     alert_due_enabled = models.BooleanField(default=True, verbose_name="Fälligkeits-Alerts aktiv")
     alert_overdue_enabled = models.BooleanField(default=True, verbose_name="Überschreitungs-Alerts aktiv")
     alert_liquidity_enabled = models.BooleanField(default=True, verbose_name="Liquiditäts-Alerts aktiv")
@@ -31,9 +31,9 @@ class AlertConfig(models.Model):
         super().save(*args, **kwargs)
 
     @classmethod
-    def get_config(cls):
-        config, created = cls.objects.get_or_create(pk=1)
-        return config
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
 
 
 class Alert(models.Model):
@@ -50,7 +50,7 @@ class Alert(models.Model):
     message = models.TextField(verbose_name="Nachricht")
     mail_sent = models.BooleanField(default=False, verbose_name="Mail versendet")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
-    dedup_key = models.CharField(max_length=255, unique=True, verbose_name="Dedup-Schlüssel")
+    dedup_key = models.CharField(max_length=100, unique=True, verbose_name="Dedup-Schlüssel")
 
     class Meta:
         verbose_name = "Alert"
@@ -58,4 +58,4 @@ class Alert(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.get_alert_type_display()} - {self.created_at.strftime('%Y-%m-%d')}"
+        return f"[{self.get_alert_type_display()}] {self.message[:60]}"
