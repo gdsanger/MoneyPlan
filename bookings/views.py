@@ -4,8 +4,11 @@ from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q
 from datetime import date, datetime
+from calendar import monthrange
+from decimal import Decimal
 from .models import Booking, Category
 from .forms import BookingForm, BookingFilterForm
+from .services import get_monthly_carry_forward, get_bookings_for_month
 
 
 @login_required
@@ -180,3 +183,101 @@ def category_list(request):
 def series_list(request):
     """Liste aller wiederkehrenden Serien"""
     return render(request, 'bookings/series_list.html')
+
+
+@login_required
+def month_view(request, year=None, month=None):
+    """Monatsansicht aller Buchungen mit Saldovortrag und laufendem Saldo"""
+    # Default to current month
+    today = date.today()
+    if year is None or month is None:
+        year = today.year
+        month = today.month
+
+    # Validate month and year
+    try:
+        year = int(year)
+        month = int(month)
+        if not (1 <= month <= 12):
+            raise ValueError
+        # Test if date is valid
+        first_day = date(year, month, 1)
+    except (ValueError, TypeError):
+        year = today.year
+        month = today.month
+        first_day = date(year, month, 1)
+
+    # Get carry forward balance (all booked bookings before this month)
+    carry_forward = get_monthly_carry_forward(year, month)
+
+    # Get all bookings for this month
+    bookings = get_bookings_for_month(year, month).select_related('category', 'series')
+
+    # Calculate running balance and month totals
+    running_balance = carry_forward
+    month_income = Decimal('0.00')
+    month_expenses = Decimal('0.00')
+
+    # Build list of bookings with running balance
+    bookings_with_balance = []
+    for booking in bookings:
+        # Only include booked bookings in running balance
+        if booking.status == 'booked':
+            running_balance += booking.amount
+
+        # Calculate month income and expenses (both booked and planned)
+        if booking.amount >= 0:
+            month_income += booking.amount
+        else:
+            month_expenses += booking.amount
+
+        bookings_with_balance.append({
+            'booking': booking,
+            'running_balance': running_balance if booking.status == 'booked' else None,
+        })
+
+    month_result = month_income + month_expenses
+    end_balance = carry_forward + month_result
+
+    # Calculate previous and next month
+    prev_month = month - 1
+    prev_year = year
+    if prev_month < 1:
+        prev_month = 12
+        prev_year -= 1
+
+    next_month = month + 1
+    next_year = year
+    if next_month > 12:
+        next_month = 1
+        next_year += 1
+
+    # German month names
+    month_names = [
+        'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+        'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+    ]
+    month_label = f"{month_names[month - 1]} {year}"
+
+    context = {
+        'year': year,
+        'month': month,
+        'month_label': month_label,
+        'carry_forward': carry_forward,
+        'month_income': month_income,
+        'month_expenses': month_expenses,
+        'month_result': month_result,
+        'end_balance': end_balance,
+        'bookings_with_balance': bookings_with_balance,
+        'prev_year': prev_year,
+        'prev_month': prev_month,
+        'next_year': next_year,
+        'next_month': next_month,
+        'today': today,
+    }
+
+    # If HTMX request, return only the month content partial
+    if request.htmx:
+        return render(request, 'bookings/_month_content.html', context)
+
+    return render(request, 'bookings/month_view.html', context)
