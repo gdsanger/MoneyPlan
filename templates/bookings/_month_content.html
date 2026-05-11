@@ -1,0 +1,169 @@
+<!-- Month Navigation Header -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <button class="btn btn-outline-secondary"
+                    hx-get="{% url 'bookings:month_view_detail' prev_year prev_month %}"
+                    hx-target="#month-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true">
+                <i class="bi bi-chevron-left"></i> Vorheriger Monat
+            </button>
+            <h3 class="mb-0">{{ month_label }}</h3>
+            <button class="btn btn-outline-secondary"
+                    hx-get="{% url 'bookings:month_view_detail' next_year next_month %}"
+                    hx-target="#month-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true">
+                Nächster Monat <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Bar -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 text-center">
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Saldovortrag</div>
+                    <div class="h5 mb-0 {% if carry_forward >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ carry_forward|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Einnahmen Monat</div>
+                    <div class="h5 mb-0 text-success">
+                        {{ month_income|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Ausgaben Monat</div>
+                    <div class="h5 mb-0 text-danger">
+                        {{ month_expenses|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Ergebnis Monat</div>
+                    <div class="h5 mb-0 {% if month_result >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ month_result|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Endsaldo</div>
+                    <div class="h5 mb-0 {% if end_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ end_balance|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bookings Table -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Beschreibung</th>
+                        <th>Betrag</th>
+                        <th>Kumulierter Saldo</th>
+                        <th>Kategorie</th>
+                        <th>Status</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in bookings_with_balance %}
+                        {% with booking=item.booking running_balance=item.running_balance %}
+                        <tr id="booking-row-{{ booking.id }}" {% if booking.status == 'planned' and booking.date > today %}class="text-muted fst-italic"{% endif %}>
+                            <td>{{ booking.date|date:"d.m.Y" }}</td>
+                            <td>{{ booking.description }}</td>
+                            <td class="{% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ booking.amount|floatformat:2 }} €
+                            </td>
+                            <td {% if running_balance %}class="{% if running_balance >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold"{% endif %}>
+                                {% if running_balance is not None %}
+                                    {{ running_balance|floatformat:2 }} €
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if booking.category %}
+                                <span class="badge" style="background-color: {{ booking.category.color }};">
+                                    <i class="bi bi-{{ booking.category.icon }}"></i> {{ booking.category.name }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if booking.status == 'planned' %}
+                                <span class="badge bg-warning">
+                                    <i class="bi bi-clock"></i> Geplant
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle-fill"></i> Gebucht
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <!-- Toggle Status -->
+                                    <button
+                                        class="btn btn-outline-secondary"
+                                        onclick="toggleStatusAndReload({{ booking.id }}, {{ year }}, {{ month }})"
+                                        title="Status ändern">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                    </button>
+
+                                    <!-- Edit -->
+                                    <a
+                                        href="{% url 'bookings:edit' booking.id %}"
+                                        class="btn btn-outline-primary"
+                                        hx-get="{% url 'bookings:edit' booking.id %}"
+                                        hx-target="#form-modal-content"
+                                        hx-swap="innerHTML"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#formModal"
+                                        title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+
+                                    <!-- Delete -->
+                                    <button
+                                        class="btn btn-outline-danger"
+                                        onclick="showDeleteModal({{ booking.id }}, '{{ booking.description|escapejs }}', '{% url 'bookings:delete' booking.id %}')"
+                                        title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">
+                            <i class="bi bi-inbox"></i> Keine Buchungen in diesem Monat
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

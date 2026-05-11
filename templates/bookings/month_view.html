@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Monatsansicht - {{ month_label }} - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-calendar3"></i> Monatsansicht
+        </h1>
+        <a href="{% url 'bookings:create' %}" class="btn btn-primary" hx-get="{% url 'bookings:create' %}" hx-target="#form-modal-content" hx-swap="innerHTML" data-bs-toggle="modal" data-bs-target="#formModal">
+            <i class="bi bi-plus-circle"></i> Neue Buchung
+        </a>
+    </div>
+
+    <!-- Month Content Container -->
+    <div id="month-content">
+        {% include 'bookings/_month_content.html' %}
+    </div>
+</div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="formModalLabel">Buchung</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content">
+                <!-- Form will be loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Buchung löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sind Sie sicher, dass Sie diese Buchung löschen möchten?</p>
+                <p id="delete-booking-description" class="text-muted"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
+                    <i class="bi bi-trash"></i> Löschen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Toggle status and reload month view
+    function toggleStatusAndReload(bookingId, year, month) {
+        htmx.ajax('POST', `/bookings/${bookingId}/status/`, {}).then(function() {
+            // Reload the current month view
+            htmx.ajax('GET', `/bookings/monate/${year}/${month}/`, {
+                target: '#month-content',
+                swap: 'innerHTML'
+            });
+        });
+    }
+
+    // Delete modal handling
+    let deleteUrl = '';
+
+    function showDeleteModal(bookingId, description, url) {
+        deleteUrl = url;
+        document.getElementById('delete-booking-description').textContent = description;
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+
+    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+        if (deleteUrl) {
+            // Use HTMX to delete and reload the month view
+            htmx.ajax('POST', deleteUrl, {}).then(function() {
+                // Reload the current month view
+                htmx.ajax('GET', window.location.pathname, {
+                    target: '#month-content',
+                    swap: 'innerHTML'
+                });
+            });
+            const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+            deleteModal.hide();
+        }
+    });
+</script>
+{% endblock %}

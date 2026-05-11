@@ -11,4 +11,6 @@ urlpatterns = [
     path('<int:booking_id>/status/', views.booking_toggle_status, name='toggle_status'),
     path('categories/', views.category_list, name='categories'),
     path('series/', views.series_list, name='series'),
+    path('monate/', views.month_view, name='month_view'),
+    path('monate/<int:year>/<int:month>/', views.month_view, name='month_view_detail'),
 ]
