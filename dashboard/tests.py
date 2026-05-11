@@ -307,3 +307,136 @@ class YearOverviewTest(TestCase):
         self.assertContains(response, 'Bestes Monat')
         self.assertContains(response, 'Schlechtestes Monat')
 
+    def test_year_overview_includes_planned_bookings(self):
+        """Test year overview includes planned bookings in totals and colors."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Create a past month with only booked bookings
+        Booking.objects.create(
+            date=date(2026, 1, 15),
+            description='Past Income',
+            amount=Decimal('2000.00'),
+            status='booked',
+            category=self.category
+        )
+        Booking.objects.create(
+            date=date(2026, 1, 20),
+            description='Past Expense',
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.category
+        )
+
+        # Create a future month with planned bookings
+        Booking.objects.create(
+            date=date(2026, 12, 15),
+            description='Future Income',
+            amount=Decimal('3000.00'),
+            status='planned',
+            category=self.category
+        )
+        Booking.objects.create(
+            date=date(2026, 12, 20),
+            description='Future Expense',
+            amount=Decimal('-2500.00'),
+            status='planned',
+            category=self.category
+        )
+
+        response = self.client.get(reverse('dashboard:year_overview_detail', args=[2026]))
+        self.assertEqual(response.status_code, 200)
+
+        # Check that total income includes both booked and planned
+        # Past: 2000, Future: 3000 = 5000 total
+        self.assertContains(response, '5000,00')  # Total income
+
+        # Check that total expenses includes both booked and planned
+        # Past: 1000, Future: 2500 = 3500 total
+        self.assertContains(response, '3500,00')  # Total expenses
+
+        # Check for forecast badge on future months
+        self.assertContains(response, '~ Forecast')
+
+        # Check that planned booking count indicator is shown
+        self.assertContains(response, '(geplant)')
+
+        # Check that summary includes planned bookings hint
+        self.assertContains(response, 'inkl. geplanter Buchungen')
+
+    def test_year_overview_future_month_shows_planned_values(self):
+        """Test that future months show planned values as primary."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Create a future month with only planned bookings
+        Booking.objects.create(
+            date=date(2026, 12, 15),
+            description='Future Income',
+            amount=Decimal('4863.21'),
+            status='planned',
+            category=self.category
+        )
+        Booking.objects.create(
+            date=date(2026, 12, 20),
+            description='Future Expense',
+            amount=Decimal('-5042.23'),
+            status='planned',
+            category=self.category
+        )
+
+        response = self.client.get(reverse('dashboard:year_overview_detail', args=[2026]))
+        self.assertEqual(response.status_code, 200)
+
+        # Check that December shows planned income
+        self.assertContains(response, '4863,21')
+
+        # Check that December shows planned expenses
+        self.assertContains(response, '5042,23')
+
+        # Check that result is negative (expenses > income)
+        # Result: 4863.21 - 5042.23 = -179.02
+        # The negative result should be present
+        self.assertContains(response, 'Dezember')
+
+    def test_year_overview_current_month_shows_both_values(self):
+        """Test that current month shows both booked and planned values."""
+        self.client.login(username='testuser', password='testpass')
+
+        today = date.today()
+        current_year = today.year
+        current_month = today.month
+
+        # Create bookings for current month
+        Booking.objects.create(
+            date=today,
+            description='Current Income Booked',
+            amount=Decimal('1255.37'),
+            status='booked',
+            category=self.category
+        )
+        Booking.objects.create(
+            date=today,
+            description='Current Income Planned',
+            amount=Decimal('1364.48'),
+            status='planned',
+            category=self.category
+        )
+        Booking.objects.create(
+            date=today,
+            description='Current Expense Planned',
+            amount=Decimal('-980.00'),
+            status='planned',
+            category=self.category
+        )
+
+        response = self.client.get(reverse('dashboard:year_overview_detail', args=[current_year]))
+        self.assertEqual(response.status_code, 200)
+
+        # Check for booked income value
+        self.assertContains(response, '1255,37')
+
+        # Check for planned income in parentheses
+        self.assertContains(response, 'geplant')
+
+        # Check for the arrow indicating forecast
+        self.assertContains(response, '→')
+
