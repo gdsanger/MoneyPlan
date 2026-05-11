@@ -1,0 +1,400 @@
+"""
+Unit tests for bookings.services
+"""
+from decimal import Decimal
+from datetime import date, timedelta
+from django.test import TestCase
+from bookings.models import Category, Booking, RecurringSeries
+from bookings.services import (
+    get_current_balance,
+    get_planned_income,
+    get_planned_expenses,
+    get_available_funds,
+    get_monthly_carry_forward,
+    get_bookings_for_month,
+    get_due_this_month,
+    get_forecast,
+    get_top_categories,
+)
+
+
+class ServicesTestCase(TestCase):
+    """Test suite for bookings services"""
+
+    def setUp(self):
+        """Set up test data"""
+        # Create categories
+        self.income_category = Category.objects.create(
+            name="Gehalt", icon="wallet", color="#28a745"
+        )
+        self.expense_category = Category.objects.create(
+            name="Miete", icon="house", color="#dc3545"
+        )
+        self.food_category = Category.objects.create(
+            name="Lebensmittel", icon="cart", color="#fd7e14"
+        )
+
+    def test_get_current_balance_empty(self):
+        """Test current balance with no bookings"""
+        balance = get_current_balance()
+        self.assertEqual(balance, Decimal('0.00'))
+
+    def test_get_current_balance_with_bookings(self):
+        """Test current balance calculation"""
+        # Create some booked bookings
+        Booking.objects.create(
+            date=date(2026, 1, 1),
+            description="Salary",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 1, 5),
+            description="Rent",
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 1, 10),
+            description="Groceries",
+            amount=Decimal('-200.00'),
+            status='booked',
+            category=self.food_category
+        )
+
+        balance = get_current_balance()
+        self.assertEqual(balance, Decimal('1800.00'))
+
+    def test_get_current_balance_ignores_planned(self):
+        """Test that current balance ignores planned bookings"""
+        Booking.objects.create(
+            date=date(2026, 1, 1),
+            description="Salary",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 2, 1),
+            description="Future Salary",
+            amount=Decimal('3000.00'),
+            status='planned',
+            category=self.income_category
+        )
+
+        balance = get_current_balance()
+        self.assertEqual(balance, Decimal('3000.00'))
+
+    def test_get_planned_income(self):
+        """Test planned income calculation"""
+        Booking.objects.create(
+            date=date(2026, 6, 1),
+            description="Salary June",
+            amount=Decimal('3000.00'),
+            status='planned',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 7, 1),
+            description="Salary July",
+            amount=Decimal('3000.00'),
+            status='planned',
+            category=self.income_category
+        )
+
+        income = get_planned_income()
+        self.assertEqual(income, Decimal('6000.00'))
+
+    def test_get_planned_income_with_until(self):
+        """Test planned income with date limit"""
+        Booking.objects.create(
+            date=date(2026, 6, 1),
+            description="Salary June",
+            amount=Decimal('3000.00'),
+            status='planned',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 7, 1),
+            description="Salary July",
+            amount=Decimal('3000.00'),
+            status='planned',
+            category=self.income_category
+        )
+
+        income = get_planned_income(until=date(2026, 6, 30))
+        self.assertEqual(income, Decimal('3000.00'))
+
+    def test_get_planned_expenses(self):
+        """Test planned expenses calculation"""
+        Booking.objects.create(
+            date=date(2026, 6, 1),
+            description="Rent",
+            amount=Decimal('-1000.00'),
+            status='planned',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 6, 15),
+            description="Groceries",
+            amount=Decimal('-200.00'),
+            status='planned',
+            category=self.food_category
+        )
+
+        expenses = get_planned_expenses()
+        self.assertEqual(expenses, Decimal('1200.00'))  # Positive for display
+
+    def test_get_planned_expenses_with_until(self):
+        """Test planned expenses with date limit"""
+        Booking.objects.create(
+            date=date(2026, 6, 1),
+            description="Rent June",
+            amount=Decimal('-1000.00'),
+            status='planned',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 7, 1),
+            description="Rent July",
+            amount=Decimal('-1000.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        expenses = get_planned_expenses(until=date(2026, 6, 30))
+        self.assertEqual(expenses, Decimal('1000.00'))
+
+    def test_get_available_funds_no_month(self):
+        """Test available funds without month scope"""
+        # Current balance
+        Booking.objects.create(
+            date=date(2026, 1, 1),
+            description="Initial",
+            amount=Decimal('1000.00'),
+            status='booked',
+            category=self.income_category
+        )
+
+        # Planned income and expenses
+        Booking.objects.create(
+            date=date(2026, 6, 1),
+            description="Income",
+            amount=Decimal('3000.00'),
+            status='planned',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 6, 5),
+            description="Expense",
+            amount=Decimal('-500.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        funds = get_available_funds()
+        self.assertEqual(funds, Decimal('3500.00'))  # 1000 + 3000 - 500
+
+    def test_get_monthly_carry_forward(self):
+        """Test carry-forward balance calculation"""
+        Booking.objects.create(
+            date=date(2026, 1, 15),
+            description="Jan income",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 1, 20),
+            description="Jan expense",
+            amount=Decimal('-500.00'),
+            status='booked',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 2, 5),
+            description="Feb income",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+
+        # Carry-forward for February should include only January
+        carry_forward = get_monthly_carry_forward(2026, 2)
+        self.assertEqual(carry_forward, Decimal('2500.00'))
+
+        # Carry-forward for March should include January and February
+        carry_forward = get_monthly_carry_forward(2026, 3)
+        self.assertEqual(carry_forward, Decimal('5500.00'))
+
+    def test_get_bookings_for_month(self):
+        """Test getting bookings for a specific month"""
+        Booking.objects.create(
+            date=date(2026, 1, 31),
+            description="Late Jan",
+            amount=Decimal('-100.00'),
+            status='booked',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 2, 1),
+            description="Early Feb",
+            amount=Decimal('-200.00'),
+            status='planned',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 2, 15),
+            description="Mid Feb",
+            amount=Decimal('3000.00'),
+            status='planned',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 2, 28),
+            description="Late Feb",
+            amount=Decimal('-300.00'),
+            status='booked',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 3, 1),
+            description="Early Mar",
+            amount=Decimal('-400.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        bookings = get_bookings_for_month(2026, 2)
+        self.assertEqual(bookings.count(), 3)
+        self.assertEqual(bookings[0].description, "Early Feb")
+        self.assertEqual(bookings[1].description, "Mid Feb")
+        self.assertEqual(bookings[2].description, "Late Feb")
+
+    def test_get_due_this_month(self):
+        """Test getting due bookings for current month"""
+        today = date.today()
+        last_day = date(today.year, today.month, 28)  # Safe for all months
+
+        # Past booking (should not be included)
+        Booking.objects.create(
+            date=today - timedelta(days=5),
+            description="Past",
+            amount=Decimal('-100.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        # Due this month
+        Booking.objects.create(
+            date=today + timedelta(days=1),
+            description="Due soon",
+            amount=Decimal('-200.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        # Already booked (should not be included)
+        Booking.objects.create(
+            date=today + timedelta(days=2),
+            description="Already booked",
+            amount=Decimal('-300.00'),
+            status='booked',
+            category=self.expense_category
+        )
+
+        due = get_due_this_month()
+        self.assertEqual(due.count(), 1)
+        self.assertEqual(due[0].description, "Due soon")
+
+    def test_get_forecast(self):
+        """Test forecast generation"""
+        # Set up current balance
+        Booking.objects.create(
+            date=date(2026, 1, 1),
+            description="Initial",
+            amount=Decimal('1000.00'),
+            status='booked',
+            category=self.income_category
+        )
+
+        # Add planned bookings
+        today = date.today()
+        Booking.objects.create(
+            date=today + timedelta(days=5),
+            description="Income this month",
+            amount=Decimal('2000.00'),
+            status='planned',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=today + timedelta(days=10),
+            description="Expense this month",
+            amount=Decimal('-500.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        forecast = get_forecast(months=2)
+
+        # Should return 3 months (current + 2)
+        self.assertEqual(len(forecast), 3)
+
+        # Check structure
+        for month_data in forecast:
+            self.assertIn('month', month_data)
+            self.assertIn('label', month_data)
+            self.assertIn('projected_balance', month_data)
+            self.assertIn('planned_income', month_data)
+            self.assertIn('planned_expenses', month_data)
+
+        # First month should include the planned bookings
+        self.assertGreater(forecast[0]['planned_income'], Decimal('0'))
+
+    def test_get_top_categories(self):
+        """Test top categories calculation"""
+        today = date.today()
+        two_months_ago = today - timedelta(days=60)
+
+        # Create expenses in different categories
+        Booking.objects.create(
+            date=two_months_ago,
+            description="Rent 1",
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=two_months_ago + timedelta(days=30),
+            description="Rent 2",
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=two_months_ago + timedelta(days=5),
+            description="Groceries 1",
+            amount=Decimal('-200.00'),
+            status='booked',
+            category=self.food_category
+        )
+        Booking.objects.create(
+            date=two_months_ago + timedelta(days=15),
+            description="Groceries 2",
+            amount=Decimal('-150.00'),
+            status='booked',
+            category=self.food_category
+        )
+
+        top = get_top_categories(limit=2, months_back=3)
+
+        # Should return rent as top category
+        self.assertGreaterEqual(len(top), 1)
+        self.assertEqual(top[0]['category'].name, "Miete")
+        self.assertEqual(top[0]['total'], Decimal('2000.00'))
+
+        if len(top) > 1:
+            self.assertEqual(top[1]['category'].name, "Lebensmittel")
+            self.assertEqual(top[1]['total'], Decimal('350.00'))
