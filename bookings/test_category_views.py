@@ -88,7 +88,7 @@ class CategoryViewsTestCase(TestCase):
         self.assertTrue(Category.objects.filter(name='Neue Kategorie').exists())
 
         new_category = Category.objects.get(name='Neue Kategorie')
-        self.assertEqual(new_category.icon, 'cart')
+        self.assertEqual(new_category.icon, 'bi-cart')  # Should have bi- prefix
         self.assertEqual(new_category.color, '#ff5733')
 
     def test_category_create_post_invalid(self):
@@ -147,7 +147,7 @@ class CategoryViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.category1.refresh_from_db()
         self.assertEqual(self.category1.name, 'Updated Category')
-        self.assertEqual(self.category1.icon, 'star')
+        self.assertEqual(self.category1.icon, 'bi-star')  # Should have bi- prefix
         self.assertEqual(self.category1.color, '#00ff00')
 
     def test_category_delete_no_bookings(self):

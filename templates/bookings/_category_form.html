@@ -22,11 +22,13 @@
 
     if (iconInput && iconPreview) {
         iconInput.addEventListener('input', function() {
-            const iconValue = this.value.trim();
+            let iconValue = this.value.trim();
             if (iconValue) {
-                // Remove 'bi-' prefix if user entered it
-                const cleanIcon = iconValue.replace(/^bi-/, '');
-                iconPreview.innerHTML = '<i class="bi bi-' + cleanIcon + '"></i>';
+                // Ensure icon value has 'bi-' prefix
+                if (!iconValue.startsWith('bi-')) {
+                    iconValue = 'bi-' + iconValue;
+                }
+                iconPreview.innerHTML = '<i class="bi ' + iconValue + '"></i>';
             } else {
                 iconPreview.innerHTML = '<i class="bi bi-question-circle"></i>';
             }

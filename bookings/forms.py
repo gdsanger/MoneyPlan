@@ -170,3 +170,10 @@ class CategoryForm(forms.ModelForm):
         self.fields['name'].required = True
         self.fields['icon'].required = False
         self.fields['color'].required = True
+
+    def clean_icon(self):
+        """Ensure icon always has 'bi-' prefix"""
+        icon = self.cleaned_data.get('icon', '').strip()
+        if icon and not icon.startswith('bi-'):
+            icon = 'bi-' + icon
+        return icon

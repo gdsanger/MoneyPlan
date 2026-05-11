@@ -7,7 +7,7 @@
     <td>
         {% if booking.category %}
         <span class="badge" style="background-color: {{ booking.category.color }};">
-            <i class="bi bi-{{ booking.category.icon }}"></i> {{ booking.category.name }}
+            <i class="bi {{ booking.category.icon }}"></i> {{ booking.category.name }}
         </span>
         {% else %}
         <span class="text-muted">-</span>
