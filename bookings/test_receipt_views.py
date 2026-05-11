@@ -162,7 +162,7 @@ class ReceiptUploadViewTestCase(TestCase):
 
         # Should redirect
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['HX-Redirect'], '/buchungen/')
+        self.assertEqual(response['HX-Redirect'], '/bookings/')
 
         # Check booking was created
         booking = Booking.objects.get(description='Test Receipt')
