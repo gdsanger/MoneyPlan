@@ -23,7 +23,8 @@
                         class="btn btn-info"
                         hx-post="{% url 'alerts:test_mail' %}"
                         hx-target="#test-mail-result"
-                        hx-swap="innerHTML">
+                        hx-swap="innerHTML"
+                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
                     <i class="bi bi-envelope"></i> Test-Mail senden
                 </button>
                 <div id="test-mail-result" class="mt-3"></div>

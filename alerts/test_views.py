@@ -208,6 +208,60 @@ class AlertViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'SMTP-Konfiguration unvollständig')
 
+    def test_test_mail_requires_csrf_token(self):
+        """Test that test mail endpoint requires CSRF token"""
+        self.client.login(username='testuser', password='testpass123')
+
+        # Configure SMTP settings
+        config = AlertConfig.get()
+        config.smtp_host = 'smtp.example.com'
+        config.smtp_port = 587
+        config.alert_email = 'test@example.com'
+        config.save()
+
+        # Try POST without CSRF token (enforce_csrf_checks=True)
+        from django.test import Client as CsrfClient
+        csrf_client = CsrfClient(enforce_csrf_checks=True)
+        csrf_client.login(username='testuser', password='testpass123')
+
+        response = csrf_client.post(reverse('alerts:test_mail'))
+
+        # Should return 403 Forbidden due to missing CSRF token
+        self.assertEqual(response.status_code, 403)
+
+    def test_test_mail_without_smtp_auth(self):
+        """Test that test mail works without SMTP authentication"""
+        self.client.login(username='testuser', password='testpass123')
+
+        # Configure SMTP without user/password (no authentication)
+        config = AlertConfig.get()
+        config.smtp_host = 'localhost'
+        config.smtp_port = 25
+        config.smtp_user = ''  # No username
+        config.smtp_password = ''  # No password
+        config.smtp_from = 'test@example.com'
+        config.alert_email = 'recipient@example.com'
+        config.smtp_tls = False
+        config.save()
+
+        # Mock the SMTP server to avoid actual mail sending
+        import unittest.mock as mock
+        with mock.patch('alerts.views.smtplib.SMTP') as mock_smtp:
+            mock_server = mock.MagicMock()
+            mock_smtp.return_value = mock_server
+
+            response = self.client.post(reverse('alerts:test_mail'))
+
+            # Verify login was NOT called (no authentication)
+            mock_server.login.assert_not_called()
+
+            # Verify send_message was called (mail was sent)
+            mock_server.send_message.assert_called_once()
+
+            # Should return success message
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'Test-Mail erfolgreich')
+
 
 class AlertConfigFormTestCase(TestCase):
     """Test cases for AlertConfigForm"""
