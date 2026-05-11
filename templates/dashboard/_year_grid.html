@@ -1,0 +1,171 @@
+<!-- Year Navigation Header -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <button class="btn btn-outline-secondary"
+                    hx-get="{% url 'dashboard:year_overview_detail' prev_year %}"
+                    hx-target="#year-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true">
+                <i class="bi bi-chevron-left"></i> {{ prev_year }}
+            </button>
+            <h3 class="mb-0">{{ year }}</h3>
+            <button class="btn btn-outline-secondary"
+                    hx-get="{% url 'dashboard:year_overview_detail' next_year %}"
+                    hx-target="#year-content"
+                    hx-swap="innerHTML"
+                    hx-push-url="true">
+                {{ next_year }} <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Year Summary Bar -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 text-center">
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Gesamteinnahmen</div>
+                    <div class="h5 mb-0 text-success">
+                        {{ total_income|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Gesamtausgaben</div>
+                    <div class="h5 mb-0 text-danger">
+                        {{ total_expenses|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Jahresergebnis</div>
+                    <div class="h5 mb-0 {% if total_result >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ total_result|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Ø pro Monat</div>
+                    <div class="h5 mb-0 {% if avg_per_month >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ avg_per_month|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            {% if best_month %}
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Bestes Monat</div>
+                    <div class="h6 mb-0 text-success">
+                        {{ best_month.label }}
+                    </div>
+                    <div class="small text-muted">
+                        {{ best_month.result_booked|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if worst_month %}
+            <div class="col-md">
+                <div class="p-3 border rounded">
+                    <div class="text-muted small">Schlechtestes Monat</div>
+                    <div class="h6 mb-0 text-danger">
+                        {{ worst_month.label }}
+                    </div>
+                    <div class="small text-muted">
+                        {{ worst_month.result_booked|floatformat:2 }} €
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 12-Month Heatmap Grid -->
+<div class="row g-3">
+    {% for month in months_data %}
+    <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+        <a href="{% url 'bookings:month_view_detail' month.year month.month %}"
+           class="text-decoration-none">
+            <div class="card h-100 {% if month.is_current %}border-primary border-2{% elif month.is_future %}border-secondary border-opacity-50{% endif %}"
+                 {% if month.bg_color %}style="background-color: {{ month.bg_color }};"{% endif %}>
+                <div class="card-body">
+                    <!-- Month Name -->
+                    <h5 class="card-title mb-3">
+                        {{ month.label }} {{ month.year }}
+                        {% if month.is_current %}
+                        <i class="bi bi-circle-fill text-primary" style="font-size: 0.5rem;"></i>
+                        {% endif %}
+                    </h5>
+
+                    {% if month.booking_count > 0 %}
+                    <!-- Income -->
+                    <div class="mb-2">
+                        <span class="text-success">
+                            <i class="bi bi-plus-circle"></i> {{ month.income_booked|floatformat:2 }} €
+                        </span>
+                        {% if month.income_planned > 0 %}
+                        <span class="text-muted small">
+                            (+{{ month.income_planned|floatformat:2 }} €)
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Expenses -->
+                    <div class="mb-2">
+                        <span class="text-danger">
+                            <i class="bi bi-dash-circle"></i> {{ month.expenses_booked|floatformat:2 }} €
+                        </span>
+                        {% if month.expenses_planned > 0 %}
+                        <span class="text-muted small">
+                            (+{{ month.expenses_planned|floatformat:2 }} €)
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <hr class="my-2">
+
+                    <!-- Result -->
+                    <div class="mb-3">
+                        <strong class="{% if month.result_booked >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            = {{ month.result_booked|floatformat:2 }} €
+                        </strong>
+                    </div>
+
+                    <!-- Mini Progress Bar -->
+                    {% if month.income_booked > 0 %}
+                    <div class="progress mb-2" style="height: 8px;">
+                        {% widthratio month.expenses_booked month.income_booked 100 as expense_percentage %}
+                        <div class="progress-bar bg-danger"
+                             role="progressbar"
+                             style="width: {% if expense_percentage > 100 %}100{% else %}{{ expense_percentage }}{% endif %}%"
+                             aria-valuenow="{{ expense_percentage }}"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Booking Count -->
+                    <div class="small text-muted">
+                        <i class="bi bi-journal-text"></i> {{ month.booking_count }} Buchung{% if month.booking_count != 1 %}en{% endif %}
+                    </div>
+                    {% else %}
+                    <!-- No Data -->
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox"></i>
+                        <div class="mt-2">Keine Daten</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>

@@ -167,3 +167,143 @@ class MarkAsBookedTest(TestCase):
             reverse('dashboard:mark_as_booked', args=[self.booking.id])
         )
         self.assertEqual(response.status_code, 405)
+
+
+class YearOverviewTest(TestCase):
+    """Test year overview functionality."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.category = Category.objects.create(
+            name='Test Category',
+            icon='cash',
+            color='#28a745'
+        )
+
+    def test_year_overview_requires_login(self):
+        """Test year overview requires authentication."""
+        response = self.client.get(reverse('dashboard:year_overview'))
+        self.assertEqual(response.status_code, 302)  # Redirect to login
+
+    def test_year_overview_loads_with_no_data(self):
+        """Test year overview loads with no bookings."""
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.get(reverse('dashboard:year_overview'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Jahresübersicht')
+        self.assertContains(response, 'Gesamteinnahmen')
+        self.assertContains(response, 'Gesamtausgaben')
+        self.assertContains(response, 'Jahresergebnis')
+
+    def test_year_overview_with_specific_year(self):
+        """Test year overview with specific year parameter."""
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.get(reverse('dashboard:year_overview_detail', args=[2025]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '2025')
+
+    def test_year_overview_displays_bookings(self):
+        """Test year overview displays booking data correctly."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Create bookings in different months
+        Booking.objects.create(
+            date=date(2026, 1, 15),
+            description='January Income',
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.category
+        )
+        Booking.objects.create(
+            date=date(2026, 1, 20),
+            description='January Expense',
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.category
+        )
+        Booking.objects.create(
+            date=date(2026, 2, 10),
+            description='February Income',
+            amount=Decimal('2500.00'),
+            status='booked',
+            category=self.category
+        )
+
+        response = self.client.get(reverse('dashboard:year_overview_detail', args=[2026]))
+        self.assertEqual(response.status_code, 200)
+
+        # Check for German month names
+        self.assertContains(response, 'Januar')
+        self.assertContains(response, 'Februar')
+
+        # Check for totals (German formatting: comma as decimal separator)
+        self.assertContains(response, '5500,00')  # Total income (3000 + 2500)
+        self.assertContains(response, '1000,00')  # Total expenses
+
+    def test_year_overview_htmx_returns_partial(self):
+        """Test year overview returns partial template for HTMX requests."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Simulate HTMX request
+        response = self.client.get(
+            reverse('dashboard:year_overview_detail', args=[2025]),
+            HTTP_HX_REQUEST='true'
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # Should contain grid content but not full page structure
+        self.assertContains(response, 'Gesamteinnahmen')
+        self.assertNotContains(response, 'Jahresübersicht')  # Page title not in partial
+
+    def test_year_overview_navigation(self):
+        """Test year navigation links are present."""
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.get(reverse('dashboard:year_overview_detail', args=[2025]))
+        self.assertEqual(response.status_code, 200)
+
+        # Check for previous/next year navigation
+        self.assertContains(response, '2024')  # Previous year
+        self.assertContains(response, '2026')  # Next year
+        self.assertContains(response, 'hx-get')  # HTMX navigation
+
+    def test_year_overview_shows_all_12_months(self):
+        """Test year overview shows all 12 months."""
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.get(reverse('dashboard:year_overview'))
+        self.assertEqual(response.status_code, 200)
+
+        # All German month names should appear
+        months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+                  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+        for month in months:
+            self.assertContains(response, month)
+
+    def test_year_overview_calculates_best_worst_month(self):
+        """Test year overview calculates best and worst months."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Create bookings with different results
+        Booking.objects.create(
+            date=date(2026, 1, 15),
+            description='Good Month',
+            amount=Decimal('5000.00'),
+            status='booked',
+            category=self.category
+        )
+        Booking.objects.create(
+            date=date(2026, 2, 15),
+            description='Bad Month',
+            amount=Decimal('-3000.00'),
+            status='booked',
+            category=self.category
+        )
+
+        response = self.client.get(reverse('dashboard:year_overview_detail', args=[2026]))
+        self.assertEqual(response.status_code, 200)
+
+        # Check for best/worst month indicators
+        self.assertContains(response, 'Bestes Monat')
+        self.assertContains(response, 'Schlechtestes Monat')
+
