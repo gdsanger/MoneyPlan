@@ -9,7 +9,7 @@
         <h1>
             <i class="bi bi-tags"></i> Kategorien
         </h1>
-        <a href="{% url 'bookings:category_create' %}" class="btn btn-primary" hx-get="{% url 'bookings:category_create' %}" hx-target="#form-modal-content" hx-swap="innerHTML" data-bs-toggle="modal" data-bs-target="#formModal">
+        <a href="{% url 'category_create' %}" class="btn btn-primary" hx-get="{% url 'category_create' %}" hx-target="#form-modal-content" hx-swap="innerHTML" data-bs-toggle="modal" data-bs-target="#formModal">
             <i class="bi bi-plus-circle"></i> Neue Kategorie
         </a>
     </div>

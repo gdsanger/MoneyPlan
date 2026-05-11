@@ -201,7 +201,7 @@ def category_create(request):
                 return response
 
             messages.success(request, f'Kategorie "{category.name}" wurde erstellt.')
-            return redirect('bookings:categories')
+            return redirect('category_list')
     else:
         form = CategoryForm()
 
@@ -231,7 +231,7 @@ def category_edit(request, category_id):
                 return response
 
             messages.success(request, f'Kategorie "{category.name}" wurde aktualisiert.')
-            return redirect('bookings:categories')
+            return redirect('category_list')
     else:
         form = CategoryForm(instance=category)
 
@@ -270,7 +270,7 @@ def category_delete(request, category_id):
             f'Kategorie "{category.name}" kann nicht gelöscht werden. '
             f'Es sind noch {booking_count} Buchung{"en" if booking_count != 1 else ""} dieser Kategorie zugeordnet.'
         )
-        return redirect('bookings:categories')
+        return redirect('category_list')
 
     category_name = category.name
     category.delete()
@@ -280,7 +280,7 @@ def category_delete(request, category_id):
         return HttpResponse('')
 
     messages.success(request, f'Kategorie "{category_name}" wurde gelöscht.')
-    return redirect('bookings:categories')
+    return redirect('category_list')
 
 
 @login_required

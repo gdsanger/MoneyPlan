@@ -30,14 +30,14 @@ class CategoryViewsTestCase(TestCase):
 
     def test_category_list_requires_login(self):
         """Test that category list requires login"""
-        response = self.client.get(reverse('bookings:categories'))
+        response = self.client.get(reverse('category_list'))
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith('/accounts/login/'))
 
     def test_category_list_view(self):
         """Test category list view displays categories"""
         self.client.login(username='testuser', password='testpass123')
-        response = self.client.get(reverse('bookings:categories'))
+        response = self.client.get(reverse('category_list'))
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'bookings/category_list.html')
@@ -56,7 +56,7 @@ class CategoryViewsTestCase(TestCase):
         )
 
         self.client.login(username='testuser', password='testpass123')
-        response = self.client.get(reverse('bookings:categories'))
+        response = self.client.get(reverse('category_list'))
 
         categories = response.context['categories']
         cat1 = next(c for c in categories if c.id == self.category1.id)
@@ -68,7 +68,7 @@ class CategoryViewsTestCase(TestCase):
     def test_category_create_get(self):
         """Test GET request to create category"""
         self.client.login(username='testuser', password='testpass123')
-        response = self.client.get(reverse('bookings:category_create'))
+        response = self.client.get(reverse('category_create'))
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -82,7 +82,7 @@ class CategoryViewsTestCase(TestCase):
             'icon': 'cart',
             'color': '#ff5733'
         }
-        response = self.client.post(reverse('bookings:category_create'), data)
+        response = self.client.post(reverse('category_create'), data)
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Category.objects.filter(name='Neue Kategorie').exists())
@@ -99,7 +99,7 @@ class CategoryViewsTestCase(TestCase):
             'icon': 'cart',
             'color': '#ff5733'
         }
-        response = self.client.post(reverse('bookings:category_create'), data)
+        response = self.client.post(reverse('category_create'), data)
 
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response.context['form'], 'name', 'Dieses Feld ist zwingend erforderlich.')
@@ -112,7 +112,7 @@ class CategoryViewsTestCase(TestCase):
             'icon': 'cart',
             'color': '#ff5733'
         }
-        response = self.client.post(reverse('bookings:category_create'), data)
+        response = self.client.post(reverse('category_create'), data)
 
         self.assertEqual(response.status_code, 200)
         self.assertFormError(
@@ -124,7 +124,7 @@ class CategoryViewsTestCase(TestCase):
     def test_category_edit_get(self):
         """Test GET request to edit category"""
         self.client.login(username='testuser', password='testpass123')
-        response = self.client.get(reverse('bookings:category_edit', args=[self.category1.id]))
+        response = self.client.get(reverse('category_edit', args=[self.category1.id]))
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -140,7 +140,7 @@ class CategoryViewsTestCase(TestCase):
             'color': '#00ff00'
         }
         response = self.client.post(
-            reverse('bookings:category_edit', args=[self.category1.id]),
+            reverse('category_edit', args=[self.category1.id]),
             data
         )
 
@@ -155,7 +155,7 @@ class CategoryViewsTestCase(TestCase):
         self.client.login(username='testuser', password='testpass123')
         category_id = self.category1.id
 
-        response = self.client.post(reverse('bookings:category_delete', args=[category_id]))
+        response = self.client.post(reverse('category_delete', args=[category_id]))
 
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Category.objects.filter(id=category_id).exists())
@@ -174,7 +174,7 @@ class CategoryViewsTestCase(TestCase):
         self.client.login(username='testuser', password='testpass123')
         category_id = self.category1.id
 
-        response = self.client.post(reverse('bookings:category_delete', args=[category_id]))
+        response = self.client.post(reverse('category_delete', args=[category_id]))
 
         # Category should still exist
         self.assertTrue(Category.objects.filter(id=category_id).exists())
@@ -196,7 +196,7 @@ class CategoryViewsTestCase(TestCase):
         category_id = self.category1.id
 
         response = self.client.post(
-            reverse('bookings:category_delete', args=[category_id]),
+            reverse('category_delete', args=[category_id]),
             HTTP_HX_REQUEST='true'
         )
 
@@ -209,7 +209,7 @@ class CategoryViewsTestCase(TestCase):
     def test_category_delete_get_not_allowed(self):
         """Test GET request to delete category is not allowed"""
         self.client.login(username='testuser', password='testpass123')
-        response = self.client.get(reverse('bookings:category_delete', args=[self.category1.id]))
+        response = self.client.get(reverse('category_delete', args=[self.category1.id]))
 
         self.assertEqual(response.status_code, 405)
 

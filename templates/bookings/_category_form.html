@@ -1,6 +1,6 @@
 {% load crispy_forms_tags %}
 
-<form method="post" hx-post="{% if category %}{% url 'bookings:category_edit' category.id %}{% else %}{% url 'bookings:category_create' %}{% endif %}">
+<form method="post" hx-post="{% if category %}{% url 'category_edit' category.id %}{% else %}{% url 'category_create' %}{% endif %}">
     {% csrf_token %}
 
     {{ form|crispy }}
