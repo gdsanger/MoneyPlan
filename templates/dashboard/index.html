@@ -165,7 +165,12 @@ function formatEuro(value) {
 
 // Forecast Chart
 fetch('{% url "dashboard:forecast_data" %}')
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+        }
+        return response.json();
+    })
     .then(data => {
         const ctx = document.getElementById('forecastChart');
         new Chart(ctx, {
@@ -194,14 +199,26 @@ fetch('{% url "dashboard:forecast_data" %}')
                 }
             }
         });
+    })
+    .catch(error => {
+        console.error('Error loading forecast chart:', error);
+        const ctx = document.getElementById('forecastChart');
+        if (ctx) {
+            ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Forecast-Daten</p>';
+        }
     });
 
 // Category Chart (Horizontal Bar)
 fetch('{% url "dashboard:category_data" %}')
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+        }
+        return response.json();
+    })
     .then(data => {
         const ctx = document.getElementById('categoryChart');
-        if (data.labels.length > 0) {
+        if (data.labels && data.labels.length > 0) {
             new Chart(ctx, {
                 type: 'bar',
                 data: data,
@@ -235,11 +252,23 @@ fetch('{% url "dashboard:category_data" %}')
         } else {
             ctx.parentElement.innerHTML = '<p class="text-muted mt-3">Keine Kategoriedaten verfügbar</p>';
         }
+    })
+    .catch(error => {
+        console.error('Error loading category chart:', error);
+        const ctx = document.getElementById('categoryChart');
+        if (ctx) {
+            ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Kategoriedaten</p>';
+        }
     });
 
 // Donut Chart
 fetch('{% url "dashboard:donut_data" %}')
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+        }
+        return response.json();
+    })
     .then(data => {
         const ctx = document.getElementById('donutChart');
         const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
@@ -263,6 +292,13 @@ fetch('{% url "dashboard:donut_data" %}')
             });
         } else {
             ctx.parentElement.innerHTML = '<p class="text-muted mt-3">Keine Daten für den aktuellen Monat</p>';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading donut chart:', error);
+        const ctx = document.getElementById('donutChart');
+        if (ctx) {
+            ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Donut-Chart-Daten</p>';
         }
     });
 </script>
