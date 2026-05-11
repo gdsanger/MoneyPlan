@@ -1,14 +1,16 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q
 from datetime import date, datetime
 from calendar import monthrange
 from decimal import Decimal
-from .models import Booking, Category
-from .forms import BookingForm, BookingFilterForm
+from .models import Booking, Category, RecurringSeries
+from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm
 from .services import get_monthly_carry_forward, get_bookings_for_month
+from .wizard import preview_series_bookings, create_series_bookings
 
 
 @login_required
@@ -42,6 +44,14 @@ def booking_list(request):
                 date__year=month.year,
                 date__month=month.month
             )
+
+    # Check for series filter (from query params, not in form)
+    series_id = request.GET.get('series')
+    if series_id:
+        try:
+            bookings = bookings.filter(series_id=int(series_id))
+        except (ValueError, TypeError):
+            pass
 
     # Order by date descending
     bookings = bookings.order_by('-date', '-id')
@@ -182,7 +192,175 @@ def category_list(request):
 @login_required
 def series_list(request):
     """Liste aller wiederkehrenden Serien"""
-    return render(request, 'bookings/series_list.html')
+    series = RecurringSeries.objects.select_related('category').all().order_by('-created_at')
+
+    # Annotate with booking count
+    series_with_counts = []
+    for s in series:
+        booking_count = s.bookings.count()
+        series_with_counts.append({
+            'series': s,
+            'booking_count': booking_count,
+        })
+
+    context = {
+        'series_with_counts': series_with_counts,
+    }
+
+    return render(request, 'bookings/series_list.html', context)
+
+
+@login_required
+def series_wizard(request):
+    """Step 1: Konfiguration der Serie"""
+    if request.method == 'POST':
+        form = RecurringSeriesForm(request.POST)
+        if form.is_valid():
+            # Save form data to session
+            request.session['series_form_data'] = {
+                'description': form.cleaned_data['description'],
+                'amount': str(form.cleaned_data['amount']),
+                'interval': form.cleaned_data['interval'],
+                'start_date': form.cleaned_data['start_date'].isoformat(),
+                'end_date': form.cleaned_data['end_date'].isoformat() if form.cleaned_data['end_date'] else None,
+                'category_id': form.cleaned_data['category'].id,
+                'notes': form.cleaned_data['notes'],
+            }
+            return redirect('bookings:series_preview')
+    else:
+        # Check if we have form data in session (back button from step 2)
+        if 'series_form_data' in request.session:
+            form_data = request.session['series_form_data']
+            # Reconstruct form from session data
+            initial_data = {
+                'description': form_data['description'],
+                'amount': form_data['amount'],
+                'interval': form_data['interval'],
+                'start_date': datetime.fromisoformat(form_data['start_date']).date(),
+                'end_date': datetime.fromisoformat(form_data['end_date']).date() if form_data['end_date'] else None,
+                'category': form_data['category_id'],
+                'notes': form_data['notes'],
+            }
+            form = RecurringSeriesForm(initial=initial_data)
+        else:
+            form = RecurringSeriesForm()
+
+    context = {
+        'form': form,
+        'step': 1,
+    }
+
+    return render(request, 'bookings/series_wizard_step1.html', context)
+
+
+@login_required
+def series_preview(request):
+    """Step 2: Vorschau der Buchungen"""
+    # Check if we have series data in session
+    if 'series_form_data' not in request.session:
+        return redirect('bookings:series_wizard')
+
+    if request.method == 'POST':
+        # Back button pressed
+        if 'back' in request.POST:
+            return redirect('bookings:series_wizard')
+        # Continue to confirmation
+        return redirect('bookings:series_confirm')
+
+    # Build temporary series object for preview
+    form_data = request.session['series_form_data']
+    series = RecurringSeries(
+        description=form_data['description'],
+        amount=Decimal(form_data['amount']),
+        interval=form_data['interval'],
+        start_date=datetime.fromisoformat(form_data['start_date']).date(),
+        end_date=datetime.fromisoformat(form_data['end_date']).date() if form_data['end_date'] else None,
+        category_id=form_data['category_id'],
+        notes=form_data['notes'],
+    )
+
+    # Get preview dates
+    preview_dates = preview_series_bookings(series)
+    booking_count = len(preview_dates)
+    show_warning = booking_count > 60
+
+    # Get category for display
+    category = Category.objects.get(id=form_data['category_id'])
+
+    context = {
+        'series': series,
+        'category': category,
+        'preview_dates': preview_dates,
+        'booking_count': booking_count,
+        'show_warning': show_warning,
+        'step': 2,
+    }
+
+    return render(request, 'bookings/series_wizard_step2.html', context)
+
+
+@login_required
+def series_confirm(request):
+    """Step 3: Bestätigung und Anlegen der Serie"""
+    if request.method != 'POST':
+        return redirect('bookings:series_wizard')
+
+    # Check if we have series data in session
+    if 'series_form_data' not in request.session:
+        return redirect('bookings:series_wizard')
+
+    # Create the series
+    form_data = request.session['series_form_data']
+    series = RecurringSeries.objects.create(
+        description=form_data['description'],
+        amount=Decimal(form_data['amount']),
+        interval=form_data['interval'],
+        start_date=datetime.fromisoformat(form_data['start_date']).date(),
+        end_date=datetime.fromisoformat(form_data['end_date']).date() if form_data['end_date'] else None,
+        category_id=form_data['category_id'],
+        notes=form_data['notes'],
+    )
+
+    # Create all bookings
+    created_bookings = create_series_bookings(series)
+
+    # Clear session data
+    del request.session['series_form_data']
+
+    # Add success message
+    messages.success(
+        request,
+        f'Serie "{series.description}" erfolgreich angelegt. Es wurden {len(created_bookings)} Buchungen erstellt.'
+    )
+
+    return redirect('bookings:series_list')
+
+
+@login_required
+def series_delete(request, series_id):
+    """Lösche eine Serie und alle verknüpften Buchungen"""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    series = get_object_or_404(RecurringSeries, pk=series_id)
+
+    # Count bookings before deletion
+    booking_count = series.bookings.count()
+    series_description = series.description
+
+    # Delete the series (bookings will be set to NULL due to SET_NULL)
+    # But we should manually delete them for cascade
+    series.bookings.all().delete()
+    series.delete()
+
+    # Add success message
+    messages.success(
+        request,
+        f'Serie "{series_description}" und {booking_count} verknüpfte Buchungen wurden gelöscht.'
+    )
+
+    return redirect('bookings:series_list')
+
 
 
 @login_required

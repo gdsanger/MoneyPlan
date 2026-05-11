@@ -10,7 +10,11 @@ urlpatterns = [
     path('<int:booking_id>/loeschen/', views.booking_delete, name='delete'),
     path('<int:booking_id>/status/', views.booking_toggle_status, name='toggle_status'),
     path('categories/', views.category_list, name='categories'),
-    path('series/', views.series_list, name='series'),
+    path('serien/', views.series_list, name='series_list'),
+    path('serien/neu/', views.series_wizard, name='series_wizard'),
+    path('serien/neu/vorschau/', views.series_preview, name='series_preview'),
+    path('serien/neu/bestaetigen/', views.series_confirm, name='series_confirm'),
+    path('serien/<int:series_id>/loeschen/', views.series_delete, name='series_delete'),
     path('monate/', views.month_view, name='month_view'),
     path('monate/<int:year>/<int:month>/', views.month_view, name='month_view_detail'),
 ]
