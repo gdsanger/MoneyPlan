@@ -31,6 +31,7 @@
                     <div class="h5 mb-0 text-success">
                         {{ total_income|floatformat:2 }} €
                     </div>
+                    <div class="text-muted" style="font-size: 0.7rem;">inkl. geplanter Buchungen</div>
                 </div>
             </div>
             <div class="col-md">
@@ -39,6 +40,7 @@
                     <div class="h5 mb-0 text-danger">
                         {{ total_expenses|floatformat:2 }} €
                     </div>
+                    <div class="text-muted" style="font-size: 0.7rem;">inkl. geplanter Buchungen</div>
                 </div>
             </div>
             <div class="col-md">
@@ -65,7 +67,7 @@
                         {{ best_month.label }}
                     </div>
                     <div class="small text-muted">
-                        {{ best_month.result_booked|floatformat:2 }} €
+                        {{ best_month.result_total|floatformat:2 }} €
                     </div>
                 </div>
             </div>
@@ -78,7 +80,7 @@
                         {{ worst_month.label }}
                     </div>
                     <div class="small text-muted">
-                        {{ worst_month.result_booked|floatformat:2 }} €
+                        {{ worst_month.result_total|floatformat:2 }} €
                     </div>
                 </div>
             </div>
@@ -101,31 +103,59 @@
                         {{ month.label }} {{ month.year }}
                         {% if month.is_current %}
                         <i class="bi bi-circle-fill text-primary" style="font-size: 0.5rem;"></i>
+                        {% elif month.is_future %}
+                        <span class="badge bg-secondary" style="font-size: 0.6rem;">~ Forecast</span>
                         {% endif %}
                     </h5>
 
                     {% if month.booking_count > 0 %}
                     <!-- Income -->
                     <div class="mb-2">
-                        <span class="text-success">
-                            <i class="bi bi-plus-circle"></i> {{ month.income_booked|floatformat:2 }} €
-                        </span>
-                        {% if month.income_planned > 0 %}
-                        <span class="text-muted small">
-                            (+{{ month.income_planned|floatformat:2 }} €)
-                        </span>
+                        {% if month.is_future %}
+                            <!-- Future: show only planned values -->
+                            <span class="text-success">
+                                <i class="bi bi-plus-circle"></i> {{ month.income_planned|floatformat:2 }} €
+                            </span>
+                        {% elif month.is_current %}
+                            <!-- Current: show booked + planned in parentheses -->
+                            <span class="text-success">
+                                <i class="bi bi-plus-circle"></i> {{ month.income_booked|floatformat:2 }} €
+                            </span>
+                            {% if month.income_planned > 0 %}
+                            <span class="text-muted small">
+                                (geplant: +{{ month.income_planned|floatformat:2 }} €)
+                            </span>
+                            {% endif %}
+                        {% else %}
+                            <!-- Past: show only booked values -->
+                            <span class="text-success">
+                                <i class="bi bi-plus-circle"></i> {{ month.income_booked|floatformat:2 }} €
+                            </span>
                         {% endif %}
                     </div>
 
                     <!-- Expenses -->
                     <div class="mb-2">
-                        <span class="text-danger">
-                            <i class="bi bi-dash-circle"></i> {{ month.expenses_booked|floatformat:2 }} €
-                        </span>
-                        {% if month.expenses_planned > 0 %}
-                        <span class="text-muted small">
-                            (+{{ month.expenses_planned|floatformat:2 }} €)
-                        </span>
+                        {% if month.is_future %}
+                            <!-- Future: show only planned values -->
+                            <span class="text-danger">
+                                <i class="bi bi-dash-circle"></i> {{ month.expenses_planned|floatformat:2 }} €
+                            </span>
+                        {% elif month.is_current %}
+                            <!-- Current: show booked + planned in parentheses -->
+                            <span class="text-danger">
+                                <i class="bi bi-dash-circle"></i> {{ month.expenses_booked|floatformat:2 }} €
+                            </span>
+                            {% if month.expenses_planned > 0 %}
+                            <span class="text-muted small">
+                                (geplant: +{{ month.expenses_planned|floatformat:2 }} €)
+                            </span>
+                            {% endif %}
+                        {% else %}
+                            <!-- Past: show only booked values -->
+                            <span class="text-danger">
+                                <i class="bi bi-dash-circle"></i> {{ month.expenses_booked|floatformat:2 }} €
+                            </span>
                         {% endif %}
                     </div>
 
@@ -133,12 +163,46 @@
 
                     <!-- Result -->
                     <div class="mb-3">
-                        <strong class="{% if month.result_booked >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            = {{ month.result_booked|floatformat:2 }} €
-                        </strong>
+                        {% if month.is_future %}
+                            <!-- Future: show result_total with ~ prefix -->
+                            <strong class="{% if month.result_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                = {{ month.result_total|floatformat:2 }} €
+                            </strong>
+                        {% elif month.is_current %}
+                            <!-- Current: show booked → total (Ist | Forecast) -->
+                            <strong class="{% if month.result_booked >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                = {{ month.result_booked|floatformat:2 }} €
+                            </strong>
+                            <span class="text-muted small">→</span>
+                            <strong class="{% if month.result_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ month.result_total|floatformat:2 }} €
+                            </strong>
+                        {% else %}
+                            <!-- Past: show only result_booked (actual results) -->
+                            <strong class="{% if month.result_booked >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                = {{ month.result_booked|floatformat:2 }} €
+                            </strong>
+                        {% endif %}
                     </div>
 
-                    <!-- Mini Progress Bar -->
+                    <!-- Mini Progress Bar (based on total values for current/future) -->
+                    {% if month.is_future or month.is_current %}
+                        {% with total_income=month.income_booked|add:month.income_planned total_expenses=month.expenses_booked|add:month.expenses_planned %}
+                        {% if total_income > 0 %}
+                        <div class="progress mb-2" style="height: 8px;">
+                            {% widthratio total_expenses total_income 100 as expense_percentage %}
+                            <div class="progress-bar bg-danger"
+                                 role="progressbar"
+                                 style="width: {% if expense_percentage > 100 %}100{% else %}{{ expense_percentage }}{% endif %}%"
+                                 aria-valuenow="{{ expense_percentage }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                    {% else %}
+                    <!-- Past: progress bar based on booked only -->
                     {% if month.income_booked > 0 %}
                     <div class="progress mb-2" style="height: 8px;">
                         {% widthratio month.expenses_booked month.income_booked 100 as expense_percentage %}
@@ -151,10 +215,11 @@
                         </div>
                     </div>
                     {% endif %}
+                    {% endif %}
 
                     <!-- Booking Count -->
                     <div class="small text-muted">
-                        <i class="bi bi-journal-text"></i> {{ month.booking_count }} Buchung{% if month.booking_count != 1 %}en{% endif %}
+                        <i class="bi bi-journal-text"></i> {{ month.booking_count }} Buchung{% if month.booking_count != 1 %}en{% endif %}{% if month.is_future %} (geplant){% endif %}
                     </div>
                     {% else %}
                     <!-- No Data -->

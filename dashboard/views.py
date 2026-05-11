@@ -83,29 +83,32 @@ def year_overview(request, year=None):
     # Get year overview data
     months_data = get_year_overview(year)
 
-    # Calculate year summary statistics
-    total_income = sum(m['income_booked'] for m in months_data)
-    total_expenses = sum(m['expenses_booked'] for m in months_data)
+    # Calculate year summary statistics (including planned bookings)
+    total_income = sum(m['income_booked'] + m['income_planned'] for m in months_data)
+    total_expenses = sum(m['expenses_booked'] + m['expenses_planned'] for m in months_data)
     total_result = total_income - total_expenses
     avg_per_month = total_result / Decimal('12') if months_data else Decimal('0.00')
 
-    # Find best and worst months (by booked result)
-    best_month = max(months_data, key=lambda m: m['result_booked']) if months_data else None
-    worst_month = min(months_data, key=lambda m: m['result_booked']) if months_data else None
+    # Find best and worst months (by total result including planned)
+    best_month = max(months_data, key=lambda m: m['result_total']) if months_data else None
+    worst_month = min(months_data, key=lambda m: m['result_total']) if months_data else None
 
-    # Calculate color scale based on min/max results
-    min_result = min(m['result_booked'] for m in months_data) if months_data else Decimal('0.00')
-    max_result = max(m['result_booked'] for m in months_data) if months_data else Decimal('0.00')
+    # Calculate color scale based on min/max results (using result_total)
+    min_result = min(m['result_total'] for m in months_data) if months_data else Decimal('0.00')
+    max_result = max(m['result_total'] for m in months_data) if months_data else Decimal('0.00')
 
     # Add color intensity to each month
     for month_data in months_data:
-        result = month_data['result_booked']
+        result = month_data['result_total']
         if result > 0:
             # Positive: scale from 0.1 to 0.35
             if max_result > 0:
                 intensity = 0.1 + float(result / max_result) * 0.25
             else:
                 intensity = 0.1
+            # Reduce opacity for future months (forecast)
+            if month_data['is_future']:
+                intensity = intensity * 0.6
             month_data['bg_color'] = f'rgba(25, 135, 84, {intensity:.2f})'
         elif result < 0:
             # Negative: scale from 0.1 to 0.35
@@ -113,6 +116,9 @@ def year_overview(request, year=None):
                 intensity = 0.1 + float(abs(result) / abs(min_result)) * 0.25
             else:
                 intensity = 0.1
+            # Reduce opacity for future months (forecast)
+            if month_data['is_future']:
+                intensity = intensity * 0.6
             month_data['bg_color'] = f'rgba(220, 53, 69, {intensity:.2f})'
         else:
             # Zero or no data: default background
