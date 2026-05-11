@@ -288,3 +288,131 @@ class MonthViewTestCase(TestCase):
         self.assertNotContains(response, 'Monatsansicht')
         # Should contain month navigation
         self.assertContains(response, 'Mai 2026')
+
+    def test_month_view_planned_carry_forward(self):
+        """Test that planned carry forward includes both booked and planned bookings"""
+        # Create booked bookings before May 2026
+        Booking.objects.create(
+            date=date(2026, 4, 1),
+            description="April Income (booked)",
+            amount=Decimal('1000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 4, 15),
+            description="April Expense (booked)",
+            amount=Decimal('-500.00'),
+            status='booked',
+            category=self.expense_category
+        )
+
+        # Create planned bookings before May 2026
+        Booking.objects.create(
+            date=date(2026, 4, 20),
+            description="April Income (planned)",
+            amount=Decimal('300.00'),
+            status='planned',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 4, 25),
+            description="April Expense (planned)",
+            amount=Decimal('-100.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        response = self.client.get(
+            reverse('bookings:month_view_detail', kwargs={'year': 2026, 'month': 5})
+        )
+
+        # Booked carry forward: 1000 - 500 = 500
+        self.assertEqual(response.context['carry_forward'], Decimal('500.00'))
+
+        # Planned carry forward: 1000 - 500 + 300 - 100 = 700
+        self.assertEqual(response.context['planned_carry_forward'], Decimal('700.00'))
+
+    def test_month_view_prev_month_cumulative_result(self):
+        """Test that previous month cumulative result is calculated correctly"""
+        # Create bookings before May 2026
+        Booking.objects.create(
+            date=date(2026, 3, 15),
+            description="March Income",
+            amount=Decimal('2000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 3, 20),
+            description="March Expense",
+            amount=Decimal('-800.00'),
+            status='booked',
+            category=self.expense_category
+        )
+        Booking.objects.create(
+            date=date(2026, 4, 10),
+            description="April Income",
+            amount=Decimal('1500.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 4, 15),
+            description="April Expense",
+            amount=Decimal('-600.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        response = self.client.get(
+            reverse('bookings:month_view_detail', kwargs={'year': 2026, 'month': 5})
+        )
+
+        # Previous month cumulative result (all bookings before May):
+        # March: 2000 - 800 = 1200
+        # April: 1500 - 600 = 900
+        # Total: 1200 + 900 = 2100
+        self.assertEqual(response.context['prev_month_cumulative_result'], Decimal('2100.00'))
+
+    def test_month_view_prev_month_end_balance(self):
+        """Test that previous month end balance is calculated correctly"""
+        # Create bookings before May 2026
+        Booking.objects.create(
+            date=date(2026, 3, 15),
+            description="March Income",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 4, 10),
+            description="April Expense",
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.expense_category
+        )
+
+        response = self.client.get(
+            reverse('bookings:month_view_detail', kwargs={'year': 2026, 'month': 5})
+        )
+
+        # Previous month end balance: 3000 - 1000 = 2000
+        self.assertEqual(response.context['prev_month_end_balance'], Decimal('2000.00'))
+
+    def test_month_view_cumulative_values_in_context(self):
+        """Test that all new cumulative values are present in the context"""
+        response = self.client.get(
+            reverse('bookings:month_view_detail', kwargs={'year': 2026, 'month': 5})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # Check that all new context variables exist
+        self.assertIn('planned_carry_forward', response.context)
+        self.assertIn('prev_month_cumulative_result', response.context)
+        self.assertIn('prev_month_end_balance', response.context)
+
+        # With no bookings, all should be zero
+        self.assertEqual(response.context['planned_carry_forward'], Decimal('0.00'))
+        self.assertEqual(response.context['prev_month_cumulative_result'], Decimal('0.00'))
+        self.assertEqual(response.context['prev_month_end_balance'], Decimal('0.00'))

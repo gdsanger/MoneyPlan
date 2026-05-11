@@ -123,6 +123,58 @@ def get_bookings_for_month(year: int, month: int) -> QuerySet:
     ).order_by('date', 'id')
 
 
+def get_planned_carry_forward(year: int, month: int) -> Decimal:
+    """
+    Sum of all bookings (both `booked` and `planned`) with date < first day of given month.
+    This is the planned carry-forward balance for the monthly view.
+
+    Args:
+        year: Year of the target month
+        month: Month number (1-12)
+
+    Returns:
+        Decimal: Planned carry-forward balance (booked + planned)
+    """
+    first_day = date(year, month, 1)
+    result = Booking.objects.filter(date__lt=first_day).aggregate(total=Sum('amount'))
+    return result['total'] or Decimal('0.00')
+
+
+def get_previous_month_cumulative_result(year: int, month: int) -> Decimal:
+    """
+    Calculate the cumulative result (income + expenses) for all bookings
+    up to the end of the previous month.
+
+    Args:
+        year: Year of the target month
+        month: Month number (1-12)
+
+    Returns:
+        Decimal: Cumulative result up to end of previous month
+    """
+    first_day = date(year, month, 1)
+    # Get all bookings before the current month
+    result = Booking.objects.filter(date__lt=first_day).aggregate(total=Sum('amount'))
+    return result['total'] or Decimal('0.00')
+
+
+def get_previous_month_end_balance(year: int, month: int) -> Decimal:
+    """
+    Calculate the end balance at the end of the previous month.
+    This is equivalent to the cumulative result of all bookings before the current month.
+
+    Args:
+        year: Year of the target month
+        month: Month number (1-12)
+
+    Returns:
+        Decimal: End balance at end of previous month
+    """
+    # For now, this is the same as previous_month_cumulative_result
+    # Both represent the cumulative sum of all bookings before the current month
+    return get_previous_month_cumulative_result(year, month)
+
+
 def get_due_this_month() -> QuerySet:
     """
     All `planned` bookings where date is between today and end of current month.
