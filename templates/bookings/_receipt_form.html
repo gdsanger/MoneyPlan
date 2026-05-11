@@ -1,0 +1,153 @@
+{% load crispy_forms_tags %}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title mb-3">
+            <i class="bi bi-check-circle text-success"></i> Beleg erkannt
+        </h5>
+
+        <!-- AI Recognition Summary -->
+        <div class="alert alert-info mb-3">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-robot fs-4 me-2"></i>
+                <div class="flex-grow-1">
+                    <strong>Erkannt:</strong> {{ receipt_result.raw_text|truncatewords:20 }}<br>
+                    <small class="text-muted">
+                        Analysiert mit: {{ receipt_result.ai_provider }} / {{ receipt_result.ai_model }}
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Booking Form with Confidence Indicators -->
+        <form method="post"
+              hx-post="{% url 'bookings:receipt_confirm' %}"
+              hx-target="#receipt-container"
+              hx-swap="innerHTML">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="{{ form.date.id_for_label }}" class="form-label">
+                    Datum*
+                    {% if receipt_result.confidence.date == 'high' %}
+                        <span class="badge bg-success" title="Hoch — sicher erkannt">🟢</span>
+                    {% elif receipt_result.confidence.date == 'medium' %}
+                        <span class="badge bg-warning" title="Mittel — bitte prüfen">🟡</span>
+                    {% else %}
+                        <span class="badge bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
+                    {% endif %}
+                </label>
+                {{ form.date }}
+                {% if form.date.errors %}
+                    <div class="invalid-feedback d-block">{{ form.date.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ form.description.id_for_label }}" class="form-label">
+                    Beschreibung*
+                    {% if receipt_result.confidence.description == 'high' %}
+                        <span class="badge bg-success" title="Hoch — sicher erkannt">🟢</span>
+                    {% elif receipt_result.confidence.description == 'medium' %}
+                        <span class="badge bg-warning" title="Mittel — bitte prüfen">🟡</span>
+                    {% else %}
+                        <span class="badge bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
+                    {% endif %}
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="invalid-feedback d-block">{{ form.description.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ form.amount.id_for_label }}" class="form-label">
+                    Betrag*
+                    {% if receipt_result.confidence.amount == 'high' %}
+                        <span class="badge bg-success" title="Hoch — sicher erkannt">🟢</span>
+                    {% elif receipt_result.confidence.amount == 'medium' %}
+                        <span class="badge bg-warning" title="Mittel — bitte prüfen">🟡</span>
+                    {% else %}
+                        <span class="badge bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
+                    {% endif %}
+                </label>
+                {{ form.amount }}
+                {% if form.amount.errors %}
+                    <div class="invalid-feedback d-block">{{ form.amount.errors }}</div>
+                {% endif %}
+                <div class="form-text">Positiv = Einnahme, Negativ = Ausgabe</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ form.category.id_for_label }}" class="form-label">
+                    Kategorie*
+                    <span class="badge bg-info" title="Vorgeschlagen von KI">💡</span>
+                </label>
+                {{ form.category }}
+                {% if form.category.errors %}
+                    <div class="invalid-feedback d-block">{{ form.category.errors }}</div>
+                {% endif %}
+                <div class="form-text">Vorgeschlagen: {{ receipt_result.category_suggestion }}</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ form.status.id_for_label }}" class="form-label">Status*</label>
+                {{ form.status }}
+                {% if form.status.errors %}
+                    <div class="invalid-feedback d-block">{{ form.status.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ form.notes.id_for_label }}" class="form-label">Notizen</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                    <div class="invalid-feedback d-block">{{ form.notes.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Confidence Legend -->
+            <div class="alert alert-light small mb-3">
+                <strong>Konfidenz-Indikatoren:</strong><br>
+                <span class="badge bg-success">🟢</span> Hoch — sicher erkannt<br>
+                <span class="badge bg-warning">🟡</span> Mittel — bitte prüfen<br>
+                <span class="badge bg-danger">🔴</span> Niedrig — manuelle Eingabe empfohlen
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button type="button"
+                        class="btn btn-secondary"
+                        onclick="window.location.reload();">
+                    <i class="bi bi-x"></i> Abbrechen
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Buchung speichern
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Add Bootstrap form-control class to form fields */
+#{{ form.date.id_for_label }},
+#{{ form.description.id_for_label }},
+#{{ form.amount.id_for_label }},
+#{{ form.category.id_for_label }},
+#{{ form.status.id_for_label }},
+#{{ form.notes.id_for_label }} {
+    display: block;
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    appearance: none;
+    border-radius: 0.375rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+</style>

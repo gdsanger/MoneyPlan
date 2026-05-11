@@ -9,6 +9,7 @@ from django.contrib import messages
 from datetime import date, datetime
 from calendar import monthrange
 from decimal import Decimal
+import magic
 from .models import Booking, Category, RecurringSeries
 from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm
 from .services import (
@@ -19,8 +20,10 @@ from .services import (
     get_previous_month_end_balance,
 )
 from .wizard import preview_series_bookings, create_series_bookings
-from attachments.services import get_attachments_for
+from .receipt_service import recognize_receipt, ReceiptRecognitionResult
+from attachments.services import get_attachments_for, handle_upload
 from attachments.models import Attachment
+from ai.exceptions import AIProviderNotConfigured, AIServiceError, AIResponseParseError
 
 
 @login_required
@@ -297,6 +300,205 @@ def quick_create(request):
 
     # Non-HTMX fallback: redirect to dashboard
     return redirect('dashboard:index')
+
+
+@login_required
+def receipt_upload(request):
+    """
+    Upload and analyze receipt/invoice for booking creation.
+    GET: Returns upload form
+    POST: Analyzes file and returns pre-filled booking form
+    """
+    if request.method == 'POST':
+        # Check if file was uploaded
+        if 'receipt_file' not in request.FILES:
+            messages.error(request, 'Bitte wählen Sie eine Datei aus.')
+            return render(request, 'bookings/_receipt_upload.html', {'error': 'Keine Datei ausgewählt'})
+
+        uploaded_file = request.FILES['receipt_file']
+
+        # Read file data
+        file_data = uploaded_file.read()
+
+        # Detect MIME type using python-magic
+        mime_type = magic.from_buffer(file_data, mime=True)
+
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+        if mime_type not in allowed_types:
+            messages.error(request, f'Nicht unterstütztes Dateiformat: {mime_type}')
+            return render(request, 'bookings/_receipt_upload.html', {
+                'error': f'Nicht unterstütztes Dateiformat. Unterstützt: PDF, JPG, PNG, WEBP'
+            })
+
+        # Validate file size (10 MB)
+        max_size = 10 * 1024 * 1024
+        if len(file_data) > max_size:
+            messages.error(request, 'Datei zu groß (max. 10 MB)')
+            return render(request, 'bookings/_receipt_upload.html', {
+                'error': 'Datei zu groß (max. 10 MB)'
+            })
+
+        try:
+            # Call AI service to recognize receipt
+            result = recognize_receipt(file_data, mime_type)
+
+            # Store result and file data in session for later use
+            request.session['receipt_result'] = {
+                'date': result.date,
+                'description': result.description,
+                'amount': str(result.amount),
+                'category_suggestion': result.category_suggestion,
+                'notes': result.notes,
+                'confidence': result.confidence,
+                'raw_text': result.raw_text,
+                'ai_provider': result.ai_provider,
+                'ai_model': result.ai_model,
+            }
+
+            # Store file data in session (base64 encoded for JSON serialization)
+            import base64
+            request.session['receipt_file_data'] = base64.b64encode(file_data).decode('utf-8')
+            request.session['receipt_file_name'] = uploaded_file.name
+            request.session['receipt_file_mime_type'] = mime_type
+
+            # Pre-fill form with recognized data
+            initial_data = {
+                'date': result.date if result.date else date.today(),
+                'description': result.description,
+                'amount': result.amount,
+                'status': 'planned',  # Default to planned for review
+                'notes': result.notes,
+            }
+
+            # Try to find matching category by name
+            try:
+                category = Category.objects.get(name__iexact=result.category_suggestion)
+                initial_data['category'] = category
+            except Category.DoesNotExist:
+                # Category not found, user will need to select
+                pass
+
+            form = BookingForm(initial=initial_data)
+
+            context = {
+                'form': form,
+                'receipt_result': result,
+                'is_receipt_form': True,
+            }
+
+            return render(request, 'bookings/_receipt_form.html', context)
+
+        except AIProviderNotConfigured as e:
+            messages.error(request, 'KI nicht konfiguriert — bitte API-Key in den Einstellungen hinterlegen')
+            return render(request, 'bookings/_receipt_upload.html', {
+                'error': 'KI nicht konfiguriert — bitte API-Key in den Einstellungen hinterlegen'
+            })
+
+        except AIServiceError as e:
+            messages.error(request, f'KI-Fehler: {str(e)}')
+            return render(request, 'bookings/_receipt_upload.html', {
+                'error': f'KI-Analyse fehlgeschlagen: {str(e)}'
+            })
+
+        except AIResponseParseError as e:
+            messages.error(request, f'Fehler beim Verarbeiten der KI-Antwort: {str(e)}')
+            return render(request, 'bookings/_receipt_upload.html', {
+                'error': f'Ungültige KI-Antwort. Bitte versuchen Sie es erneut.'
+            })
+
+        except ValueError as e:
+            # PDF conversion error
+            messages.error(request, f'Fehler beim Verarbeiten der Datei: {str(e)}')
+            return render(request, 'bookings/_receipt_upload.html', {
+                'error': f'Fehler beim Verarbeiten der Datei: {str(e)}'
+            })
+
+        except Exception as e:
+            messages.error(request, f'Unerwarteter Fehler: {str(e)}')
+            return render(request, 'bookings/_receipt_upload.html', {
+                'error': f'Unerwarteter Fehler: {str(e)}'
+            })
+
+    # GET request: show upload form
+    return render(request, 'bookings/_receipt_upload.html')
+
+
+@login_required
+def receipt_confirm(request):
+    """
+    Confirm and save booking from receipt recognition.
+    Creates booking and attaches the receipt file.
+    """
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    # Check if we have session data
+    if 'receipt_result' not in request.session or 'receipt_file_data' not in request.session:
+        messages.error(request, 'Keine Beleg-Daten gefunden. Bitte laden Sie den Beleg erneut hoch.')
+        return render(request, 'bookings/_receipt_upload.html', {
+            'error': 'Session abgelaufen. Bitte laden Sie den Beleg erneut hoch.'
+        })
+
+    # Validate form
+    form = BookingForm(request.POST)
+    if not form.is_valid():
+        # Return form with errors
+        receipt_result_data = request.session.get('receipt_result')
+        context = {
+            'form': form,
+            'receipt_result': type('obj', (object,), receipt_result_data)(),  # Convert dict to object
+            'is_receipt_form': True,
+        }
+        return render(request, 'bookings/_receipt_form.html', context)
+
+    # Create booking
+    booking = form.save()
+
+    # Create attachment from stored file data
+    try:
+        import base64
+        file_data = base64.b64decode(request.session['receipt_file_data'])
+        file_name = request.session['receipt_file_name']
+        mime_type = request.session['receipt_file_mime_type']
+
+        # Create attachment using handle_upload service
+        from django.core.files.uploadedfile import InMemoryUploadedFile
+        from io import BytesIO
+
+        file_obj = InMemoryUploadedFile(
+            file=BytesIO(file_data),
+            field_name='file',
+            name=file_name,
+            content_type=mime_type,
+            size=len(file_data),
+            charset=None
+        )
+
+        attachment = handle_upload(
+            uploaded_file=file_obj,
+            content_object=booking
+        )
+
+    except Exception as e:
+        # Log error but don't fail the booking creation
+        messages.warning(request, f'Buchung erstellt, aber Anhang konnte nicht gespeichert werden: {str(e)}')
+
+    # Clear session data
+    del request.session['receipt_result']
+    del request.session['receipt_file_data']
+    del request.session['receipt_file_name']
+    del request.session['receipt_file_mime_type']
+
+    messages.success(request, f'Buchung "{booking.description}" aus Beleg erstellt.')
+
+    # For HTMX: redirect to booking list
+    if request.htmx:
+        response = HttpResponse('')
+        response['HX-Redirect'] = '/buchungen/'
+        return response
+
+    return redirect('bookings:list')
 
 
 @login_required

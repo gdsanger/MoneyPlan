@@ -12,6 +12,17 @@
 ### Prerequisites
 - Python 3.11 or higher
 - pip (Python package manager)
+- poppler-utils (for PDF receipt processing)
+
+On Ubuntu/Debian:
+```bash
+sudo apt install poppler-utils
+```
+
+On macOS:
+```bash
+brew install poppler
+```
 
 ### Installation
 
@@ -312,11 +323,19 @@ KI-basierte Mustererkennung ist als Step 2 geplant und nicht Teil dieser Version
 ## 8. Technische Abhängigkeiten
 
 ```
-Django>=4.2
-django-htmx
-crispy-bootstrap5
-django-apscheduler   # optional, falls kein Cron
+Django>=5.0
+django-htmx>=1.17
+crispy-bootstrap5>=2024.2
+django-crispy-forms>=2.1
+python-magic>=0.4.27       # MIME type detection for file uploads
+pillow>=10.0.0             # Image processing
+openai>=1.30               # OpenAI API for AI receipt recognition
+anthropic>=0.28            # Anthropic API for AI receipt recognition
+pdf2image>=1.17            # PDF to image conversion for receipt processing
 ```
+
+**System dependencies:**
+- `poppler-utils` (required by pdf2image for PDF processing)
 
 Chart.js wird über CDN eingebunden (kein Build-Step nötig).
 

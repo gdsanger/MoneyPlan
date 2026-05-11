@@ -1,0 +1,61 @@
+{% load crispy_forms_tags %}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title mb-3">
+            <i class="bi bi-file-earmark-text"></i> Beleg hochladen
+        </h5>
+
+        {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        <form method="post"
+              enctype="multipart/form-data"
+              hx-post="{% url 'bookings:receipt_upload' %}"
+              hx-target="#receipt-container"
+              hx-swap="innerHTML"
+              hx-indicator="#receipt-spinner">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="receipt_file" class="form-label">Datei auswählen</label>
+                <input class="form-control"
+                       type="file"
+                       id="receipt_file"
+                       name="receipt_file"
+                       accept="image/jpeg,image/png,image/webp,application/pdf"
+                       required>
+                <div class="form-text">
+                    Unterstützte Formate: PDF, JPG, PNG, WEBP (max. 10 MB)
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button type="button"
+                        class="btn btn-secondary"
+                        onclick="window.location.reload();">
+                    Abbrechen
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Analysieren
+                </button>
+            </div>
+        </form>
+
+        <!-- Spinner shown during processing -->
+        <div id="receipt-spinner" class="htmx-indicator text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">
+                <i class="bi bi-robot"></i> KI analysiert Beleg...<br>
+                <small>Bitte warten</small>
+            </p>
+        </div>
+    </div>
+</div>
