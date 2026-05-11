@@ -35,10 +35,7 @@
             <div class="d-flex justify-content-end gap-2 mt-3">
                 <button type="button"
                         class="btn btn-secondary"
-                        hx-get="{% url 'bookings:quick_create' %}?cancel=1"
-                        hx-target="#quick-entry-container"
-                        hx-swap="innerHTML"
-                        onclick="document.getElementById('quick-entry-container').innerHTML = `{% include 'bookings/_quick_entry_button.html' %}`;">
+                        onclick="document.getElementById('quick-entry-container').innerHTML = `{% filter escapejs %}{% include 'bookings/_quick_entry_button.html' %}{% endfilter %}`;">
                     Abbrechen
                 </button>
                 <button type="submit" class="btn btn-primary">
