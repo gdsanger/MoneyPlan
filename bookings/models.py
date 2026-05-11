@@ -23,6 +23,7 @@ class RecurringSeries(models.Model):
         ('weekly', 'Wöchentlich'),
         ('monthly', 'Monatlich'),
         ('quarterly', 'Vierteljährlich'),
+        ('semi_annual', 'Halbjährlich'),
         ('yearly', 'Jährlich'),
     ]
 
