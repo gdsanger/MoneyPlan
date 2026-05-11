@@ -1,7 +1,7 @@
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, Submit, HTML
-from .models import Booking, Category
+from .models import Booking, Category, RecurringSeries
 
 
 class BookingForm(forms.ModelForm):
@@ -107,3 +107,61 @@ class BookingFilterForm(forms.Form):
             if field_name in self.fields:
                 # The actual URL will be set in the template
                 pass
+
+
+class RecurringSeriesForm(forms.ModelForm):
+    """Form for creating recurring series"""
+
+    class Meta:
+        model = RecurringSeries
+        fields = ['description', 'amount', 'interval', 'start_date', 'end_date', 'category', 'notes']
+        widgets = {
+            'description': forms.TextInput(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'interval': forms.Select(attrs={'class': 'form-select'}),
+            'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'end_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+        labels = {
+            'description': 'Beschreibung',
+            'amount': 'Betrag',
+            'interval': 'Intervall',
+            'start_date': 'Startdatum',
+            'end_date': 'Enddatum',
+            'category': 'Kategorie',
+            'notes': 'Notizen',
+        }
+        help_texts = {
+            'amount': 'Positiv = Einnahme, Negativ = Ausgabe',
+            'end_date': 'Optional - leer lassen für automatische Vorschau über 2 Jahre',
+            'notes': 'Optionale Notizen zur Serie',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            'description',
+            Row(
+                Column('amount', css_class='col-md-6'),
+                Column('category', css_class='col-md-6'),
+            ),
+            Row(
+                Column('interval', css_class='col-md-6'),
+                Column('start_date', css_class='col-md-6'),
+            ),
+            'end_date',
+            'notes',
+        )
+
+        # Make fields required
+        self.fields['description'].required = True
+        self.fields['amount'].required = True
+        self.fields['interval'].required = True
+        self.fields['start_date'].required = True
+        self.fields['end_date'].required = False
+        self.fields['category'].required = True
+        self.fields['notes'].required = False

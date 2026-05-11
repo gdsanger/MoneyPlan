@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Neue Serie - Schritt 2 - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">
+        <i class="bi bi-arrow-repeat"></i> Neue wiederkehrende Serie anlegen
+    </h1>
+
+    <!-- Progress Stepper -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-center flex-fill">
+                    <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center mb-2" style="width: 40px; height: 40px;">
+                        <i class="bi bi-check"></i>
+                    </div>
+                    <div><small class="text-muted">Konfiguration</small></div>
+                </div>
+                <div class="flex-fill" style="height: 2px; background-color: #198754;"></div>
+                <div class="text-center flex-fill">
+                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-2" style="width: 40px; height: 40px;">
+                        <strong>2</strong>
+                    </div>
+                    <div><small><strong>Vorschau</strong></small></div>
+                </div>
+                <div class="flex-fill" style="height: 2px; background-color: #6c757d;"></div>
+                <div class="text-center flex-fill">
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center mb-2" style="width: 40px; height: 40px;">
+                        <strong>3</strong>
+                    </div>
+                    <div><small class="text-muted">Bestätigung</small></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="row mb-4">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Schritt 2: Vorschau</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">Zusammenfassung der Serie</h6>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th style="width: 40%;">Beschreibung:</th>
+                                <td><strong>{{ series.description }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Betrag:</th>
+                                <td>
+                                    <span class="{% if series.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if series.amount >= 0 %}+{% endif %}{{ series.amount }} €
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Intervall:</th>
+                                <td>{{ series.get_interval_display }}</td>
+                            </tr>
+                            <tr>
+                                <th>Startdatum:</th>
+                                <td>{{ series.start_date|date:"d.m.Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Enddatum:</th>
+                                <td>
+                                    {% if series.end_date %}
+                                        {{ series.end_date|date:"d.m.Y" }}
+                                    {% else %}
+                                        <span class="text-muted">Nicht gesetzt (2 Jahre Vorschau)</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Kategorie:</th>
+                                <td>
+                                    <span class="badge" style="background-color: {{ category.color }}">
+                                        <i class="bi bi-{{ category.icon }}"></i> {{ category.name }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% if series.notes %}
+                            <tr>
+                                <th>Notizen:</th>
+                                <td>{{ series.notes }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Es werden <strong>{{ booking_count }}</strong> Buchungen angelegt.
+                    </div>
+
+                    {% if show_warning %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Hinweis:</strong> Dies erzeugt viele Buchungen ({{ booking_count }}). Bitte Enddatum prüfen.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Vorschau der Buchungen</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-sm table-striped">
+                            <thead class="sticky-top bg-dark">
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Beschreibung</th>
+                                    <th>Betrag</th>
+                                    <th>Kategorie</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for date in preview_dates %}
+                                <tr>
+                                    <td>{{ date|date:"d.m.Y" }}</td>
+                                    <td>{{ series.description }}</td>
+                                    <td>
+                                        <span class="{% if series.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {% if series.amount >= 0 %}+{% endif %}{{ series.amount }} €
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ category.color }}">
+                                            <i class="bi bi-{{ category.icon }}"></i> {{ category.name }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="row mt-4 mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between">
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" name="back" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Zurück
+                    </button>
+                </form>
+                <form method="post" action="{% url 'bookings:series_confirm' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Bestätigen und anlegen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
