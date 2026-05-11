@@ -1,0 +1,51 @@
+{% load crispy_forms_tags %}
+
+{% if booking_created %}
+<!-- Success state with toast trigger -->
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill"></i>
+    <strong>Erfolgreich!</strong> Buchung "{{ created_booking.description }}" ({{ created_booking.amount|floatformat:2 }} €) wurde erstellt.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Reset back to button after success -->
+{% include 'bookings/_quick_entry_button.html' %}
+
+<!-- Trigger KPI cards refresh via OOB swap -->
+<div id="kpi-cards-container" hx-swap-oob="true">
+    {% include 'dashboard/_kpi_cards.html' %}
+</div>
+
+{% else %}
+<!-- Quick Entry Form (Expanded State) -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title mb-3">
+            <i class="bi bi-lightning-charge"></i> Schnellerfassung
+        </h5>
+
+        <form method="post"
+              hx-post="{% url 'bookings:quick_create' %}"
+              hx-target="#quick-entry-container"
+              hx-swap="innerHTML">
+            {% csrf_token %}
+
+            {{ form|crispy }}
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button type="button"
+                        class="btn btn-secondary"
+                        hx-get="{% url 'bookings:quick_create' %}?cancel=1"
+                        hx-target="#quick-entry-container"
+                        hx-swap="innerHTML"
+                        onclick="document.getElementById('quick-entry-container').innerHTML = `{% include 'bookings/_quick_entry_button.html' %}`;">
+                    Abbrechen
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Speichern
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}

@@ -1,0 +1,8 @@
+<!-- Quick-Entry Button (Collapsed State) -->
+<button type="button"
+        class="btn btn-primary btn-lg"
+        hx-get="{% url 'bookings:quick_create' %}"
+        hx-target="#quick-entry-container"
+        hx-swap="innerHTML">
+    <i class="bi bi-plus-circle"></i> Schnellerfassung
+</button>

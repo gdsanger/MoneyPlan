@@ -15,34 +15,28 @@ from datetime import date
 from decimal import Decimal
 
 
+def get_kpi_context():
+    """Helper function to get KPI context data for dashboard"""
+    today = date.today()
+    return {
+        'current_balance': get_current_balance(),
+        'planned_income': get_planned_income(),
+        'planned_expenses': get_planned_expenses(),
+        'available_funds_month': get_available_funds(month=today),
+        'available_funds_total': get_available_funds(),
+        'active_alerts_count': Alert.objects.count(),
+        'today': today,
+    }
+
+
 @login_required
 def index(request):
     """Dashboard Hauptansicht"""
-    today = date.today()
-
-    # KPI data
-    current_balance = get_current_balance()
-    planned_income = get_planned_income()
-    planned_expenses = get_planned_expenses()
-    available_funds_month = get_available_funds(month=today)
-    available_funds_total = get_available_funds()
-
-    # Active alerts count
-    active_alerts_count = Alert.objects.count()
+    # Get KPI data
+    context = get_kpi_context()
 
     # Due bookings for the table
-    due_bookings = get_due_this_month()
-
-    context = {
-        'current_balance': current_balance,
-        'planned_income': planned_income,
-        'planned_expenses': planned_expenses,
-        'available_funds_month': available_funds_month,
-        'available_funds_total': available_funds_total,
-        'active_alerts_count': active_alerts_count,
-        'due_bookings': due_bookings,
-        'today': today,
-    }
+    context['due_bookings'] = get_due_this_month()
 
     return render(request, 'dashboard/index.html', context)
 
