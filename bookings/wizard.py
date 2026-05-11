@@ -92,7 +92,7 @@ def _get_next_date(current_date: date, interval: str, start_date: date) -> date:
 
     Args:
         current_date: Current date in the series
-        interval: 'weekly', 'monthly', 'quarterly', or 'yearly'
+        interval: 'weekly', 'monthly', 'quarterly', 'semi_annual', or 'yearly'
         start_date: Original start date (for reference day)
 
     Returns:
@@ -132,6 +132,24 @@ def _get_next_date(current_date: date, interval: str, start_date: date) -> date:
         target_day = start_date.day
 
         # Handle months with fewer days
+        last_day_of_month = monthrange(next_year, next_month)[1]
+        actual_day = min(target_day, last_day_of_month)
+
+        return date(next_year, next_month, actual_day)
+
+    elif interval == 'semi_annual':
+        # Every 6 months
+        next_month = current_date.month + 6
+        next_year = current_date.year
+
+        while next_month > 12:
+            next_month -= 12
+            next_year += 1
+
+        # Use the original start_date's day
+        target_day = start_date.day
+
+        # Handle months with fewer days (e.g., Aug 31 -> Feb 28/29)
         last_day_of_month = monthrange(next_year, next_month)[1]
         actual_day = min(target_day, last_day_of_month)
 
