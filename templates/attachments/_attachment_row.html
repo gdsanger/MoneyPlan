@@ -1,0 +1,22 @@
+<div class="list-group-item d-flex justify-content-between align-items-center" id="attachment-{{ attachment.id }}">
+    <div>
+        <i class="bi bi-file-earmark"></i>
+        <a href="{{ attachment.file.url }}" target="_blank" class="text-decoration-none">
+            {{ attachment.filename }}
+        </a>
+        <br>
+        <small class="text-muted">
+            {{ attachment.file_size_display }} &middot;
+            {{ attachment.mime_type }} &middot;
+            {{ attachment.uploaded_at|date:"d.m.Y H:i" }}
+        </small>
+    </div>
+    <button type="button"
+            class="btn btn-sm btn-outline-danger"
+            hx-post="{% url 'attachments:delete' attachment.id %}"
+            hx-target="#attachment-{{ attachment.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Anhang '{{ attachment.filename }}' wirklich löschen?">
+        <i class="bi bi-trash"></i>
+    </button>
+</div>
