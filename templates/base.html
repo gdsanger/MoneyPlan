@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}MoneyPlan{% endblock %}</title>
 
     <!-- Bootstrap 5.3 CSS -->
@@ -13,6 +14,13 @@
 
     <!-- HTMX 1.9 -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- Configure HTMX to include CSRF token in all requests -->
+    <script>
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        });
+    </script>
 
     <!-- Chart.js 4.x -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
