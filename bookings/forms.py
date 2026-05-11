@@ -137,6 +137,45 @@ class CategoryForm(forms.ModelForm):
             'icon': 'Bootstrap Icon Klasse (z.B. bi-house, bi-cart)',
             'color': 'Farbe als Hex-Wert',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            'name',
+            Div(
+                'icon',
+                HTML('''
+                    <div class="mt-2 mb-3">
+                        <label class="form-label">Vorschau:</label>
+                        <div id="icon-preview" class="fs-1">
+                            <i class="bi {% if form.icon.value %}bi-{{ form.icon.value }}{% else %}bi-question-circle{% endif %}"></i>
+                        </div>
+                    </div>
+                '''),
+            ),
+            Div(
+                'color',
+                HTML('''
+                    <div class="mt-2 mb-3">
+                        <label class="form-label">Hex-Wert:</label>
+                        <input type="text" id="hex-value-display" class="form-control" readonly value="{{ form.color.value|default:'#6c757d' }}">
+                    </div>
+                '''),
+            ),
+        )
+        self.fields['name'].required = True
+        self.fields['icon'].required = False
+        self.fields['color'].required = True
+
+    def clean_icon(self):
+        icon = self.cleaned_data.get('icon', '').strip()
+        if icon and not icon.startswith('bi-'):
+            icon = 'bi-' + icon
+        return icon
+
+
 class RecurringSeriesForm(forms.ModelForm):
     """Form for creating recurring series"""
 
@@ -172,58 +211,18 @@ class RecurringSeriesForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.layout = Layout(
-            'name',
-            Div(
-                'icon',
-                HTML('''
-                    <div class="mt-2 mb-3">
-                        <label class="form-label">Vorschau:</label>
-                        <div id="icon-preview" class="fs-1">
-                            <i class="bi {% if form.icon.value %}bi-{{ form.icon.value }}{% else %}bi-question-circle{% endif %}"></i>
-                        </div>
-                    </div>
-                '''),
+            'description',
+            Row(
+                Column('amount', css_class='col-md-6'),
+                Column('category', css_class='col-md-6'),
             ),
-            Div(
-                'color',
-                HTML('''
-                    <div class="mt-2 mb-3">
-                        <label class="form-label">Hex-Wert:</label>
-                        <input type="text" id="hex-value-display" class="form-control" readonly value="{{ form.color.value|default:'#6c757d' }}">
-                    </div>
-                '''),
+            Row(
+                Column('interval', css_class='col-md-6'),
+                Column('start_date', css_class='col-md-6'),
             ),
+            'end_date',
+            'notes',
         )
-
-        # Make fields required
-        self.fields['name'].required = True
-        self.fields['icon'].required = False
-        self.fields['color'].required = True
-
-    def clean_icon(self):
-        """Ensure icon always has 'bi-' prefix"""
-        icon = self.cleaned_data.get('icon', '').strip()
-        if icon and not icon.startswith('bi-'):
-            icon = 'bi-' + icon
-        return icon
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.helper.layout = Layout(
-        'description',
-        Row(
-            Column('amount', css_class='col-md-6'),
-            Column('category', css_class='col-md-6'),
-        ),
-        Row(
-            Column('interval', css_class='col-md-6'),
-            Column('start_date', css_class='col-md-6'),
-        ),
-        'end_date',
-        'notes',
-        )
-
         self.fields['description'].required = True
         self.fields['amount'].required = True
         self.fields['interval'].required = True
