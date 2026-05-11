@@ -277,3 +277,64 @@ class WizardTestCase(TestCase):
         self.assertEqual(dates[1], date(2027, 2, 1))
         self.assertEqual(dates[2], date(2027, 5, 1))
         self.assertEqual(dates[3], date(2027, 8, 1))
+
+    def test_preview_semi_annual_series(self):
+        """Test preview of semi-annual recurring series"""
+        series = RecurringSeries.objects.create(
+            description="Semi-annual payment",
+            amount=Decimal('-600.00'),
+            interval='semi_annual',
+            start_date=date(2026, 1, 15),
+            end_date=date(2027, 1, 15),
+            category=self.category
+        )
+
+        dates = preview_series_bookings(series)
+
+        # Should generate 3 dates (Jan 2026, Jul 2026, Jan 2027)
+        self.assertEqual(len(dates), 3)
+        self.assertEqual(dates[0], date(2026, 1, 15))
+        self.assertEqual(dates[1], date(2026, 7, 15))
+        self.assertEqual(dates[2], date(2027, 1, 15))
+
+    def test_preview_semi_annual_series_aug_31_edge_case(self):
+        """Test semi-annual series starting on Aug 31 handles month-end correctly"""
+        series = RecurringSeries.objects.create(
+            description="Semi-annual payment",
+            amount=Decimal('-1000.00'),
+            interval='semi_annual',
+            start_date=date(2026, 8, 31),
+            end_date=date(2028, 8, 31),
+            category=self.category
+        )
+
+        dates = preview_series_bookings(series)
+
+        # Should handle February (28 or 29 days) correctly
+        # Aug 31 -> Feb 28 (2027) -> Aug 31 -> Feb 29 (2028, leap year) -> Aug 31
+        self.assertEqual(len(dates), 5)
+        self.assertEqual(dates[0], date(2026, 8, 31))
+        self.assertEqual(dates[1], date(2027, 2, 28))  # Feb has only 28 days in 2027
+        self.assertEqual(dates[2], date(2027, 8, 31))
+        self.assertEqual(dates[3], date(2028, 2, 29))  # Feb has 29 days in 2028 (leap year)
+        self.assertEqual(dates[4], date(2028, 8, 31))
+
+    def test_preview_semi_annual_series_year_overflow(self):
+        """Test semi-annual series handles year transitions"""
+        series = RecurringSeries.objects.create(
+            description="Semi-annual payment",
+            amount=Decimal('-500.00'),
+            interval='semi_annual',
+            start_date=date(2026, 9, 1),
+            end_date=date(2028, 3, 1),
+            category=self.category
+        )
+
+        dates = preview_series_bookings(series)
+
+        # Should handle year transition (Sep -> Mar -> Sep -> Mar)
+        self.assertEqual(len(dates), 4)
+        self.assertEqual(dates[0], date(2026, 9, 1))
+        self.assertEqual(dates[1], date(2027, 3, 1))
+        self.assertEqual(dates[2], date(2027, 9, 1))
+        self.assertEqual(dates[3], date(2028, 3, 1))

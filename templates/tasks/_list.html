@@ -1,0 +1,27 @@
+{% if tasks %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th style="width: 100px;">Priorität</th>
+                <th>Titel</th>
+                <th>Beschreibung</th>
+                <th style="width: 120px;">Fälligkeit</th>
+                <th style="width: 100px;">Status</th>
+                <th style="width: 180px;">Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+                {% include 'tasks/_row.html' %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-check-circle"></i>
+    <strong>Keine Aufgaben gefunden</strong>
+    <p class="mb-0">Keine offenen Aufgaben — alles erledigt ✓</p>
+</div>
+{% endif %}

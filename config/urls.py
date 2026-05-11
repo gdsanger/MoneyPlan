@@ -29,6 +29,7 @@ urlpatterns = [
     path('kategorien/', include('bookings.category_urls')),
     path('alerts/', include('alerts.urls')),
     path('attachments/', include('attachments.urls')),
+    path('aufgaben/', include('tasks.urls')),
 ]
 
 if settings.DEBUG:

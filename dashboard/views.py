@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
+from django.db import models
 from bookings.services import (
     get_current_balance,
     get_planned_income,
@@ -11,13 +12,21 @@ from bookings.services import (
 )
 from bookings.models import Booking
 from alerts.models import Alert
-from datetime import date
+from tasks.models import Task
+from datetime import date, timedelta
 from decimal import Decimal
 
 
 def get_kpi_context():
     """Helper function to get KPI context data for dashboard"""
     today = date.today()
+
+    # Task counts
+    overdue_tasks_count = Task.objects.filter(
+        status='open',
+        due_date__lt=today
+    ).count()
+
     return {
         'current_balance': get_current_balance(),
         'planned_income': get_planned_income(),
@@ -25,6 +34,7 @@ def get_kpi_context():
         'available_funds_month': get_available_funds(month=today),
         'available_funds_total': get_available_funds(),
         'active_alerts_count': Alert.objects.count(),
+        'overdue_tasks_count': overdue_tasks_count,
         'today': today,
     }
 
@@ -37,6 +47,38 @@ def index(request):
 
     # Due bookings for the table
     context['due_bookings'] = get_due_this_month()
+
+    # Open tasks for dashboard widget (max 5)
+    # Show: overdue first, then due soon, then by priority
+    today = date.today()
+    overdue_tasks = list(Task.objects.filter(
+        status='open',
+        due_date__lt=today
+    ).order_by('due_date'))
+
+    due_soon_tasks = list(Task.objects.filter(
+        status='open',
+        due_date__gte=today,
+        due_date__lte=today + timedelta(days=3)
+    ).order_by('due_date'))
+
+    other_open_tasks = list(Task.objects.filter(
+        status='open'
+    ).filter(
+        models.Q(due_date__isnull=True) | models.Q(due_date__gt=today + timedelta(days=3))
+    ).order_by('due_date'))
+
+    # Combine and sort by priority within each group, then limit to 5
+    def sort_by_priority(tasks):
+        return sorted(tasks, key=lambda t: t.priority_order)
+
+    overdue_sorted = sort_by_priority(overdue_tasks)
+    due_soon_sorted = sort_by_priority(due_soon_tasks)
+    other_sorted = sort_by_priority(other_open_tasks)
+
+    from itertools import chain
+    open_tasks = list(chain(overdue_sorted, due_soon_sorted, other_sorted))[:5]
+    context['open_tasks'] = open_tasks
 
     return render(request, 'dashboard/index.html', context)
 

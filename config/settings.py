@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'dashboard',
     'alerts',
     'attachments',
+    'tasks',
 ]
 
 MIDDLEWARE = [
