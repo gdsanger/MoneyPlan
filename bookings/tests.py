@@ -18,6 +18,7 @@ from bookings.services import (
     get_planned_carry_forward,
     get_previous_month_cumulative_result,
     get_previous_month_end_balance,
+    get_year_overview,
 )
 
 
@@ -530,3 +531,124 @@ class ServicesTestCase(TestCase):
         # Previous month cumulative result and end balance should be the same
         self.assertEqual(prev_result, prev_balance)
         self.assertEqual(prev_result, Decimal('800.00'))
+
+    def test_get_year_overview_empty(self):
+        """Test year overview with no bookings"""
+        overview = get_year_overview(2026)
+        self.assertEqual(len(overview), 12)
+
+        # Check structure
+        for month_data in overview:
+            self.assertIn('month', month_data)
+            self.assertIn('label', month_data)
+            self.assertIn('year', month_data)
+            self.assertIn('income_booked', month_data)
+            self.assertIn('income_planned', month_data)
+            self.assertIn('expenses_booked', month_data)
+            self.assertIn('expenses_planned', month_data)
+            self.assertIn('result_booked', month_data)
+            self.assertIn('result_total', month_data)
+            self.assertIn('booking_count', month_data)
+            self.assertIn('is_future', month_data)
+            self.assertIn('is_current', month_data)
+
+        # All values should be zero with no data
+        self.assertEqual(overview[0]['income_booked'], Decimal('0.00'))
+        self.assertEqual(overview[0]['expenses_booked'], Decimal('0.00'))
+        self.assertEqual(overview[0]['booking_count'], 0)
+
+    def test_get_year_overview_with_bookings(self):
+        """Test year overview calculates monthly data correctly"""
+        # Create bookings in January
+        Booking.objects.create(
+            date=date(2026, 1, 10),
+            description="January Income",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=date(2026, 1, 20),
+            description="January Expense",
+            amount=Decimal('-1500.00'),
+            status='booked',
+            category=self.expense_category
+        )
+
+        # Create planned booking in January
+        Booking.objects.create(
+            date=date(2026, 1, 25),
+            description="January Planned",
+            amount=Decimal('-200.00'),
+            status='planned',
+            category=self.expense_category
+        )
+
+        # Create bookings in February
+        Booking.objects.create(
+            date=date(2026, 2, 15),
+            description="February Income",
+            amount=Decimal('2500.00'),
+            status='booked',
+            category=self.income_category
+        )
+
+        overview = get_year_overview(2026)
+
+        # Check January data
+        jan = overview[0]
+        self.assertEqual(jan['month'], 1)
+        self.assertEqual(jan['label'], 'Januar')
+        self.assertEqual(jan['income_booked'], Decimal('3000.00'))
+        self.assertEqual(jan['expenses_booked'], Decimal('1500.00'))
+        self.assertEqual(jan['expenses_planned'], Decimal('200.00'))
+        self.assertEqual(jan['result_booked'], Decimal('1500.00'))  # 3000 - 1500
+        self.assertEqual(jan['result_total'], Decimal('1300.00'))  # 3000 - 1500 - 200
+        self.assertEqual(jan['booking_count'], 3)
+
+        # Check February data
+        feb = overview[1]
+        self.assertEqual(feb['month'], 2)
+        self.assertEqual(feb['label'], 'Februar')
+        self.assertEqual(feb['income_booked'], Decimal('2500.00'))
+        self.assertEqual(feb['expenses_booked'], Decimal('0.00'))
+        self.assertEqual(feb['result_booked'], Decimal('2500.00'))
+        self.assertEqual(feb['booking_count'], 1)
+
+    def test_get_year_overview_is_current_flag(self):
+        """Test year overview correctly identifies current month"""
+        today = date.today()
+        overview = get_year_overview(today.year)
+
+        # Only current month should have is_current=True
+        current_count = sum(1 for m in overview if m['is_current'])
+        self.assertEqual(current_count, 1)
+
+        # Current month should be this month
+        current_month = [m for m in overview if m['is_current']][0]
+        self.assertEqual(current_month['month'], today.month)
+
+    def test_get_year_overview_is_future_flag(self):
+        """Test year overview correctly identifies future months"""
+        today = date.today()
+        overview = get_year_overview(today.year)
+
+        # Future months should have is_future=True
+        for month_data in overview:
+            first_day = date(today.year, month_data['month'], 1)
+            if first_day > today:
+                self.assertTrue(month_data['is_future'])
+            else:
+                self.assertFalse(month_data['is_future'])
+
+    def test_get_year_overview_all_german_months(self):
+        """Test year overview has correct German month names"""
+        overview = get_year_overview(2026)
+        expected_months = [
+            'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+            'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+        ]
+
+        for i, month_data in enumerate(overview):
+            self.assertEqual(month_data['label'], expected_months[i])
+

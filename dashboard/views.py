@@ -103,14 +103,14 @@ def year_overview(request, year=None):
         if result > 0:
             # Positive: scale from 0.1 to 0.35
             if max_result > 0:
-                intensity = 0.1 + (result / max_result) * 0.25
+                intensity = 0.1 + float(result / max_result) * 0.25
             else:
                 intensity = 0.1
             month_data['bg_color'] = f'rgba(25, 135, 84, {intensity:.2f})'
         elif result < 0:
             # Negative: scale from 0.1 to 0.35
             if min_result < 0:
-                intensity = 0.1 + (abs(result) / abs(min_result)) * 0.25
+                intensity = 0.1 + float(abs(result) / abs(min_result)) * 0.25
             else:
                 intensity = 0.1
             month_data['bg_color'] = f'rgba(220, 53, 69, {intensity:.2f})'
