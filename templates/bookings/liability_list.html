@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Verbindlichkeiten - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-credit-card"></i> Verbindlichkeiten
+        </h1>
+        <a href="{% url 'bookings:liability_create' %}"
+           class="btn btn-primary"
+           hx-get="{% url 'bookings:liability_create' %}"
+           hx-target="#form-modal-content"
+           hx-swap="innerHTML"
+           data-bs-toggle="modal"
+           data-bs-target="#formModal">
+            <i class="bi bi-plus-circle"></i> Neue Verbindlichkeit
+        </a>
+    </div>
+
+    <!-- Summary Bar -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Gesamte Restschuld</h5>
+                    <h2>{{ total_outstanding|floatformat:2 }} €</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Anzahl offene Verbindlichkeiten</h5>
+                    <h2>{{ open_count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liabilities List -->
+    {% if liabilities_overview %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Kategorie</th>
+                            <th class="text-end">Vortrag</th>
+                            <th class="text-end">Getilgt</th>
+                            <th class="text-end">Restschuld</th>
+                            <th style="width: 200px;">Fortschritt</th>
+                            <th>Fälligkeit</th>
+                            <th>Status</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% include 'bookings/_liability_list.html' %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        Noch keine Verbindlichkeiten vorhanden. Erstellen Sie Ihre erste Verbindlichkeit über den Button oben.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="formModalLabel">Verbindlichkeit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content">
+                <!-- Form loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Verbindlichkeit löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Sind Sie sicher?</strong></p>
+                <p id="delete-liability-name"></p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Hinweis:</strong> Die Verbindlichkeit wird gelöscht, aber verknüpfte Buchungen bleiben erhalten (ohne Zuordnung).
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form method="post" id="delete-form" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showDeleteModal(liabilityId, name) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        const form = document.getElementById('delete-form');
+
+        // Update modal content
+        document.getElementById('delete-liability-name').textContent = 'Verbindlichkeit: "' + name + '"';
+
+        // Update form action
+        form.action = '{% url "bookings:liability_delete" 0 %}'.replace('0', liabilityId);
+
+        modal.show();
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% for item in liabilities_overview %}
+{% with liability=item.liability %}
+<tr class="{% if item.is_closed %}opacity-50 text-decoration-line-through{% endif %}">
+    <td>
+        <a href="{% url 'bookings:liability_detail' liability.id %}" class="text-decoration-none">
+            <strong>{{ liability.name }}</strong>
+        </a>
+        {% if liability.description %}
+        <br><small class="text-muted">{{ liability.description|truncatewords:10 }}</small>
+        {% endif %}
+    </td>
+    <td>
+        <span class="badge" style="background-color: {{ liability.category.color }}">
+            <i class="{{ liability.category.icon }}"></i> {{ liability.category.name }}
+        </span>
+    </td>
+    <td class="text-end">{{ liability.initial_amount|floatformat:2 }} €</td>
+    <td class="text-end text-success">{{ item.total_repaid|floatformat:2 }} €</td>
+    <td class="text-end {% if item.remaining > 0 %}text-danger{% else %}text-success{% endif %}">
+        {{ item.remaining|floatformat:2 }} €
+    </td>
+    <td>
+        <div class="progress" style="height: 25px;">
+            <div class="progress-bar {% if item.is_closed %}bg-success{% else %}bg-warning{% endif %}"
+                 role="progressbar"
+                 style="width: {{ item.repaid_percent }}%"
+                 aria-valuenow="{{ item.repaid_percent }}"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+                {{ item.repaid_percent }}%
+            </div>
+        </div>
+    </td>
+    <td>
+        {% if liability.due_date %}
+            {{ liability.due_date|date:"d.m.Y" }}
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if item.is_closed %}
+        <span class="badge bg-success">Abgeschlossen</span>
+        {% else %}
+        <span class="badge bg-danger">Offen</span>
+        {% endif %}
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="{% url 'bookings:liability_detail' liability.id %}"
+               class="btn btn-outline-info"
+               title="Details anzeigen">
+                <i class="bi bi-eye"></i>
+            </a>
+            <a href="{% url 'bookings:liability_edit' liability.id %}"
+               class="btn btn-outline-primary"
+               hx-get="{% url 'bookings:liability_edit' liability.id %}"
+               hx-target="#form-modal-content"
+               hx-swap="innerHTML"
+               data-bs-toggle="modal"
+               data-bs-target="#formModal"
+               title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </a>
+            <button type="button"
+                    class="btn btn-outline-danger"
+                    onclick="showDeleteModal({{ liability.id }}, '{{ liability.name|escapejs }}')"
+                    title="Löschen">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr>
+{% endwith %}
+{% endfor %}

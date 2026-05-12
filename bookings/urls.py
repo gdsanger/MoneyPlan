@@ -22,4 +22,10 @@ urlpatterns = [
     path('serien/<int:series_id>/loeschen/', views.series_delete, name='series_delete'),
     path('monate/', views.month_view, name='month_view'),
     path('monate/<int:year>/<int:month>/', views.month_view, name='month_view_detail'),
+    # Liability URLs
+    path('verbindlichkeiten/', views.liability_list, name='liability_list'),
+    path('verbindlichkeiten/neu/', views.liability_create, name='liability_create'),
+    path('verbindlichkeiten/<int:liability_id>/', views.liability_detail, name='liability_detail'),
+    path('verbindlichkeiten/<int:liability_id>/bearbeiten/', views.liability_edit, name='liability_edit'),
+    path('verbindlichkeiten/<int:liability_id>/loeschen/', views.liability_delete, name='liability_delete'),
 ]

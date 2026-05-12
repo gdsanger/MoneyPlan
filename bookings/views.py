@@ -11,14 +11,16 @@ from datetime import date, datetime
 from calendar import monthrange
 from decimal import Decimal
 import magic
-from .models import Booking, Category, RecurringSeries
-from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm
+from .models import Booking, Category, RecurringSeries, Liability
+from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
     get_planned_carry_forward,
     get_previous_month_cumulative_result,
     get_previous_month_end_balance,
+    get_total_liabilities,
+    get_liabilities_overview,
 )
 from .wizard import preview_series_bookings, create_series_bookings
 from .receipt_service import recognize_receipt, ReceiptRecognitionResult
@@ -903,3 +905,142 @@ def month_view(request, year=None, month=None):
         return render(request, 'bookings/_month_content.html', context)
 
     return render(request, 'bookings/month_view.html', context)
+
+
+# =========================
+# Liability Views
+# =========================
+
+@login_required
+def liability_list(request):
+    """Liste aller Verbindlichkeiten mit Übersicht"""
+    liabilities_overview = get_liabilities_overview()
+    total_outstanding = get_total_liabilities()
+
+    # Count open liabilities
+    open_count = sum(1 for item in liabilities_overview if not item['is_closed'])
+
+    # Sort: open first, then closed (dimmed)
+    liabilities_overview.sort(key=lambda x: (x['is_closed'], -x['liability'].created_at.timestamp()))
+
+    context = {
+        'liabilities_overview': liabilities_overview,
+        'total_outstanding': total_outstanding,
+        'open_count': open_count,
+    }
+
+    # If HTMX request, return only the list partial
+    if request.htmx:
+        return render(request, 'bookings/_liability_list.html', context)
+
+    return render(request, 'bookings/liability_list.html', context)
+
+
+@login_required
+def liability_create(request):
+    """Erstelle eine neue Verbindlichkeit"""
+    if request.method == 'POST':
+        form = LiabilityForm(request.POST)
+        if form.is_valid():
+            liability = form.save()
+
+            # If HTMX request, redirect to list
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:liability_list')
+                return response
+
+            messages.success(request, f'Verbindlichkeit "{liability.name}" wurde erstellt.')
+            return redirect('bookings:liability_list')
+    else:
+        form = LiabilityForm()
+
+    context = {'form': form}
+
+    # If HTMX request, return only the form
+    if request.htmx:
+        return render(request, 'bookings/_liability_form.html', context)
+
+    return render(request, 'bookings/liability_form.html', context)
+
+
+@login_required
+def liability_detail(request, liability_id):
+    """Detailansicht einer Verbindlichkeit"""
+    liability = get_object_or_404(Liability, pk=liability_id)
+
+    # Get all linked bookings
+    linked_bookings = liability.bookings.filter(amount__lt=0).select_related('category').order_by('-date')
+
+    context = {
+        'liability': liability,
+        'linked_bookings': linked_bookings,
+        'total_repaid': liability.total_repaid,
+        'remaining': liability.remaining,
+        'repaid_percent': liability.repaid_percent,
+        'is_closed': liability.is_closed,
+    }
+
+    return render(request, 'bookings/liability_detail.html', context)
+
+
+@login_required
+def liability_edit(request, liability_id):
+    """Bearbeite eine Verbindlichkeit"""
+    liability = get_object_or_404(Liability, pk=liability_id)
+
+    if request.method == 'POST':
+        form = LiabilityForm(request.POST, instance=liability)
+        if form.is_valid():
+            liability = form.save()
+
+            # If HTMX request, redirect to detail or list
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:liability_detail', args=[liability.id])
+                return response
+
+            messages.success(request, f'Verbindlichkeit "{liability.name}" wurde aktualisiert.')
+            return redirect('bookings:liability_detail', liability_id=liability.id)
+    else:
+        form = LiabilityForm(instance=liability)
+
+    context = {
+        'form': form,
+        'liability': liability,
+    }
+
+    # If HTMX request, return only the form
+    if request.htmx:
+        return render(request, 'bookings/_liability_form.html', context)
+
+    return render(request, 'bookings/liability_form.html', context)
+
+
+@login_required
+def liability_delete(request, liability_id):
+    """Lösche eine Verbindlichkeit"""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    liability = get_object_or_404(Liability, pk=liability_id)
+
+    # Count linked bookings
+    booking_count = liability.bookings.count()
+    liability_name = liability.name
+
+    # Delete the liability (linked bookings will have liability set to NULL)
+    liability.delete()
+
+    # If HTMX request, return empty response
+    if request.htmx:
+        return HttpResponse('')
+
+    messages.success(
+        request,
+        f'Verbindlichkeit "{liability_name}" wurde gelöscht. '
+        f'{booking_count} Buchung{"en" if booking_count != 1 else ""} wurde{"n" if booking_count != 1 else ""} von der Verbindlichkeit getrennt.'
+    )
+
+    return redirect('bookings:liability_list')
+
