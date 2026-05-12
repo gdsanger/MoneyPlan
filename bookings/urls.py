@@ -28,4 +28,10 @@ urlpatterns = [
     path('verbindlichkeiten/<int:liability_id>/', views.liability_detail, name='liability_detail'),
     path('verbindlichkeiten/<int:liability_id>/bearbeiten/', views.liability_edit, name='liability_edit'),
     path('verbindlichkeiten/<int:liability_id>/loeschen/', views.liability_delete, name='liability_delete'),
+    # Asset URLs
+    path('vermoegen/', views.asset_list, name='asset_list'),
+    path('vermoegen/neu/', views.asset_create, name='asset_create'),
+    path('vermoegen/<int:asset_id>/bearbeiten/', views.asset_edit, name='asset_edit'),
+    path('vermoegen/<int:asset_id>/loeschen/', views.asset_delete, name='asset_delete'),
+    path('vermoegen/<int:asset_id>/wert-aktualisieren/', views.asset_update_value, name='asset_update_value'),
 ]

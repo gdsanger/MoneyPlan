@@ -8,7 +8,7 @@ from decimal import Decimal
 from datetime import date
 from calendar import monthrange
 from django.db.models import Sum, Q, QuerySet
-from .models import Booking, Category, Liability
+from .models import Booking, Category, Liability, Asset
 
 
 def get_current_balance() -> Decimal:
@@ -482,4 +482,77 @@ def get_liabilities_overview() -> list[dict]:
         })
 
     return result
+
+
+def get_total_assets() -> Decimal:
+    """
+    Sum of `current_value` across all assets.
+
+    Returns:
+        Decimal: Total asset value
+    """
+    result = Asset.objects.aggregate(total=Sum('current_value'))
+    return result['total'] or Decimal('0.00')
+
+
+def get_net_worth() -> Decimal:
+    """
+    Calculate net worth: total assets − total liabilities.
+
+    Returns:
+        Decimal: Net worth (total assets minus outstanding liabilities)
+    """
+    total_assets = get_total_assets()
+    total_liabilities = get_total_liabilities()
+    return total_assets - total_liabilities
+
+
+def get_assets_by_category() -> list[dict]:
+    """
+    Return assets grouped by category with totals and percentages.
+
+    Returns:
+        list[dict]: List of dicts with structure:
+            {
+                'category': 'real_estate',
+                'label': 'Immobilien',
+                'total': Decimal('...'),
+                'count': 2,
+                'percent': 65.4,   # share of total assets
+            }
+    """
+    from django.db import models as django_models
+
+    # Get total assets for percentage calculation
+    total_assets = get_total_assets()
+
+    if total_assets == 0:
+        return []
+
+    # Get assets grouped by category
+    category_data = Asset.objects.values('category').annotate(
+        total=Sum('current_value'),
+        count=django_models.Count('id')
+    ).order_by('-total')
+
+    result = []
+    for item in category_data:
+        # Get the label from ASSET_CATEGORY_CHOICES
+        category_label = dict(Asset.ASSET_CATEGORY_CHOICES).get(
+            item['category'],
+            item['category']
+        )
+
+        percent = float((item['total'] / total_assets) * 100)
+
+        result.append({
+            'category': item['category'],
+            'label': category_label,
+            'total': item['total'],
+            'count': item['count'],
+            'percent': round(percent, 1),
+        })
+
+    return result
+
 

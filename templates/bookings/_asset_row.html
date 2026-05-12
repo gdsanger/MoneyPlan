@@ -1,0 +1,71 @@
+<tr id="asset-row-{{ asset.id }}">
+    <td>
+        <strong>{{ asset.name }}</strong>
+        {% if asset.description %}
+        <br><small class="text-muted">{{ asset.description|truncatewords:10 }}</small>
+        {% endif %}
+    </td>
+    <td>
+        {{ asset.get_category_display }}
+    </td>
+    <td class="text-end">
+        {% if asset.purchase_price %}
+            {{ asset.purchase_price|floatformat:2 }} €
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td class="text-end">
+        <strong>{{ asset.current_value|floatformat:2 }} €</strong>
+    </td>
+    <td class="text-end">
+        {% if asset.value_change is not None %}
+            {% if asset.value_change >= 0 %}
+                <span class="text-success">
+                    +{{ asset.value_change|floatformat:2 }} €
+                    {% if asset.value_change_percent %}
+                        <small>(+{{ asset.value_change_percent|floatformat:1 }}%)</small>
+                    {% endif %}
+                </span>
+            {% else %}
+                <span class="text-danger">
+                    {{ asset.value_change|floatformat:2 }} €
+                    {% if asset.value_change_percent %}
+                        <small>({{ asset.value_change_percent|floatformat:1 }}%)</small>
+                    {% endif %}
+                </span>
+            {% endif %}
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td>
+        <small class="text-muted">{{ asset.last_updated|date:"d.m.Y" }}</small>
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    title="Wert aktualisieren"
+                    onclick="showValueUpdateModal({{ asset.id }}, '{{ asset.name|escapejs }}', {{ asset.current_value }})">
+                <i class="bi bi-pencil-square"></i>
+            </button>
+            <a href="{% url 'bookings:asset_edit' asset.id %}"
+               class="btn btn-outline-primary"
+               hx-get="{% url 'bookings:asset_edit' asset.id %}"
+               hx-target="#form-modal-content"
+               hx-swap="innerHTML"
+               data-bs-toggle="modal"
+               data-bs-target="#formModal"
+               title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </a>
+            <button type="button"
+                    class="btn btn-outline-danger"
+                    onclick="showDeleteModal({{ asset.id }}, '{{ asset.name|escapejs }}')"
+                    title="Löschen">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr>

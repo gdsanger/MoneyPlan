@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, RecurringSeries, Booking, Liability
+from .models import Category, RecurringSeries, Booking, Liability, Asset
 
 
 @admin.register(Category)
@@ -32,4 +32,13 @@ class LiabilityAdmin(admin.ModelAdmin):
     search_fields = ['name', 'description', 'notes']
     readonly_fields = ['created_at', 'updated_at']
     date_hierarchy = 'start_date'
+
+
+@admin.register(Asset)
+class AssetAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'purchase_price', 'current_value', 'value_change', 'last_updated']
+    list_filter = ['category']
+    search_fields = ['name', 'description', 'notes']
+    readonly_fields = ['last_updated', 'created_at']
+
 

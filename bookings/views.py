@@ -11,8 +11,8 @@ from datetime import date, datetime
 from calendar import monthrange
 from decimal import Decimal
 import magic
-from .models import Booking, Category, RecurringSeries, Liability
-from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm
+from .models import Booking, Category, RecurringSeries, Liability, Asset
+from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
@@ -21,6 +21,9 @@ from .services import (
     get_previous_month_end_balance,
     get_total_liabilities,
     get_liabilities_overview,
+    get_total_assets,
+    get_net_worth,
+    get_assets_by_category,
 )
 from .wizard import preview_series_bookings, create_series_bookings
 from .receipt_service import recognize_receipt, ReceiptRecognitionResult
@@ -1043,4 +1046,140 @@ def liability_delete(request, liability_id):
     )
 
     return redirect('bookings:liability_list')
+
+
+# ============================================================================
+# ASSET VIEWS
+# ============================================================================
+
+@login_required
+def asset_list(request):
+    """Liste aller Vermögensgegenstände mit Übersicht"""
+    assets = Asset.objects.all()
+    total_assets = get_total_assets()
+    total_liabilities = get_total_liabilities()
+    net_worth = get_net_worth()
+    assets_by_category = get_assets_by_category()
+
+    context = {
+        'assets': assets,
+        'total_assets': total_assets,
+        'total_liabilities': total_liabilities,
+        'net_worth': net_worth,
+        'assets_by_category': assets_by_category,
+    }
+
+    # If HTMX request, return only the list partial
+    if request.htmx:
+        return render(request, 'bookings/_asset_list.html', context)
+
+    return render(request, 'bookings/asset_list.html', context)
+
+
+@login_required
+def asset_create(request):
+    """Erstelle einen neuen Vermögensgegenstand"""
+    if request.method == 'POST':
+        form = AssetForm(request.POST)
+        if form.is_valid():
+            asset = form.save()
+
+            # If HTMX request, redirect to list
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:asset_list')
+                return response
+
+            messages.success(request, f'Vermögensgegenstand "{asset.name}" wurde erstellt.')
+            return redirect('bookings:asset_list')
+    else:
+        form = AssetForm()
+
+    context = {'form': form}
+
+    # If HTMX request, return only the form
+    if request.htmx:
+        return render(request, 'bookings/_asset_form.html', context)
+
+    return render(request, 'bookings/asset_form.html', context)
+
+
+@login_required
+def asset_edit(request, asset_id):
+    """Bearbeite einen Vermögensgegenstand"""
+    asset = get_object_or_404(Asset, pk=asset_id)
+
+    if request.method == 'POST':
+        form = AssetForm(request.POST, instance=asset)
+        if form.is_valid():
+            asset = form.save()
+
+            # If HTMX request, redirect to list
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:asset_list')
+                return response
+
+            messages.success(request, f'Vermögensgegenstand "{asset.name}" wurde aktualisiert.')
+            return redirect('bookings:asset_list')
+    else:
+        form = AssetForm(instance=asset)
+
+    context = {
+        'form': form,
+        'asset': asset,
+    }
+
+    # If HTMX request, return only the form
+    if request.htmx:
+        return render(request, 'bookings/_asset_form.html', context)
+
+    return render(request, 'bookings/asset_form.html', context)
+
+
+@login_required
+def asset_delete(request, asset_id):
+    """Lösche einen Vermögensgegenstand"""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    asset = get_object_or_404(Asset, pk=asset_id)
+    asset_name = asset.name
+    asset.delete()
+
+    # If HTMX request, return empty response
+    if request.htmx:
+        return HttpResponse('')
+
+    messages.success(
+        request,
+        f'Vermögensgegenstand "{asset_name}" wurde gelöscht.'
+    )
+
+    return redirect('bookings:asset_list')
+
+
+@login_required
+def asset_update_value(request, asset_id):
+    """Schnell-Update für aktuellen Wert eines Vermögensgegenstands (HTMX)"""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    asset = get_object_or_404(Asset, pk=asset_id)
+    form = AssetQuickUpdateForm(request.POST, instance=asset)
+
+    if form.is_valid():
+        asset = form.save()
+        # Return updated row partial
+        context = {'asset': asset}
+        return render(request, 'bookings/_asset_row.html', context)
+    else:
+        # Return error or re-render the row with the edit form
+        context = {
+            'asset': asset,
+            'edit_mode': True,
+            'form': form,
+        }
+        return render(request, 'bookings/_asset_row.html', context)
+
 

@@ -1,7 +1,7 @@
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, Submit, HTML, Div
-from .models import Booking, Category, RecurringSeries, Liability
+from .models import Booking, Category, RecurringSeries, Liability, Asset
 from datetime import date
 
 
@@ -353,4 +353,85 @@ class LiabilityForm(forms.ModelForm):
         self.fields['due_date'].required = False
         self.fields['category'].required = True
         self.fields['notes'].required = False
+
+
+class AssetForm(forms.ModelForm):
+    """Form for creating and editing assets"""
+
+    class Meta:
+        model = Asset
+        fields = ['name', 'category', 'description', 'purchase_date', 'purchase_price', 'current_value', 'notes']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'purchase_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'purchase_price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'current_value': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+        labels = {
+            'name': 'Name',
+            'category': 'Kategorie',
+            'description': 'Beschreibung',
+            'purchase_date': 'Kaufdatum',
+            'purchase_price': 'Kaufpreis (€)',
+            'current_value': 'Aktueller Wert (€)',
+            'notes': 'Notizen',
+        }
+        help_texts = {
+            'purchase_price': 'Ursprünglicher Kaufpreis für Wertentwicklung',
+            'current_value': 'Geschätzter aktueller Marktwert',
+            'description': 'Optionale Beschreibung des Vermögensgegenstandes',
+            'purchase_date': 'Optional - Kaufdatum',
+            'notes': 'Optionale Notizen',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            'name',
+            'category',
+            'description',
+            Row(
+                Column('purchase_date', css_class='col-md-6'),
+                Column('purchase_price', css_class='col-md-6'),
+            ),
+            'current_value',
+            'notes',
+        )
+
+        # Set required fields
+        self.fields['name'].required = True
+        self.fields['category'].required = True
+        self.fields['description'].required = False
+        self.fields['purchase_date'].required = False
+        self.fields['purchase_price'].required = False
+        self.fields['current_value'].required = True
+        self.fields['notes'].required = False
+
+
+class AssetQuickUpdateForm(forms.ModelForm):
+    """Quick form for updating only the current value of an asset"""
+
+    class Meta:
+        model = Asset
+        fields = ['current_value']
+        widgets = {
+            'current_value': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': '0.01',
+                'placeholder': 'Neuer Wert'
+            }),
+        }
+        labels = {
+            'current_value': '',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['current_value'].required = True
+
 

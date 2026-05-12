@@ -11,6 +11,8 @@ from bookings.services import (
     get_year_overview,
     get_total_liabilities,
     get_liabilities_overview,
+    get_total_assets,
+    get_net_worth,
 )
 from bookings.models import Booking
 from alerts.models import Alert
@@ -38,6 +40,8 @@ def get_kpi_context():
         'active_alerts_count': Alert.objects.count(),
         'overdue_tasks_count': overdue_tasks_count,
         'total_liabilities': get_total_liabilities(),
+        'total_assets': get_total_assets(),
+        'net_worth': get_net_worth(),
         'today': today,
     }
 

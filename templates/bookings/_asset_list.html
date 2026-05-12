@@ -1,0 +1,142 @@
+{% for asset in assets %}
+<tr id="asset-row-{{ asset.id }}">
+    <td>
+        <strong>{{ asset.name }}</strong>
+        {% if asset.description %}
+        <br><small class="text-muted">{{ asset.description|truncatewords:10 }}</small>
+        {% endif %}
+    </td>
+    <td>
+        {{ asset.get_category_display }}
+    </td>
+    <td class="text-end">
+        {% if asset.purchase_price %}
+            {{ asset.purchase_price|floatformat:2 }} €
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td class="text-end">
+        <strong>{{ asset.current_value|floatformat:2 }} €</strong>
+    </td>
+    <td class="text-end">
+        {% if asset.value_change is not None %}
+            {% if asset.value_change >= 0 %}
+                <span class="text-success">
+                    +{{ asset.value_change|floatformat:2 }} €
+                    {% if asset.value_change_percent %}
+                        <small>(+{{ asset.value_change_percent|floatformat:1 }}%)</small>
+                    {% endif %}
+                </span>
+            {% else %}
+                <span class="text-danger">
+                    {{ asset.value_change|floatformat:2 }} €
+                    {% if asset.value_change_percent %}
+                        <small>({{ asset.value_change_percent|floatformat:1 }}%)</small>
+                    {% endif %}
+                </span>
+            {% endif %}
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td>
+        <small class="text-muted">{{ asset.last_updated|date:"d.m.Y" }}</small>
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    title="Wert aktualisieren"
+                    onclick="showValueUpdateModal({{ asset.id }}, '{{ asset.name|escapejs }}', {{ asset.current_value }})">
+                <i class="bi bi-pencil-square"></i>
+            </button>
+            <a href="{% url 'bookings:asset_edit' asset.id %}"
+               class="btn btn-outline-primary"
+               hx-get="{% url 'bookings:asset_edit' asset.id %}"
+               hx-target="#form-modal-content"
+               hx-swap="innerHTML"
+               data-bs-toggle="modal"
+               data-bs-target="#formModal"
+               title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </a>
+            <button type="button"
+                    class="btn btn-outline-danger"
+                    onclick="showDeleteModal({{ asset.id }}, '{{ asset.name|escapejs }}')"
+                    title="Löschen">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr>
+{% endfor %}
+
+<!-- Value Update Modal (inline quick update) -->
+<div class="modal fade" id="valueUpdateModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Wert aktualisieren</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong id="update-asset-name"></strong></p>
+                <form id="value-update-form" method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="new-value" class="form-label">Neuer Wert (€)</label>
+                        <input type="number"
+                               step="0.01"
+                               class="form-control"
+                               id="new-value"
+                               name="current_value"
+                               required>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Abbrechen
+                        </button>
+                        <button type="submit"
+                                class="btn btn-primary"
+                                hx-post=""
+                                hx-target="#asset-row-"
+                                hx-swap="outerHTML">
+                            <i class="bi bi-save"></i> Speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showValueUpdateModal(assetId, name, currentValue) {
+        const modal = new bootstrap.Modal(document.getElementById('valueUpdateModal'));
+        const form = document.getElementById('value-update-form');
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        // Update modal content
+        document.getElementById('update-asset-name').textContent = name;
+        document.getElementById('new-value').value = currentValue;
+
+        // Update form action and HTMX attributes
+        const url = '{% url "bookings:asset_update_value" 0 %}'.replace('0', assetId);
+        form.action = url;
+        submitButton.setAttribute('hx-post', url);
+        submitButton.setAttribute('hx-target', '#asset-row-' + assetId);
+
+        // Reinitialize HTMX for the button
+        if (window.htmx) {
+            htmx.process(submitButton);
+        }
+
+        // Close modal on successful update
+        form.addEventListener('htmx:afterSwap', function() {
+            modal.hide();
+        }, { once: true });
+
+        modal.show();
+    }
+</script>
