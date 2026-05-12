@@ -139,3 +139,64 @@ class Liability(models.Model):
     @property
     def is_closed(self):
         return self.remaining <= 0
+
+
+class Asset(models.Model):
+    """Vermögensgegenstand (Asset)"""
+    ASSET_CATEGORY_CHOICES = [
+        ('real_estate',   'Immobilien'),
+        ('vehicle',       'Fahrzeuge'),
+        ('electronics',   'Elektronik'),
+        ('investments',   'Wertpapiere & Investments'),
+        ('bank_account',  'Bankguthaben & Sparkonten'),
+        ('insurance',     'Versicherungen & Vorsorge'),
+        ('other',         'Sonstiges'),
+    ]
+
+    name = models.CharField(max_length=255, verbose_name="Name")
+    description = models.TextField(blank=True, verbose_name="Beschreibung")
+    category = models.CharField(
+        max_length=20,
+        choices=ASSET_CATEGORY_CHOICES,
+        verbose_name="Kategorie"
+    )
+    purchase_date = models.DateField(
+        null=True, blank=True,
+        verbose_name="Kaufdatum"
+    )
+    purchase_price = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        null=True, blank=True,
+        verbose_name="Kaufpreis (€)",
+        help_text="Ursprünglicher Kaufpreis für Wertentwicklung"
+    )
+    current_value = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        verbose_name="Aktueller Wert (€)",
+        help_text="Geschätzter aktueller Marktwert"
+    )
+    last_updated = models.DateField(auto_now=True, verbose_name="Zuletzt aktualisiert")
+    notes = models.TextField(blank=True, verbose_name="Notizen")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
+
+    class Meta:
+        ordering = ['-current_value']
+        verbose_name = 'Vermögensgegenstand'
+        verbose_name_plural = 'Vermögensgegenstände'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def value_change(self):
+        """current_value − purchase_price. None if no purchase_price set."""
+        if self.purchase_price is None:
+            return None
+        return self.current_value - self.purchase_price
+
+    @property
+    def value_change_percent(self):
+        """Percentage change vs purchase price. None if no purchase_price."""
+        if not self.purchase_price or self.purchase_price == 0:
+            return None
+        return ((self.current_value - self.purchase_price) / self.purchase_price) * 100

@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Vermögen - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-piggy-bank"></i> Vermögensgegenstände
+        </h1>
+        <a href="{% url 'bookings:asset_create' %}"
+           class="btn btn-primary"
+           hx-get="{% url 'bookings:asset_create' %}"
+           hx-target="#form-modal-content"
+           hx-swap="innerHTML"
+           data-bs-toggle="modal"
+           data-bs-target="#formModal">
+            <i class="bi bi-plus-circle"></i> Neuer Vermögensgegenstand
+        </a>
+    </div>
+
+    <!-- Summary Bar with Net Worth -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Gesamtvermögen</h5>
+                    <h2>{{ total_assets|floatformat:2 }} €</h2>
+                    <small>Summe aller Vermögenswerte</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Offene Verbindlichkeiten</h5>
+                    <h2>{{ total_liabilities|floatformat:2 }} €</h2>
+                    <small>Gesamte Restschuld</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card {% if net_worth >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <h5 class="card-title"><strong>Nettovermögen</strong></h5>
+                    <h1><strong>{{ net_worth|floatformat:2 }} €</strong></h1>
+                    <small>Vermögen − Verbindlichkeiten</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Breakdown Chart -->
+    {% if assets_by_category %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Vermögensverteilung nach Kategorie</h5>
+                    <canvas id="assetCategoryChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Kategorien im Detail</h5>
+                    <table class="table table-sm">
+                        <tbody>
+                            {% for item in assets_by_category %}
+                            <tr>
+                                <td>{{ item.label }}</td>
+                                <td class="text-end">{{ item.total|floatformat:2 }} €</td>
+                                <td class="text-end text-muted">{{ item.count }} Objekt{{ item.count|pluralize:"e" }}</td>
+                                <td class="text-end"><strong>{{ item.percent }}%</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Assets Table -->
+    {% if assets %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Kategorie</th>
+                            <th class="text-end">Kaufpreis</th>
+                            <th class="text-end">Aktueller Wert</th>
+                            <th class="text-end">Wertentwicklung</th>
+                            <th>Zuletzt aktualisiert</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% include 'bookings/_asset_list.html' %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        Noch keine Vermögensgegenstände erfasst. Erstellen Sie Ihren ersten Vermögensgegenstand über den Button oben.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="formModalLabel">Vermögensgegenstand</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content">
+                <!-- Form loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Vermögensgegenstand löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Sind Sie sicher?</strong></p>
+                <p id="delete-asset-name"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form method="post" id="delete-form" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showDeleteModal(assetId, name) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        const form = document.getElementById('delete-form');
+
+        // Update modal content
+        document.getElementById('delete-asset-name').textContent = 'Vermögensgegenstand: "' + name + '"';
+
+        // Update form action
+        form.action = '{% url "bookings:asset_delete" 0 %}'.replace('0', assetId);
+
+        modal.show();
+    }
+
+    // Category Doughnut Chart
+    {% if assets_by_category %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('assetCategoryChart').getContext('2d');
+
+        const labels = [{% for item in assets_by_category %}'{{ item.label|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+        const data = [{% for item in assets_by_category %}{{ item.total }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+        const colors = [
+            'rgba(25, 135, 84, 0.7)',
+            'rgba(13, 110, 253, 0.7)',
+            'rgba(255, 193, 7, 0.7)',
+            'rgba(220, 53, 69, 0.7)',
+            'rgba(108, 117, 125, 0.7)',
+            'rgba(13, 202, 240, 0.7)',
+            'rgba(111, 66, 193, 0.7)',
+        ];
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#fff'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += new Intl.NumberFormat('de-DE', {
+                                    style: 'currency',
+                                    currency: 'EUR'
+                                }).format(context.parsed);
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+    {% endif %}
+</script>
+{% endblock %}

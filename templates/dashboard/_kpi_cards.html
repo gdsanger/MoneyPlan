@@ -92,4 +92,34 @@
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-2">
+                    <a href="{% url 'bookings:asset_list' %}" class="text-decoration-none text-muted">
+                        Gesamtvermögen
+                    </a>
+                </h6>
+                <h2 class="mb-1 text-success">
+                    {{ total_assets|floatformat:2 }} €
+                </h2>
+                <small class="text-muted">Summe aller Vermögenswerte</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-2">
+                    <a href="{% url 'bookings:asset_list' %}" class="text-decoration-none text-muted">
+                        <strong>Nettovermögen</strong>
+                    </a>
+                </h6>
+                <h2 class="mb-1 {% if net_worth >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    <strong>{{ net_worth|floatformat:2 }} €</strong>
+                </h2>
+                <small class="text-muted">Vermögen − Verbindlichkeiten</small>
+            </div>
+        </div>
+    </div>
 </div>
