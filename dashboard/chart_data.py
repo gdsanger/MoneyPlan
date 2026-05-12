@@ -13,14 +13,25 @@ def forecast_chart_data(request):
     """
     Return forecast data for line chart.
     Shows current balance progression + future months forecast.
+    Includes time tracking annotations in tooltip data.
     """
     forecast_data = get_forecast(months=3)
 
     labels = [item['label'] for item in forecast_data]
     balances = [float(item['projected_balance']) for item in forecast_data]
 
+    # Create tooltip labels with time tracking info
+    tooltip_labels = []
+    for item in forecast_data:
+        label = item['label']
+        if 'timetracking_amount' in item:
+            tt_amount = float(item['timetracking_amount'])
+            label += f" (inkl. ⏱ Stundenabrechnung: +{tt_amount:.2f} €)"
+        tooltip_labels.append(label)
+
     data = {
         'labels': labels,
+        'tooltipLabels': tooltip_labels,  # Custom labels for tooltips
         'datasets': [{
             'label': 'Saldoverlauf',
             'data': balances,

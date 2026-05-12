@@ -60,10 +60,11 @@ def get_planned_expenses(until: date = None) -> Decimal:
 def get_available_funds(month: date = None) -> Decimal:
     """
     Calculate available funds: current_balance + planned_income - planned_expenses.
+    When month is None (Gesamt), also includes unbilled time entries.
 
     Args:
         month: Optional date representing a calendar month. If given, scope to that month.
-               If None, include all future planned bookings.
+               If None, include all future planned bookings and unbilled time entries.
 
     Returns:
         Decimal: Available funds projection
@@ -81,6 +82,13 @@ def get_available_funds(month: date = None) -> Decimal:
         # All future planned bookings
         planned_income = get_planned_income()
         planned_expenses = get_planned_expenses()
+
+        # Add unbilled time entries to Gesamt (only when month is None)
+        try:
+            from timetracking.services import get_unbilled_total
+            planned_income += get_unbilled_total()
+        except ImportError:
+            pass
 
     return current_balance + planned_income - planned_expenses
 
@@ -197,6 +205,7 @@ def get_forecast(months: int = 3) -> list[dict]:
     Return a list of dicts, one per month (current + next `months` months).
 
     Logic: start from get_current_balance(), then for each month add all planned bookings.
+    Also injects virtual time tracking forecast entry if unbilled entries exist.
 
     Args:
         months: Number of future months to forecast (default: 3)
@@ -209,8 +218,17 @@ def get_forecast(months: int = 3) -> list[dict]:
                 'projected_balance': Decimal('...'),
                 'planned_income': Decimal('...'),
                 'planned_expenses': Decimal('...'),
+                'timetracking_amount': Decimal('...'),  # optional, if time tracking entry in this month
+                'timetracking_date': date(...),  # optional
             }
     """
+    # Lazy import to avoid circular dependency
+    try:
+        from timetracking.services import get_forecast_entry
+        tt_entry = get_forecast_entry()
+    except ImportError:
+        tt_entry = None
+
     today = date.today()
     current_balance = get_current_balance()
     forecast_data = []
@@ -256,19 +274,25 @@ def get_forecast(months: int = 3) -> list[dict]:
         monthly_expenses_total = monthly_expenses_result['total'] or Decimal('0.00')
         monthly_expenses = abs(monthly_expenses_total)  # Positive for display
 
-        # Update running balance
-        running_balance = running_balance + monthly_income - monthly_expenses
-
-        # Format label
-        label = f"{month_names[target_month - 1]} {target_year}"
-
-        forecast_data.append({
+        # Check if time tracking entry falls in this month
+        month_data = {
             'month': first_day,
-            'label': label,
-            'projected_balance': running_balance,
+            'label': f"{month_names[target_month - 1]} {target_year}",
             'planned_income': monthly_income,
             'planned_expenses': monthly_expenses,
-        })
+        }
+
+        if tt_entry and tt_entry['date'].year == target_year and tt_entry['date'].month == target_month:
+            # Inject time tracking entry into this month
+            monthly_income += tt_entry['amount']
+            month_data['timetracking_amount'] = tt_entry['amount']
+            month_data['timetracking_date'] = tt_entry['date']
+
+        # Update running balance
+        running_balance = running_balance + monthly_income - monthly_expenses
+        month_data['projected_balance'] = running_balance
+
+        forecast_data.append(month_data)
 
     return forecast_data
 

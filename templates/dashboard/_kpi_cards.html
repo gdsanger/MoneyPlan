@@ -122,4 +122,25 @@
             </div>
         </div>
     </div>
+    {% if tt_unbilled_total > 0 %}
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-2">
+                    <a href="{% url 'timetracking:list' %}" class="text-decoration-none text-muted">
+                        Offene Stunden
+                    </a>
+                </h6>
+                <h2 class="mb-1 text-warning">
+                    {{ tt_unbilled_total|floatformat:2 }} €
+                </h2>
+                {% if tt_forecast %}
+                <small class="text-muted">⏱ Eingang: {{ tt_forecast.date|date:"d.m.Y" }}</small>
+                {% else %}
+                <small class="text-muted">Noch nicht abgerechnet</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
