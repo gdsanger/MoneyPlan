@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
 
 
 class Category(models.Model):
@@ -60,6 +61,13 @@ class Booking(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='bookings', verbose_name="Kategorie")
     series = models.ForeignKey(RecurringSeries, on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='bookings', verbose_name="Serie")
+    liability = models.ForeignKey(
+        'Liability',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='bookings',
+        verbose_name="Verbindlichkeit"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Aktualisiert am")
 
@@ -79,3 +87,55 @@ class Booking(models.Model):
     @property
     def is_expense(self):
         return self.amount < 0
+
+
+class Liability(models.Model):
+    """Verbindlichkeit (Schuld/Darlehen)"""
+    name = models.CharField(max_length=255, verbose_name="Name")
+    description = models.TextField(blank=True, verbose_name="Beschreibung")
+    initial_amount = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        verbose_name="Vortrag (€)",
+        help_text="Aktueller Schuldenstand bei Erfassung"
+    )
+    start_date = models.DateField(verbose_name="Startdatum")
+    due_date = models.DateField(null=True, blank=True, verbose_name="Fälligkeit")
+    category = models.ForeignKey(
+        Category, on_delete=models.PROTECT,
+        related_name='liabilities',
+        verbose_name="Kategorie"
+    )
+    notes = models.TextField(blank=True, verbose_name="Notizen")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Aktualisiert am")
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Verbindlichkeit'
+        verbose_name_plural = 'Verbindlichkeiten'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def total_repaid(self):
+        """Sum of all linked expense bookings (negative amounts → positive repaid)."""
+        from django.db.models import Sum
+        result = self.bookings.filter(amount__lt=0).aggregate(Sum('amount'))['amount__sum']
+        return abs(result) if result else Decimal('0')
+
+    @property
+    def remaining(self):
+        """initial_amount − total_repaid"""
+        return self.initial_amount - self.total_repaid
+
+    @property
+    def repaid_percent(self):
+        """Percentage repaid (0–100), used for progress bar."""
+        if self.initial_amount == 0:
+            return 100
+        return min(100, int((self.total_repaid / self.initial_amount) * 100))
+
+    @property
+    def is_closed(self):
+        return self.remaining <= 0
