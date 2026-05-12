@@ -1,0 +1,29 @@
+{% if entries %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th style="width: 100px;">Datum</th>
+                <th>Kunde</th>
+                <th>Beschreibung</th>
+                <th style="width: 100px;">Dauer</th>
+                <th style="width: 120px;">Stundensatz</th>
+                <th style="width: 120px;">Betrag</th>
+                <th style="width: 120px;">Status</th>
+                <th style="width: 180px;">Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+                {% include 'timetracking/_row.html' %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-clock-history"></i>
+    <strong>Keine Zeiteinträge erfasst</strong>
+    <p class="mb-0">Erfassen Sie Ihre erste Arbeitszeit mit dem Button oben.</p>
+</div>
+{% endif %}

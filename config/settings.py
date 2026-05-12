@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'attachments',
     'tasks',
     'ai',
+    'timetracking',
 ]
 
 MIDDLEWARE = [
