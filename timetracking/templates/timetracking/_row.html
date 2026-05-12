@@ -1,0 +1,51 @@
+<tr id="entry-row-{{ entry.id }}" class="{% if not entry.billed %}table-warning bg-opacity-10{% else %}opacity-75{% endif %}">
+    <td>{{ entry.date|date:"d.m.Y" }}</td>
+    <td>{{ entry.client.name }}</td>
+    <td>
+        {{ entry.description }}
+        {% if entry.notes %}
+        <br><small class="text-muted">{{ entry.notes|truncatewords:8 }}</small>
+        {% endif %}
+    </td>
+    <td>{{ entry.duration_display }}</td>
+    <td>{{ entry.hourly_rate|floatformat:2 }} €</td>
+    <td class="text-success fw-bold">{{ entry.amount|floatformat:2 }} €</td>
+    <td>
+        <button
+            class="btn btn-sm {% if entry.billed %}btn-success{% else %}btn-outline-warning{% endif %}"
+            hx-post="{% url 'timetracking:toggle_billed' entry.id %}"
+            hx-target="#entry-row-{{ entry.id }}"
+            hx-swap="outerHTML"
+            title="Status ändern">
+            {% if entry.billed %}
+            <i class="bi bi-check-circle-fill"></i> Abgerechnet
+            {% else %}
+            <i class="bi bi-circle"></i> Offen
+            {% endif %}
+        </button>
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            <!-- Edit -->
+            <a
+                href="{% url 'timetracking:edit' entry.id %}"
+                class="btn btn-outline-primary"
+                hx-get="{% url 'timetracking:edit' entry.id %}"
+                hx-target="#form-modal-content"
+                hx-swap="innerHTML"
+                data-bs-toggle="modal"
+                data-bs-target="#formModal"
+                title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </a>
+
+            <!-- Delete -->
+            <button
+                class="btn btn-outline-danger"
+                onclick="showDeleteModal({{ entry.id }}, '{{ entry.description|escapejs }}', '{% url 'timetracking:delete' entry.id %}')"
+                title="Löschen">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr>

@@ -270,6 +270,11 @@ fetch('{% url "dashboard:forecast_data" %}')
                 plugins: {
                     tooltip: {
                         callbacks: {
+                            title: function(context) {
+                                // Use custom tooltip labels if available
+                                const index = context[0].dataIndex;
+                                return data.tooltipLabels ? data.tooltipLabels[index] : data.labels[index];
+                            },
                             label: function(context) {
                                 return context.dataset.label + ': ' + formatEuro(context.parsed.y);
                             }

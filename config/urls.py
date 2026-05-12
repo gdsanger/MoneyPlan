@@ -31,6 +31,7 @@ urlpatterns = [
     path('attachments/', include('attachments.urls')),
     path('aufgaben/', include('tasks.urls')),
     path('ki/', include('ai.urls')),
+    path('zeiten/', include('timetracking.urls')),
 ]
 
 if settings.DEBUG:
