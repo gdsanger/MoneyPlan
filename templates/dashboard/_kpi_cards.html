@@ -77,4 +77,19 @@
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title text-muted mb-2">
+                    <a href="{% url 'bookings:liability_list' %}" class="text-decoration-none text-muted">
+                        Offene Verbindlichkeiten
+                    </a>
+                </h6>
+                <h2 class="mb-1 {% if total_liabilities > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ total_liabilities|floatformat:2 }} €
+                </h2>
+                <small class="text-muted">Restschuld gesamt</small>
+            </div>
+        </div>
+    </div>
 </div>
