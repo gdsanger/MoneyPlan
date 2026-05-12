@@ -125,6 +125,11 @@
                                 {% else %}
                                 <span class="text-muted">-</span>
                                 {% endif %}
+                                {% if booking.liability %}
+                                <span class="badge bg-secondary ms-1" title="Verbindlichkeit">
+                                    <i class="bi bi-credit-card"></i> {{ booking.liability.name }}
+                                </span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if booking.status == 'planned' %}

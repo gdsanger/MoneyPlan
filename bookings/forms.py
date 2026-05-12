@@ -1,7 +1,7 @@
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, Submit, HTML, Div
-from .models import Booking, Category, RecurringSeries
+from .models import Booking, Category, RecurringSeries, Liability
 from datetime import date
 
 
@@ -64,13 +64,14 @@ class BookingForm(forms.ModelForm):
 
     class Meta:
         model = Booking
-        fields = ['date', 'description', 'amount', 'category', 'status', 'notes']
+        fields = ['date', 'description', 'amount', 'category', 'status', 'liability', 'notes']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'description': forms.TextInput(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
+            'liability': forms.Select(attrs={'class': 'form-select'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         labels = {
@@ -79,10 +80,12 @@ class BookingForm(forms.ModelForm):
             'amount': 'Betrag',
             'category': 'Kategorie',
             'status': 'Status',
+            'liability': 'Verbindlichkeit',
             'notes': 'Notizen',
         }
         help_texts = {
             'amount': 'Positiv = Einnahme, Negativ = Ausgabe',
+            'liability': 'Ordne diese Ausgabe einer Verbindlichkeit zu (nur für Ausgaben)',
             'notes': 'Optionale Notizen zur Buchung',
         }
 
@@ -100,6 +103,7 @@ class BookingForm(forms.ModelForm):
                 Column('amount', css_class='col-md-6'),
                 Column('category', css_class='col-md-6'),
             ),
+            'liability',
             'notes',
         )
 
@@ -109,7 +113,12 @@ class BookingForm(forms.ModelForm):
         self.fields['amount'].required = True
         self.fields['category'].required = True
         self.fields['status'].required = True
+        self.fields['liability'].required = False
         self.fields['notes'].required = False
+
+        # Filter liability to only show open liabilities
+        self.fields['liability'].queryset = Liability.objects.all()
+        self.fields['liability'].empty_label = "Keine Zuordnung"
 
 
 class BookingFilterForm(forms.Form):
@@ -285,3 +294,63 @@ class RecurringSeriesForm(forms.ModelForm):
         self.fields['end_date'].required = False
         self.fields['category'].required = True
         self.fields['notes'].required = False
+
+
+class LiabilityForm(forms.ModelForm):
+    """Form for creating and editing liabilities"""
+
+    class Meta:
+        model = Liability
+        fields = ['name', 'description', 'initial_amount', 'start_date', 'due_date', 'category', 'notes']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'initial_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'due_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+        labels = {
+            'name': 'Name',
+            'description': 'Beschreibung',
+            'initial_amount': 'Vortrag (€)',
+            'start_date': 'Startdatum',
+            'due_date': 'Fälligkeit',
+            'category': 'Kategorie',
+            'notes': 'Notizen',
+        }
+        help_texts = {
+            'initial_amount': 'Aktueller Schuldenstand bei Erfassung',
+            'description': 'Optionale Beschreibung der Verbindlichkeit',
+            'due_date': 'Optional - Fälligkeitsdatum',
+            'notes': 'Optionale Notizen',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            'name',
+            'description',
+            Row(
+                Column('initial_amount', css_class='col-md-6'),
+                Column('category', css_class='col-md-6'),
+            ),
+            Row(
+                Column('start_date', css_class='col-md-6'),
+                Column('due_date', css_class='col-md-6'),
+            ),
+            'notes',
+        )
+
+        # Make fields required
+        self.fields['name'].required = True
+        self.fields['description'].required = False
+        self.fields['initial_amount'].required = True
+        self.fields['start_date'].required = True
+        self.fields['due_date'].required = False
+        self.fields['category'].required = True
+        self.fields['notes'].required = False
+

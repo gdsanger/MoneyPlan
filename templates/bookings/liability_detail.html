@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}{{ liability.name }} - Verbindlichkeiten - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="bi bi-credit-card"></i> {{ liability.name }}
+        </h1>
+        <div>
+            <a href="{% url 'bookings:liability_edit' liability.id %}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Bearbeiten
+            </a>
+            <a href="{% url 'bookings:liability_list' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Zurück zur Liste
+            </a>
+        </div>
+    </div>
+
+    <!-- Liability Info Card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Details</h5>
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Name:</th>
+                            <td>{{ liability.name }}</td>
+                        </tr>
+                        {% if liability.description %}
+                        <tr>
+                            <th>Beschreibung:</th>
+                            <td>{{ liability.description }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Kategorie:</th>
+                            <td>
+                                <span class="badge" style="background-color: {{ liability.category.color }}">
+                                    <i class="{{ liability.category.icon }}"></i> {{ liability.category.name }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Startdatum:</th>
+                            <td>{{ liability.start_date|date:"d.m.Y" }}</td>
+                        </tr>
+                        {% if liability.due_date %}
+                        <tr>
+                            <th>Fälligkeit:</th>
+                            <td>{{ liability.due_date|date:"d.m.Y" }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h5>Finanzübersicht</h5>
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Vortrag (Ursprung):</th>
+                            <td class="text-end">{{ liability.initial_amount|floatformat:2 }} €</td>
+                        </tr>
+                        <tr>
+                            <th>Getilgt:</th>
+                            <td class="text-end text-success">{{ total_repaid|floatformat:2 }} €</td>
+                        </tr>
+                        <tr>
+                            <th>Restschuld:</th>
+                            <td class="text-end {% if remaining > 0 %}text-danger{% else %}text-success{% endif %}">
+                                <strong>{{ remaining|floatformat:2 }} €</strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td>
+                                {% if is_closed %}
+                                <span class="badge bg-success">Abgeschlossen</span>
+                                {% else %}
+                                <span class="badge bg-danger">Offen</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mt-3">
+                <h5>Tilgungsfortschritt</h5>
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="progress" style="height: 40px;">
+                            <div class="progress-bar {% if is_closed %}bg-success{% else %}bg-warning{% endif %}"
+                                 role="progressbar"
+                                 style="width: {{ repaid_percent }}%"
+                                 aria-valuenow="{{ repaid_percent }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                                <strong>{{ repaid_percent }}%</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <small class="text-muted">Vortrag: {{ liability.initial_amount|floatformat:2 }} €</small>
+                    <small class="text-muted">Getilgt: {{ total_repaid|floatformat:2 }} €</small>
+                    <small class="text-muted">Restschuld: {{ remaining|floatformat:2 }} €</small>
+                </div>
+            </div>
+
+            {% if liability.notes %}
+            <div class="mt-3">
+                <h5>Notizen</h5>
+                <p class="text-muted">{{ liability.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Linked Bookings -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-journal-text"></i> Zugeordnete Buchungen
+                <span class="badge bg-secondary">{{ linked_bookings|length }}</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if linked_bookings %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Beschreibung</th>
+                            <th>Kategorie</th>
+                            <th class="text-end">Betrag</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for booking in linked_bookings %}
+                        <tr>
+                            <td>{{ booking.date|date:"d.m.Y" }}</td>
+                            <td>
+                                <strong>{{ booking.description }}</strong>
+                                {% if booking.notes %}
+                                <br><small class="text-muted">{{ booking.notes|truncatewords:10 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge" style="background-color: {{ booking.category.color }}">
+                                    <i class="{{ booking.category.icon }}"></i> {{ booking.category.name }}
+                                </span>
+                            </td>
+                            <td class="text-end text-danger">{{ booking.amount|floatformat:2 }} €</td>
+                            <td>
+                                {% if booking.status == 'booked' %}
+                                <span class="badge bg-success">Gebucht</span>
+                                {% else %}
+                                <span class="badge bg-warning">Geplant</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Dieser Verbindlichkeit sind noch keine Buchungen zugeordnet.
+                Ordnen Sie Ausgaben dieser Verbindlichkeit zu, um die Tilgung zu tracken.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

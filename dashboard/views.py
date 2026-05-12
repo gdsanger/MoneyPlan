@@ -8,7 +8,9 @@ from bookings.services import (
     get_planned_expenses,
     get_available_funds,
     get_due_this_month,
-    get_year_overview
+    get_year_overview,
+    get_total_liabilities,
+    get_liabilities_overview,
 )
 from bookings.models import Booking
 from alerts.models import Alert
@@ -35,6 +37,7 @@ def get_kpi_context():
         'available_funds_total': get_available_funds(),
         'active_alerts_count': Alert.objects.count(),
         'overdue_tasks_count': overdue_tasks_count,
+        'total_liabilities': get_total_liabilities(),
         'today': today,
     }
 
@@ -79,6 +82,12 @@ def index(request):
     from itertools import chain
     open_tasks = list(chain(overdue_sorted, due_soon_sorted, other_sorted))[:5]
     context['open_tasks'] = open_tasks
+
+    # Liabilities overview (max 3 open liabilities)
+    liabilities_overview = get_liabilities_overview()
+    # Filter only open liabilities and limit to 3
+    open_liabilities = [item for item in liabilities_overview if not item['is_closed']][:3]
+    context['open_liabilities'] = open_liabilities
 
     return render(request, 'dashboard/index.html', context)
 

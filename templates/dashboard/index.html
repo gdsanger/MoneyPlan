@@ -172,6 +172,72 @@
             </div>
         </div>
     </div>
+
+    <!-- Verbindlichkeiten Übersicht Widget -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-credit-card"></i> Verbindlichkeiten-Übersicht
+                        </h5>
+                        <a href="{% url 'bookings:liability_list' %}" class="btn btn-sm btn-outline-primary">
+                            Alle Verbindlichkeiten anzeigen →
+                        </a>
+                    </div>
+                    {% if open_liabilities %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th class="text-end">Vortrag</th>
+                                    <th class="text-end">Restschuld</th>
+                                    <th style="width: 200px;">Fortschritt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in open_liabilities %}
+                                {% with liability=item.liability %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'bookings:liability_detail' liability.id %}" class="text-decoration-none">
+                                            <strong>{{ liability.name }}</strong>
+                                        </a>
+                                    </td>
+                                    <td class="text-end">{{ liability.initial_amount|floatformat:2 }} €</td>
+                                    <td class="text-end text-danger">
+                                        <strong>{{ item.remaining|floatformat:2 }} €</strong>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 25px;">
+                                            <div class="progress-bar bg-warning"
+                                                 role="progressbar"
+                                                 style="width: {{ item.repaid_percent }}%"
+                                                 aria-valuenow="{{ item.repaid_percent }}"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="100">
+                                                {{ item.repaid_percent }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endwith %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success text-center mb-0">
+                        <i class="bi bi-check-circle"></i>
+                        <strong>Keine offenen Verbindlichkeiten ✓</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

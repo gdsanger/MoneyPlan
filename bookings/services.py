@@ -8,7 +8,7 @@ from decimal import Decimal
 from datetime import date
 from calendar import monthrange
 from django.db.models import Sum, Q, QuerySet
-from .models import Booking, Category
+from .models import Booking, Category, Liability
 
 
 def get_current_balance() -> Decimal:
@@ -427,3 +427,59 @@ def get_year_overview(year: int) -> list[dict]:
         })
 
     return result
+
+
+def get_total_liabilities() -> Decimal:
+    """
+    Sum of `remaining` across all liabilities where `remaining > 0`.
+
+    Returns:
+        Decimal: Total outstanding liabilities
+    """
+    total = Decimal('0.00')
+    for liability in Liability.objects.all():
+        if liability.remaining > 0:
+            total += liability.remaining
+    return total
+
+
+def get_liabilities_overview() -> list[dict]:
+    """
+    Return overview data for all liabilities with calculated statistics.
+
+    Returns:
+        list[dict]: List of dicts with structure:
+            {
+                'liability': Liability object,
+                'total_repaid': Decimal,
+                'remaining': Decimal,
+                'repaid_percent': int,
+                'is_closed': bool,
+                'monthly_avg': Decimal,  # avg monthly repayment based on linked bookings
+            }
+    """
+    liabilities = Liability.objects.all()
+    result = []
+
+    for liability in liabilities:
+        # Calculate monthly average repayment
+        linked_bookings = liability.bookings.filter(amount__lt=0)
+        booking_count = linked_bookings.count()
+
+        if booking_count > 0:
+            total_repaid = liability.total_repaid
+            monthly_avg = total_repaid / booking_count
+        else:
+            monthly_avg = Decimal('0.00')
+
+        result.append({
+            'liability': liability,
+            'total_repaid': liability.total_repaid,
+            'remaining': liability.remaining,
+            'repaid_percent': liability.repaid_percent,
+            'is_closed': liability.is_closed,
+            'monthly_avg': monthly_avg,
+        })
+
+    return result
+
