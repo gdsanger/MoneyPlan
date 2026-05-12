@@ -31,6 +31,15 @@ def get_kpi_context():
         due_date__lt=today
     ).count()
 
+    # Time tracking forecast entry
+    try:
+        from timetracking.services import get_forecast_entry, get_unbilled_total
+        tt_forecast = get_forecast_entry()
+        tt_unbilled_total = get_unbilled_total()
+    except ImportError:
+        tt_forecast = None
+        tt_unbilled_total = Decimal('0.00')
+
     return {
         'current_balance': get_current_balance(),
         'planned_income': get_planned_income(),
@@ -43,6 +52,8 @@ def get_kpi_context():
         'total_assets': get_total_assets(),
         'net_worth': get_net_worth(),
         'today': today,
+        'tt_forecast': tt_forecast,
+        'tt_unbilled_total': tt_unbilled_total,
     }
 
 

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Zeiterfassung - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-clock-history"></i> Zeiterfassung</h2>
+            <a href="{% url 'timetracking:create' %}"
+               class="btn btn-primary"
+               hx-get="{% url 'timetracking:create' %}"
+               hx-target="#form-modal-content"
+               hx-swap="innerHTML"
+               data-bs-toggle="modal"
+               data-bs-target="#formModal">
+                <i class="bi bi-plus-circle"></i> Neuer Zeiteintrag
+            </a>
+        </div>
+
+        <!-- Summary Bar -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-warning">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-2">Nicht abgerechnet</h6>
+                        <h3 class="mb-1 text-warning">{{ unbilled_total|floatformat:2 }} €</h3>
+                        <small class="text-muted">{{ unbilled_hours|floatformat:1 }} Stunden offen</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-2">Erwarteter Eingang</h6>
+                        {% if forecast_entry %}
+                        <h3 class="mb-1">{{ forecast_entry.date|date:"d. M Y" }}</h3>
+                        <small class="text-muted">15. des Folgemonats</small>
+                        {% else %}
+                        <h3 class="mb-1 text-muted">—</h3>
+                        <small class="text-muted">Keine offenen Einträge</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-2">Verwaltung</h6>
+                        <a href="{% url 'timetracking:client_list' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-people"></i> Kunden verwalten
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="filter-form" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select"
+                                hx-get="{% url 'timetracking:list' %}"
+                                hx-trigger="change"
+                                hx-target="#entry-list-container"
+                                hx-swap="innerHTML"
+                                hx-include="#filter-form">
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Alle</option>
+                            <option value="unbilled" {% if status_filter == 'unbilled' %}selected{% endif %}>Nicht abgerechnet</option>
+                            <option value="billed" {% if status_filter == 'billed' %}selected{% endif %}>Abgerechnet</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Kunde</label>
+                        <select name="client" class="form-select"
+                                hx-get="{% url 'timetracking:list' %}"
+                                hx-trigger="change"
+                                hx-target="#entry-list-container"
+                                hx-swap="innerHTML"
+                                hx-include="#filter-form">
+                            <option value="all" {% if client_filter == 'all' %}selected{% endif %}>Alle Kunden</option>
+                            {% for client in clients %}
+                            <option value="{{ client.id }}" {% if client_filter == client.id|stringformat:"s" %}selected{% endif %}>
+                                {{ client.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Monat</label>
+                        <input type="month" name="month" class="form-control"
+                               value="{{ month_filter }}"
+                               hx-get="{% url 'timetracking:list' %}"
+                               hx-trigger="change"
+                               hx-target="#entry-list-container"
+                               hx-swap="innerHTML"
+                               hx-include="#filter-form">
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Entry List -->
+        <div id="entry-list-container">
+            {% include 'timetracking/_list.html' %}
+        </div>
+    </div>
+</div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Zeiteintrag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content">
+                <!-- Form loaded via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

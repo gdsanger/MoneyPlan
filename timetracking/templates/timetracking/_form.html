@@ -1,0 +1,48 @@
+{% load crispy_forms_tags %}
+
+<form method="post"
+      hx-post="{% if entry %}{% url 'timetracking:edit' entry.id %}{% else %}{% url 'timetracking:create' %}{% endif %}"
+      id="time-entry-form">
+    {% csrf_token %}
+
+    {{ form|crispy }}
+
+    <!-- Live Amount Preview -->
+    <div class="alert alert-info mt-3" id="amount-preview">
+        <strong>Betrag:</strong> <span id="amount-value">0,00 €</span>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Abbrechen
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Speichern
+        </button>
+    </div>
+</form>
+
+<script>
+// Live amount calculation
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('time-entry-form');
+    if (!form) return;
+
+    const durationField = form.querySelector('[name="duration"]');
+    const rateField = form.querySelector('[name="hourly_rate"]');
+    const amountValue = document.getElementById('amount-value');
+
+    function updateAmount() {
+        const duration = parseFloat(durationField.value) || 0;
+        const rate = parseFloat(rateField.value) || 0;
+        const amount = duration * rate;
+        amountValue.textContent = amount.toFixed(2).replace('.', ',') + ' €';
+    }
+
+    if (durationField && rateField) {
+        durationField.addEventListener('input', updateAmount);
+        rateField.addEventListener('input', updateAmount);
+        updateAmount(); // Initial calculation
+    }
+});
+</script>

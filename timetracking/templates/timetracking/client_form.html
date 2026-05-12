@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if is_create %}Neuer Kunde{% else %}Kunde bearbeiten{% endif %} - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-6 offset-lg-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{% if is_create %}Neuer Kunde{% else %}Kunde bearbeiten{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                {% include 'timetracking/_client_form.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
