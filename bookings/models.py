@@ -121,7 +121,7 @@ class Liability(models.Model):
     def total_repaid(self):
         """Sum of all linked expense bookings (negative amounts → positive repaid)."""
         from django.db.models import Sum
-        result = self.bookings.filter(amount__lt=0).aggregate(Sum('amount'))['amount__sum']
+        result = self.bookings.filter(amount__lt=0, status='booked').aggregate(Sum('amount'))['amount__sum']
         return abs(result) if result else Decimal('0')
 
     @property

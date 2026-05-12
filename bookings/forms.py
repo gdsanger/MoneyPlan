@@ -5,6 +5,9 @@ from .models import Booking, Category, RecurringSeries, Liability, Asset
 from datetime import date
 
 
+ISO_DATE_FORMAT = '%Y-%m-%d'
+
+
 class QuickBookingForm(forms.ModelForm):
     """Compact form for quick booking entry on dashboard"""
 
@@ -12,7 +15,7 @@ class QuickBookingForm(forms.ModelForm):
         model = Booking
         fields = ['date', 'description', 'amount', 'category', 'status']
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'z.B. Einkauf Supermarkt'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
@@ -66,7 +69,7 @@ class BookingForm(forms.ModelForm):
         model = Booking
         fields = ['date', 'description', 'amount', 'category', 'status', 'liability', 'notes']
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
             'description': forms.TextInput(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
@@ -250,8 +253,8 @@ class RecurringSeriesForm(forms.ModelForm):
             'description': forms.TextInput(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'interval': forms.Select(attrs={'class': 'form-select'}),
-            'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'end_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'start_date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
+            'end_date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
@@ -306,8 +309,8 @@ class LiabilityForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'initial_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'due_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'start_date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
+            'due_date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
@@ -365,7 +368,7 @@ class AssetForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'purchase_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'purchase_date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
             'purchase_price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'current_value': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),

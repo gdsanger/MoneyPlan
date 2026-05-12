@@ -71,6 +71,28 @@ class LiabilityModelTestCase(TestCase):
 
         self.assertEqual(liability.total_repaid, Decimal('1000.00'))
 
+    def test_total_repaid_ignores_planned_bookings(self):
+        """Test that planned linked bookings do not count as repayments"""
+        liability = Liability.objects.create(
+            name="Autokredit VW",
+            initial_amount=Decimal('10000.00'),
+            start_date=date(2026, 1, 1),
+            category=self.category
+        )
+
+        Booking.objects.create(
+            date=date(2026, 2, 1),
+            description="Kreditrate geplant",
+            amount=Decimal('-500.00'),
+            status='planned',
+            category=self.category,
+            liability=liability
+        )
+
+        self.assertEqual(liability.total_repaid, Decimal('0'))
+        self.assertEqual(liability.remaining, Decimal('10000.00'))
+        self.assertEqual(liability.repaid_percent, 0)
+
     def test_remaining_calculation(self):
         """Test remaining calculation"""
         liability = Liability.objects.create(
