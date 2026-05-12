@@ -1,6 +1,7 @@
 {% load crispy_forms_tags %}
 
-<form method="post">
+<form method="post"
+      hx-post="{% if liability %}{% url 'bookings:liability_edit' liability.id %}{% else %}{% url 'bookings:liability_create' %}{% endif %}">
     {% csrf_token %}
     {% crispy form %}
     <div class="mt-3">
