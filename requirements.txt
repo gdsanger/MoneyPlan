@@ -9,3 +9,5 @@ anthropic>=0.28
 pdf2image>=1.17
 gunicorn
 whitenoise
+markdown>=3.5
+bleach>=6.0
