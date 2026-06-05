@@ -20,7 +20,8 @@ class DashboardViewTest(TestCase):
         self.category = Category.objects.create(
             name='Test Category',
             icon='cash',
-            color='#28a745'
+            color='#28a745',
+            category_type='expense',
         )
 
     def test_dashboard_requires_login(self):
@@ -76,8 +77,16 @@ class ChartDataTest(TestCase):
         self.category = Category.objects.create(
             name='Test Category',
             icon='cash',
-            color='#28a745'
+            color='#28a745',
+            category_type='expense',
         )
+        self.income_category = Category.objects.create(
+            name='Income Category',
+            icon='wallet',
+            color='#198754',
+            category_type='income',
+        )
+        self.neutral_category = Category.objects.get(name='Neutral')
 
     def test_forecast_chart_data_requires_login(self):
         """Test forecast endpoint requires authentication."""
@@ -100,10 +109,9 @@ class ChartDataTest(TestCase):
         self.assertIn('minBalance', data['summary'])
 
     def test_category_chart_data_returns_json(self):
-        """Test category endpoint returns valid JSON."""
+        """Test category endpoint returns valid JSON with expenses and income."""
         self.client.login(username='testuser', password='testpass')
 
-        # Create expense booking
         Booking.objects.create(
             date=date.today(),
             description='Test Expense',
@@ -111,12 +119,49 @@ class ChartDataTest(TestCase):
             status='booked',
             category=self.category
         )
+        Booking.objects.create(
+            date=date.today(),
+            description='Test Income',
+            amount=Decimal('250.00'),
+            status='booked',
+            category=self.income_category
+        )
 
         response = self.client.get(reverse('dashboard:category_data'))
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIn('labels', data)
-        self.assertIn('datasets', data)
+        self.assertIn('expenses', data)
+        self.assertIn('income', data)
+        self.assertIn('labels', data['expenses'])
+        self.assertIn('datasets', data['expenses'])
+        self.assertIn('labels', data['income'])
+        self.assertIn('datasets', data['income'])
+        self.assertEqual(data['expenses']['labels'], ['Test Category'])
+        self.assertEqual(data['income']['labels'], ['Income Category'])
+
+    def test_donut_chart_excludes_neutral_categories(self):
+        """Test donut chart excludes neutral category bookings."""
+        self.client.login(username='testuser', password='testpass')
+
+        Booking.objects.create(
+            date=date.today(),
+            description='Transfer',
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.neutral_category
+        )
+        Booking.objects.create(
+            date=date.today(),
+            description='Income',
+            amount=Decimal('500.00'),
+            status='booked',
+            category=self.income_category
+        )
+
+        response = self.client.get(reverse('dashboard:donut_data'))
+        data = response.json()
+        self.assertEqual(data['datasets'][0]['data'][0], 500.0)
+        self.assertEqual(data['datasets'][0]['data'][1], 0.0)
 
     def test_donut_chart_data_returns_json(self):
         """Test donut endpoint returns valid JSON."""
@@ -139,7 +184,8 @@ class MarkAsBookedTest(TestCase):
         self.category = Category.objects.create(
             name='Test Category',
             icon='cash',
-            color='#28a745'
+            color='#28a745',
+            category_type='expense',
         )
         self.booking = Booking.objects.create(
             date=date.today() + timedelta(days=5),
@@ -187,7 +233,8 @@ class YearOverviewTest(TestCase):
         self.category = Category.objects.create(
             name='Test Category',
             icon='cash',
-            color='#28a745'
+            color='#28a745',
+            category_type='expense',
         )
 
     def test_year_overview_requires_login(self):

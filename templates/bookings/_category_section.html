@@ -1,0 +1,38 @@
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0">
+            <i class="bi {{ section_icon }}"></i> {{ section_title }}
+            <span class="badge {{ section_badge_class }} ms-2">{{ section_categories|length }}</span>
+        </h5>
+        {% if section_hint %}
+        <small class="text-muted">{{ section_hint }}</small>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Farbe</th>
+                        <th>Icon</th>
+                        <th>Name</th>
+                        <th>Beschreibung</th>
+                        <th>Anzahl Buchungen</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in section_categories %}
+                        {% include 'bookings/_category_row.html' %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            <i class="bi bi-inbox"></i> Keine Kategorien in diesem Bereich
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

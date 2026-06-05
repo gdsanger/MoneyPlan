@@ -509,14 +509,16 @@ def receipt_confirm(request):
 
 @login_required
 def category_list(request):
-    """Liste aller Kategorien mit Buchungsanzahl"""
-    # Get all categories with booking count
+    """Liste aller Kategorien mit Buchungsanzahl, gruppiert nach Typ"""
     categories = Category.objects.annotate(
         booking_count=Count('bookings')
-    ).order_by('name')
+    ).order_by('category_type', 'name')
 
     context = {
-        'categories': categories,
+        'income_categories': categories.filter(category_type='income'),
+        'expense_categories': categories.filter(category_type='expense'),
+        'neutral_categories': categories.filter(category_type='neutral'),
+        'total_categories': categories.count(),
     }
 
     return render(request, 'bookings/category_list.html', context)

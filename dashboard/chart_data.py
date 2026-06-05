@@ -58,27 +58,32 @@ def forecast_chart_data(request):
     return JsonResponse(data)
 
 
+def _build_category_chart_dataset(top_categories, label):
+    """Build Chart.js dataset dict from top category results."""
+    return {
+        'labels': [item['category'].name for item in top_categories],
+        'datasets': [{
+            'label': label,
+            'data': [float(item['total']) for item in top_categories],
+            'backgroundColor': [item['category'].color for item in top_categories],
+            'borderColor': [item['category'].color for item in top_categories],
+            'borderWidth': 1,
+        }],
+    }
+
+
 @login_required
 def category_chart_data(request):
     """
-    Return top categories data for horizontal bar chart.
-    Shows top 10 expense categories from last 3 months.
+    Return top categories data for horizontal bar charts.
+    Shows top 10 expense and income categories from last 3 months.
     """
-    top_categories = get_top_categories(limit=10, months_back=3)
-
-    labels = [item['category'].name for item in top_categories]
-    amounts = [float(item['total']) for item in top_categories]
-    colors = [item['category'].color for item in top_categories]
+    top_expenses = get_top_categories(limit=10, months_back=3, category_type='expense')
+    top_income = get_top_categories(limit=10, months_back=3, category_type='income')
 
     data = {
-        'labels': labels,
-        'datasets': [{
-            'label': 'Ausgaben (EUR)',
-            'data': amounts,
-            'backgroundColor': colors,
-            'borderColor': colors,
-            'borderWidth': 1
-        }]
+        'expenses': _build_category_chart_dataset(top_expenses, 'Ausgaben (EUR)'),
+        'income': _build_category_chart_dataset(top_income, 'Einnahmen (EUR)'),
     }
 
     return JsonResponse(data)
@@ -90,9 +95,11 @@ def donut_chart_data(request):
     Return income vs expenses for current month as doughnut chart data.
     """
     today = date.today()
-    bookings = get_bookings_for_month(today.year, today.month)
+    bookings = get_bookings_for_month(today.year, today.month).exclude(
+        category__category_type='neutral',
+    )
 
-    # Calculate income and expenses for current month
+    # Calculate income and expenses for current month (exclude neutral categories)
     total_income = sum(
         b.amount for b in bookings
         if b.amount > 0

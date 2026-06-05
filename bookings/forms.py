@@ -181,9 +181,15 @@ class CategoryForm(forms.ModelForm):
 
     class Meta:
         model = Category
-        fields = ['name', 'icon', 'color']
+        fields = ['name', 'category_type', 'description', 'icon', 'color']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'category_type': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'z.B. Regelmäßige Wohnkosten inkl. Nebenkosten',
+            }),
             'icon': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'z.B. bi-house',
@@ -197,10 +203,14 @@ class CategoryForm(forms.ModelForm):
         }
         labels = {
             'name': 'Name',
+            'category_type': 'Typ',
+            'description': 'Beschreibung',
             'icon': 'Bootstrap Icon',
             'color': 'Farbe',
         }
         help_texts = {
+            'category_type': 'Einnahmen und Ausgaben fließen in Statistiken ein, Neutral nicht.',
+            'description': 'Wird dem KI-Finanzassistenten mitgegeben, damit er die Kategorie korrekt einordnet.',
             'icon': 'Bootstrap Icon Klasse (z.B. bi-house, bi-cart)',
             'color': 'Farbe als Hex-Wert',
         }
@@ -211,6 +221,8 @@ class CategoryForm(forms.ModelForm):
         self.helper.form_method = 'post'
         self.helper.layout = Layout(
             'name',
+            'category_type',
+            'description',
             Div(
                 'icon',
                 HTML('''
@@ -233,6 +245,8 @@ class CategoryForm(forms.ModelForm):
             ),
         )
         self.fields['name'].required = True
+        self.fields['category_type'].required = True
+        self.fields['description'].required = False
         self.fields['icon'].required = False
         self.fields['color'].required = True
 

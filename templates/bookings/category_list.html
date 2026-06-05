@@ -17,39 +17,15 @@
     <!-- Error message container for delete errors -->
     <div id="error-message-container"></div>
 
-    <!-- Category Table -->
-    <div class="card">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Farbe</th>
-                            <th>Icon</th>
-                            <th>Name</th>
-                            <th>Anzahl Buchungen</th>
-                            <th>Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for category in categories %}
-                            {% include 'bookings/_category_row.html' %}
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted">
-                                <i class="bi bi-inbox"></i> Keine Kategorien gefunden
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    {% include 'bookings/_category_section.html' with section_title='Einnahmen' section_icon='bi-arrow-down-circle' section_categories=income_categories section_badge_class='bg-success' %}
 
-            <p class="text-muted text-center mt-2 mb-0">
-                <small>{{ categories|length }} Kategorie{{ categories|length|pluralize:"n" }} gesamt</small>
-            </p>
-        </div>
-    </div>
+    {% include 'bookings/_category_section.html' with section_title='Ausgaben' section_icon='bi-arrow-up-circle' section_categories=expense_categories section_badge_class='bg-danger' %}
+
+    {% include 'bookings/_category_section.html' with section_title='Neutral' section_icon='bi-arrow-left-right' section_categories=neutral_categories section_badge_class='bg-secondary' section_hint='Durchlaufende Posten und Umbuchungen — nicht in Statistiken enthalten.' %}
+
+    <p class="text-muted text-center mt-2 mb-0">
+        <small>{{ total_categories }} Kategorie{{ total_categories|pluralize:"n" }} gesamt</small>
+    </p>
 </div>
 
 <!-- Form Modal -->

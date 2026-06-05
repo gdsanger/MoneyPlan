@@ -21,6 +21,8 @@ from bookings.services import (
     get_net_worth,
     get_assets_by_category,
     get_due_this_month,
+    get_category_reference_for_ai,
+    format_category_for_ai,
 )
 from alerts.models import Alert
 from tasks.models import Task
@@ -54,7 +56,9 @@ def build_financial_snapshot() -> dict:
     today = date.today()
     forecast = get_forecast(months=3)
     year_data = get_year_overview(today.year)
-    top_categories = get_top_categories(limit=5)
+    top_expense_categories = get_top_categories(limit=5, category_type='expense')
+    top_income_categories = get_top_categories(limit=5, category_type='income')
+    category_reference = get_category_reference_for_ai()
     liabilities = get_liabilities_overview()
     assets_by_category = get_assets_by_category()
     due_bookings = list(get_due_this_month()[:10])
@@ -96,7 +100,9 @@ def build_financial_snapshot() -> dict:
         'year_expenses': year_expenses,
         'year_result': year_result,
         'current_month': current_month,
-        'top_categories': top_categories,
+        'top_expense_categories': top_expense_categories,
+        'top_income_categories': top_income_categories,
+        'category_reference': category_reference,
         'open_liabilities': open_liabilities,
         'assets_by_category': assets_by_category,
         'due_bookings': due_bookings,
@@ -105,6 +111,15 @@ def build_financial_snapshot() -> dict:
         'tt_unbilled': tt_unbilled,
         'tt_forecast': tt_forecast,
     }
+
+
+def _format_top_category_line(item: dict) -> str:
+    """Format a top category entry with optional description."""
+    category = item['category']
+    line = f"  - {category.name}: {_format_euro(item['total'])}"
+    if category.description:
+        line += f" ({category.description})"
+    return line
 
 
 def _snapshot_to_prompt_text(snapshot: dict, mode: OverviewMode) -> str:
@@ -172,19 +187,32 @@ def _snapshot_to_prompt_text(snapshot: dict, mode: OverviewMode) -> str:
         f"Jahresergebnis: {_format_euro(snapshot['year_result'])}",
     ])
 
-    if snapshot['top_categories']:
+    if snapshot['category_reference']:
+        lines.append("")
+        lines.append("=== KATEGORIEN (Referenz) ===")
+        for category in snapshot['category_reference']:
+            lines.append(format_category_for_ai(category))
+
+    if snapshot['top_expense_categories']:
         lines.append("")
         lines.append("Top Ausgabenkategorien (letzte 3 Monate):")
-        for item in snapshot['top_categories']:
-            lines.append(f"  - {item['category'].name}: {_format_euro(item['total'])}")
+        for item in snapshot['top_expense_categories']:
+            lines.append(_format_top_category_line(item))
+
+    if snapshot['top_income_categories']:
+        lines.append("")
+        lines.append("Top Einnahmenkategorien (letzte 3 Monate):")
+        for item in snapshot['top_income_categories']:
+            lines.append(_format_top_category_line(item))
 
     if snapshot['due_bookings']:
         lines.append("")
         lines.append(f"Fällige Buchungen diesen Monat ({len(snapshot['due_bookings'])}):")
         for booking in snapshot['due_bookings'][:5]:
+            category_name = booking.category.name if booking.category_id else 'Unbekannt'
             lines.append(
                 f"  - {booking.date.strftime('%d.%m.%Y')}: {booking.description} "
-                f"{_format_euro(booking.amount)}"
+                f"{_format_euro(booking.amount)} [{category_name}]"
             )
 
     if snapshot['alerts']:

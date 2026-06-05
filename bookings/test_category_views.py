@@ -19,13 +19,17 @@ class CategoryViewsTestCase(TestCase):
         self.category1 = Category.objects.create(
             name='Test Kategorie 1',
             icon='wallet',
-            color='#007bff'
+            color='#007bff',
+            category_type='income',
+            description='Test Einnahme',
         )
 
         self.category2 = Category.objects.create(
             name='Test Kategorie 2',
             icon='house',
-            color='#28a745'
+            color='#28a745',
+            category_type='expense',
+            description='Test Ausgabe',
         )
 
     def test_category_list_requires_login(self):
@@ -41,8 +45,13 @@ class CategoryViewsTestCase(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'bookings/category_list.html')
-        self.assertIn('categories', response.context)
-        self.assertEqual(len(response.context['categories']), 2)
+        self.assertIn('income_categories', response.context)
+        self.assertIn('expense_categories', response.context)
+        self.assertIn('neutral_categories', response.context)
+        self.assertEqual(len(response.context['income_categories']), 1)
+        self.assertEqual(len(response.context['expense_categories']), 1)
+        self.assertGreaterEqual(len(response.context['neutral_categories']), 1)
+        self.assertEqual(response.context['total_categories'], 3)
 
     def test_category_list_shows_booking_count(self):
         """Test category list shows booking count"""
@@ -58,9 +67,8 @@ class CategoryViewsTestCase(TestCase):
         self.client.login(username='testuser', password='testpass123')
         response = self.client.get(reverse('category_list'))
 
-        categories = response.context['categories']
-        cat1 = next(c for c in categories if c.id == self.category1.id)
-        cat2 = next(c for c in categories if c.id == self.category2.id)
+        cat1 = response.context['income_categories'].get(id=self.category1.id)
+        cat2 = response.context['expense_categories'].get(id=self.category2.id)
 
         self.assertEqual(cat1.booking_count, 1)
         self.assertEqual(cat2.booking_count, 0)
@@ -79,6 +87,8 @@ class CategoryViewsTestCase(TestCase):
         self.client.login(username='testuser', password='testpass123')
         data = {
             'name': 'Neue Kategorie',
+            'category_type': 'expense',
+            'description': 'Neue Testkategorie',
             'icon': 'cart',
             'color': '#ff5733'
         }
@@ -95,7 +105,8 @@ class CategoryViewsTestCase(TestCase):
         """Test POST request to create category with invalid data"""
         self.client.login(username='testuser', password='testpass123')
         data = {
-            'name': '',  # Empty name
+            'name': '',
+            'category_type': 'expense',
             'icon': 'cart',
             'color': '#ff5733'
         }
@@ -108,7 +119,8 @@ class CategoryViewsTestCase(TestCase):
         """Test creating category with duplicate name"""
         self.client.login(username='testuser', password='testpass123')
         data = {
-            'name': 'Test Kategorie 1',  # Already exists
+            'name': 'Test Kategorie 1',
+            'category_type': 'income',
             'icon': 'cart',
             'color': '#ff5733'
         }
@@ -136,6 +148,8 @@ class CategoryViewsTestCase(TestCase):
         self.client.login(username='testuser', password='testpass123')
         data = {
             'name': 'Updated Category',
+            'category_type': 'income',
+            'description': 'Aktualisierte Beschreibung',
             'icon': 'star',
             'color': '#00ff00'
         }
@@ -221,6 +235,8 @@ class CategoryFormTestCase(TestCase):
         """Test form with valid data"""
         form = CategoryForm(data={
             'name': 'Test Category',
+            'category_type': 'expense',
+            'description': 'Beschreibung',
             'icon': 'wallet',
             'color': '#007bff'
         })
@@ -229,6 +245,7 @@ class CategoryFormTestCase(TestCase):
     def test_form_missing_required_name(self):
         """Test form with missing required name"""
         form = CategoryForm(data={
+            'category_type': 'expense',
             'icon': 'wallet',
             'color': '#007bff'
         })
@@ -239,6 +256,7 @@ class CategoryFormTestCase(TestCase):
         """Test form with missing required color"""
         form = CategoryForm(data={
             'name': 'Test Category',
+            'category_type': 'expense',
             'icon': 'wallet'
         })
         self.assertFalse(form.is_valid())
@@ -248,6 +266,7 @@ class CategoryFormTestCase(TestCase):
         """Test form with no icon (should be valid)"""
         form = CategoryForm(data={
             'name': 'Test Category',
+            'category_type': 'expense',
             'color': '#007bff'
         })
         self.assertTrue(form.is_valid())

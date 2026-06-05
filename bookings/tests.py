@@ -29,13 +29,21 @@ class ServicesTestCase(TestCase):
         """Set up test data"""
         # Create categories
         self.income_category = Category.objects.create(
-            name="Gehalt", icon="wallet", color="#28a745"
+            name="Gehalt", icon="wallet", color="#28a745", category_type='income'
         )
         self.expense_category = Category.objects.create(
-            name="Miete", icon="house", color="#dc3545"
+            name="Miete", icon="house", color="#dc3545", category_type='expense'
         )
         self.food_category = Category.objects.create(
-            name="Lebensmittel", icon="cart", color="#fd7e14"
+            name="Lebensmittel", icon="cart", color="#fd7e14", category_type='expense'
+        )
+        self.neutral_category, _ = Category.objects.get_or_create(
+            name="Neutral",
+            defaults={
+                'icon': 'bi-arrow-left-right',
+                'color': '#adb5bd',
+                'category_type': 'neutral',
+            },
         )
 
     def test_get_current_balance_empty(self):
@@ -392,7 +400,7 @@ class ServicesTestCase(TestCase):
             category=self.food_category
         )
 
-        top = get_top_categories(limit=2, months_back=3)
+        top = get_top_categories(limit=2, months_back=3, category_type='expense')
 
         # Should return rent as top category
         self.assertGreaterEqual(len(top), 1)
@@ -401,6 +409,81 @@ class ServicesTestCase(TestCase):
 
         if len(top) > 1:
             self.assertEqual(top[1]['category'].name, "Lebensmittel")
+
+    def test_get_top_income_categories(self):
+        """Test top income categories calculation"""
+        today = date.today()
+        two_months_ago = today - timedelta(days=60)
+
+        Booking.objects.create(
+            date=two_months_ago,
+            description="Salary 1",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+        Booking.objects.create(
+            date=two_months_ago + timedelta(days=15),
+            description="Salary 2",
+            amount=Decimal('3000.00'),
+            status='booked',
+            category=self.income_category
+        )
+
+        top = get_top_categories(limit=5, months_back=3, category_type='income')
+
+        self.assertEqual(len(top), 1)
+        self.assertEqual(top[0]['category'].name, "Gehalt")
+        self.assertEqual(top[0]['total'], Decimal('6000.00'))
+
+    def test_get_top_categories_excludes_neutral(self):
+        """Test neutral categories are excluded from statistics"""
+        today = date.today()
+
+        Booking.objects.create(
+            date=today,
+            description="Transfer",
+            amount=Decimal('-5000.00'),
+            status='booked',
+            category=self.neutral_category
+        )
+        Booking.objects.create(
+            date=today,
+            description="Rent",
+            amount=Decimal('-100.00'),
+            status='booked',
+            category=self.expense_category
+        )
+
+        top = get_top_categories(limit=5, months_back=3, category_type='expense')
+
+        self.assertEqual(len(top), 1)
+        self.assertEqual(top[0]['category'].name, "Miete")
+
+    def test_year_overview_excludes_neutral_categories(self):
+        """Test year overview excludes neutral category bookings from totals"""
+        today = date.today()
+
+        Booking.objects.create(
+            date=today,
+            description="Transfer out",
+            amount=Decimal('-1000.00'),
+            status='booked',
+            category=self.neutral_category
+        )
+        Booking.objects.create(
+            date=today,
+            description="Salary",
+            amount=Decimal('2000.00'),
+            status='booked',
+            category=self.income_category
+        )
+
+        year_data = get_year_overview(today.year)
+        current_month = next(m for m in year_data if m['is_current'])
+
+        self.assertEqual(current_month['income_booked'], Decimal('2000.00'))
+        self.assertEqual(current_month['expenses_booked'], Decimal('0.00'))
 
     def test_get_planned_carry_forward(self):
         """Test planned carry forward calculation includes booked and planned"""
