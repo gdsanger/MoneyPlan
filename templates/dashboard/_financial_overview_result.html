@@ -24,7 +24,8 @@
         </div>
 
         <div class="financial-overview-content border rounded p-3 bg-dark">
-            {{ result.content|linebreaks }}
+            {% load dashboard_tags %}
+            {{ result.content|render_markdown }}
         </div>
 
         <div class="d-flex justify-content-between align-items-center mt-3">

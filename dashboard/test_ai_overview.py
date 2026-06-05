@@ -16,6 +16,31 @@ from dashboard.ai_overview_service import (
     _format_euro,
     _snapshot_to_prompt_text,
 )
+from dashboard.templatetags.dashboard_tags import render_markdown
+
+
+class RenderMarkdownTest(TestCase):
+    """Test Markdown rendering for financial overview output."""
+
+    def test_renders_headings(self):
+        html = render_markdown("## Gesamtlage\nAlles in Ordnung.")
+        self.assertIn('<h2>Gesamtlage</h2>', html)
+        self.assertIn('<p>Alles in Ordnung.</p>', html)
+
+    def test_renders_lists(self):
+        html = render_markdown("- Punkt eins\n- Punkt zwei")
+        self.assertIn('<ul>', html)
+        self.assertIn('<li>Punkt eins</li>', html)
+        self.assertIn('<li>Punkt zwei</li>', html)
+
+    def test_strips_unsafe_html(self):
+        html = render_markdown('<script>alert("xss")</script>\n\n## Sicher')
+        self.assertNotIn('<script>', html)
+        self.assertIn('<h2>Sicher</h2>', html)
+
+    def test_empty_input(self):
+        self.assertEqual(render_markdown(''), '')
+        self.assertEqual(render_markdown(None), '')
 
 
 class FormatEuroTest(TestCase):
@@ -169,7 +194,8 @@ class FinancialOverviewViewTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Kurzüberblick')
-        self.assertContains(response, 'Gesamtlage')
+        self.assertContains(response, '<h2>Gesamtlage</h2>')
+        self.assertNotContains(response, '## Gesamtlage')
         mock_generate.assert_called_once_with(mode='short')
 
     @patch('dashboard.views.generate_financial_overview')
@@ -189,6 +215,8 @@ class FinancialOverviewViewTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Detaillierter Finanzüberblick')
+        self.assertContains(response, '<h2>Executive Summary</h2>')
+        self.assertNotContains(response, '## Executive Summary')
         mock_generate.assert_called_once_with(mode='detailed')
 
     @patch('dashboard.views.generate_financial_overview')
