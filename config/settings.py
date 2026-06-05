@@ -26,8 +26,14 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-key-change-this-i
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
-
+ALLOWED_HOSTS = ['mp.angerlabs.de', 'localhost', '127.0.0.1']
+# Wichtig: ab Django 4.x MIT Schema!
+CSRF_TRUSTED_ORIGINS = [
+    "https://mp.angerlabs.de",
+    "http://localhost",
+    # optional Wildcard, falls mehrere Subdomains:
+    # "https://*.angermeier.net",
+]
 
 # Application definition
 
