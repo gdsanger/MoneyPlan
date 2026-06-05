@@ -70,7 +70,10 @@ class AnthropicProvider(BaseAIProvider):
             response = self.client.messages.create(**kwargs)
 
             # Extract response data
-            content = response.content[0].text if response.content else ""
+            content = "".join(
+                block.text for block in response.content
+                if getattr(block, "type", None) == "text"
+            ) if response.content else ""
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
 
@@ -80,6 +83,7 @@ class AnthropicProvider(BaseAIProvider):
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 provider="anthropic",
+                finish_reason=response.stop_reason,
             )
         except Exception as e:
             raise AIProviderUnavailable(f"Anthropic API error: {str(e)}") from e
@@ -146,7 +150,10 @@ class AnthropicProvider(BaseAIProvider):
             response = self.client.messages.create(**kwargs)
 
             # Extract response data
-            content_text = response.content[0].text if response.content else ""
+            content_text = "".join(
+                block.text for block in response.content
+                if getattr(block, "type", None) == "text"
+            ) if response.content else ""
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
 
@@ -156,6 +163,7 @@ class AnthropicProvider(BaseAIProvider):
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 provider="anthropic",
+                finish_reason=response.stop_reason,
             )
         except Exception as e:
             raise AIProviderUnavailable(f"Anthropic API error: {str(e)}") from e

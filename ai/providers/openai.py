@@ -67,7 +67,8 @@ class OpenAIProvider(BaseAIProvider):
             )
 
             # Extract response data
-            content = response.choices[0].message.content or ""
+            choice = response.choices[0]
+            content = choice.message.content or ""
             input_tokens = response.usage.prompt_tokens if response.usage else 0
             output_tokens = response.usage.completion_tokens if response.usage else 0
 
@@ -77,6 +78,7 @@ class OpenAIProvider(BaseAIProvider):
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 provider="openai",
+                finish_reason=choice.finish_reason,
             )
         except Exception as e:
             raise AIProviderUnavailable(f"OpenAI API error: {str(e)}") from e
@@ -136,7 +138,8 @@ class OpenAIProvider(BaseAIProvider):
             )
 
             # Extract response data
-            content = response.choices[0].message.content or ""
+            choice = response.choices[0]
+            content = choice.message.content or ""
             input_tokens = response.usage.prompt_tokens if response.usage else 0
             output_tokens = response.usage.completion_tokens if response.usage else 0
 
@@ -146,6 +149,7 @@ class OpenAIProvider(BaseAIProvider):
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 provider="openai",
+                finish_reason=choice.finish_reason,
             )
         except Exception as e:
             raise AIProviderUnavailable(f"OpenAI API error: {str(e)}") from e

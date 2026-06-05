@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-from ai.providers.base import AIMessage
+from ai.providers.base import AIMessage, AIResponse
 from ai.service import complete
 from ai.exceptions import AIServiceError, AIProviderNotConfigured
 from bookings.services import (
@@ -29,6 +29,11 @@ from tasks.models import Task
 
 
 OverviewMode = Literal['short', 'detailed']
+SHORT_MAX_TOKENS = 800
+DETAILED_MAX_TOKENS = 5000
+DETAILED_RETRY_MAX_TOKENS = 8000
+TOKEN_LIMIT_FINISH_REASONS = {'length', 'max_tokens'}
+COMPLETE_RESPONSE_ENDINGS = ('.', '!', '?', ')', ']', '}', '%', '€')
 
 
 @dataclass
@@ -44,6 +49,19 @@ def _format_euro(value: Decimal) -> str:
     """Format Decimal as German currency string."""
     formatted = f"{value:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     return f"{formatted} €"
+
+
+def _response_hit_token_limit(response: AIResponse, max_tokens: int) -> bool:
+    """Return True when a provider likely stopped because of the output limit."""
+    if response.finish_reason in TOKEN_LIMIT_FINISH_REASONS:
+        return True
+
+    content = response.content.rstrip()
+    return (
+        bool(content)
+        and response.output_tokens >= max_tokens
+        and not content.endswith(COMPLETE_RESPONSE_ENDINGS)
+    )
 
 
 def build_financial_snapshot() -> dict:
@@ -289,12 +307,14 @@ Struktur:
 
 ## Risiken
 (Nur wenn relevant — z.B. Liquiditätsengpass, überfällige Buchungen)"""
-        max_tokens = 800
+        max_tokens = SHORT_MAX_TOKENS
         feature = "financial_overview_short"
     else:
         system_prompt = """Du bist ein Finanzberater für eine persönliche Finanzplanungs-App.
 Erstelle eine ausführliche Finanzanalyse auf Deutsch basierend auf den bereitgestellten Finanzdaten.
 Sei sachlich, strukturiert und handlungsorientiert. Verwende Markdown-Formatierung.
+Halte die Analyse vollständig, aber kompakt (max. 1200 Wörter).
+Beende jeden Abschnitt und Listenpunkt mit einem vollständigen Satz.
 Keine Einleitung wie "Hier ist Ihre Analyse" — starte direkt mit dem Inhalt."""
         user_prompt = f"""Analysiere diese Finanzdaten und erstelle eine detaillierte Finanzübersicht:
 
@@ -323,8 +343,10 @@ Struktur:
 (Konkrete, priorisierte Maßnahmen — nummerierte Liste)
 
 ## Chancen & Risiken
-(Positive Entwicklungen und potenzielle Gefahren)"""
-        max_tokens = 2500
+(Positive Entwicklungen und potenzielle Gefahren)
+
+Wichtig: Die Antwort muss vollständig abgeschlossen sein und darf nicht mitten im Satz oder Wort enden."""
+        max_tokens = DETAILED_MAX_TOKENS
         feature = "financial_overview_detailed"
 
     try:
@@ -334,7 +356,26 @@ Struktur:
             feature=feature,
             max_tokens=max_tokens,
         )
+        if mode == 'detailed' and _response_hit_token_limit(response, max_tokens):
+            retry_prompt = (
+                f"{user_prompt}\n\n"
+                "Die vorherige Antwort war zu lang. Erstelle die Analyse erneut, "
+                "noch kompakter (max. 900 Wörter), aber vollständig abgeschlossen."
+            )
+            response = complete(
+                messages=[AIMessage(role="user", content=retry_prompt)],
+                system_prompt=system_prompt,
+                feature=feature,
+                max_tokens=DETAILED_RETRY_MAX_TOKENS,
+            )
+            if _response_hit_token_limit(response, DETAILED_RETRY_MAX_TOKENS):
+                raise AIServiceError(
+                    "KI-Antwort wurde trotz erhöhtem Tokenlimit abgeschnitten. "
+                    "Bitte erneut generieren oder den Kurzüberblick verwenden."
+                )
     except AIProviderNotConfigured:
+        raise
+    except AIServiceError:
         raise
     except Exception as e:
         raise AIServiceError(f"AI provider failed: {str(e)}")

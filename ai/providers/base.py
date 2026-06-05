@@ -19,6 +19,7 @@ class AIResponse:
     input_tokens: int
     output_tokens: int
     provider: str          # "openai" | "anthropic"
+    finish_reason: Optional[str] = None
 
 
 class BaseAIProvider(ABC):
