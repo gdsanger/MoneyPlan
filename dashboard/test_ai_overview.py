@@ -14,6 +14,7 @@ from dashboard.ai_overview_service import (
     build_financial_snapshot,
     generate_financial_overview,
     _format_euro,
+    _response_hit_token_limit,
     _snapshot_to_prompt_text,
 )
 from dashboard.templatetags.dashboard_tags import render_markdown
@@ -154,7 +155,62 @@ class GenerateFinancialOverviewTest(TestCase):
         self.assertEqual(result.ai_provider, 'anthropic')
         call_kwargs = mock_complete.call_args[1]
         self.assertEqual(call_kwargs['feature'], 'financial_overview_detailed')
-        self.assertEqual(call_kwargs['max_tokens'], 2500)
+        self.assertEqual(call_kwargs['max_tokens'], 5000)
+        self.assertIn('max. 1200 Wörter', call_kwargs['system_prompt'])
+
+    @patch('dashboard.ai_overview_service.complete')
+    def test_generate_detailed_overview_retries_when_token_limited(self, mock_complete):
+        mock_complete.side_effect = [
+            AIResponse(
+                content="## Executive Summary\nAbgeschnittenes Wor",
+                model="claude-3-5-haiku-20241022",
+                input_tokens=500,
+                output_tokens=5000,
+                provider="anthropic",
+                finish_reason="max_tokens",
+            ),
+            AIResponse(
+                content="## Executive Summary\nVollständige Analyse.",
+                model="claude-3-5-haiku-20241022",
+                input_tokens=500,
+                output_tokens=300,
+                provider="anthropic",
+                finish_reason="end_turn",
+            ),
+        ]
+
+        result = generate_financial_overview(mode='detailed')
+
+        self.assertEqual(result.content, "## Executive Summary\nVollständige Analyse.")
+        self.assertEqual(mock_complete.call_count, 2)
+        first_call = mock_complete.call_args_list[0][1]
+        retry_call = mock_complete.call_args_list[1][1]
+        self.assertEqual(first_call['max_tokens'], 5000)
+        self.assertEqual(retry_call['max_tokens'], 8000)
+        self.assertIn('noch kompakter', retry_call['messages'][0].content)
+
+    def test_response_hit_token_limit_with_provider_finish_reason(self):
+        response = AIResponse(
+            content="Abgeschnitten",
+            model="gpt-4o-mini",
+            input_tokens=100,
+            output_tokens=5000,
+            provider="openai",
+            finish_reason="length",
+        )
+
+        self.assertTrue(_response_hit_token_limit(response, 5000))
+
+    def test_response_hit_token_limit_allows_complete_response_at_limit(self):
+        response = AIResponse(
+            content="Vollständig.",
+            model="gpt-4o-mini",
+            input_tokens=100,
+            output_tokens=5000,
+            provider="openai",
+        )
+
+        self.assertFalse(_response_hit_token_limit(response, 5000))
 
     @patch('dashboard.ai_overview_service.complete')
     def test_generate_raises_on_not_configured(self, mock_complete):
