@@ -4,8 +4,9 @@ from .models import Category, RecurringSeries, Booking, Liability, Asset
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'icon', 'color']
-    search_fields = ['name']
+    list_display = ['name', 'category_type', 'icon', 'color', 'description']
+    list_filter = ['category_type']
+    search_fields = ['name', 'description']
 
 
 @admin.register(RecurringSeries)

@@ -77,14 +77,28 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">
-                        <i class="bi bi-bar-chart"></i> Top 10 Kategorien
+                        <i class="bi bi-bar-chart"></i> Top 10 Ausgaben (3 Monate)
                     </h5>
                     <div style="max-height: 300px;">
-                        <canvas id="categoryChart"></canvas>
+                        <canvas id="categoryExpenseChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-bar-chart-fill"></i> Top 10 Einnahmen (3 Monate)
+                    </h5>
+                    <div style="max-height: 300px;">
+                        <canvas id="categoryIncomeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
         <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-body">
@@ -379,54 +393,71 @@ fetch('{% url "dashboard:forecast_data" %}')
         }
     });
 
+function renderCategoryChart(canvasId, chartData, emptyMessage) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+
+    if (chartData.labels && chartData.labels.length > 0) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: chartData,
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return formatEuro(context.parsed.x);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                        ticks: {
+                            callback: function(value) {
+                                return formatEuro(value);
+                            }
+                        }
+                    },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    } else {
+        ctx.parentElement.innerHTML = '<p class="text-muted mt-3">' + emptyMessage + '</p>';
+    }
+}
+
 fetch('{% url "dashboard:category_data" %}')
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
         return response.json();
     })
     .then(data => {
-        const ctx = document.getElementById('categoryChart');
-        if (data.labels && data.labels.length > 0) {
-            new Chart(ctx, {
-                type: 'bar',
-                data: data,
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return formatEuro(context.parsed.x);
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(255, 255, 255, 0.08)' },
-                            ticks: {
-                                callback: function(value) {
-                                    return formatEuro(value);
-                                }
-                            }
-                        },
-                        y: { grid: { display: false } }
-                    }
-                }
-            });
-        } else {
-            ctx.parentElement.innerHTML = '<p class="text-muted mt-3">Keine Kategoriedaten verfügbar</p>';
-        }
+        renderCategoryChart(
+            'categoryExpenseChart',
+            data.expenses,
+            'Keine Ausgabenkategorien verfügbar'
+        );
+        renderCategoryChart(
+            'categoryIncomeChart',
+            data.income,
+            'Keine Einnahmenkategorien verfügbar'
+        );
     })
     .catch(error => {
         console.error('Error loading category chart:', error);
-        const ctx = document.getElementById('categoryChart');
-        if (ctx) {
-            ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Kategoriedaten</p>';
-        }
+        ['categoryExpenseChart', 'categoryIncomeChart'].forEach(function(canvasId) {
+            const ctx = document.getElementById(canvasId);
+            if (ctx) {
+                ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Kategoriedaten</p>';
+            }
+        });
     });
 
 fetch('{% url "dashboard:donut_data" %}')

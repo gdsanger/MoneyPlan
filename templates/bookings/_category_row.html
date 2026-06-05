@@ -13,6 +13,13 @@
     </td>
     <td>{{ category.name }}</td>
     <td>
+        {% if category.description %}
+        <span class="text-muted" title="{{ category.description }}">{{ category.description|truncatechars:60 }}</span>
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td>
         <span class="badge bg-secondary">{{ category.booking_count }}</span>
     </td>
     <td>

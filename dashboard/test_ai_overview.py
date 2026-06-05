@@ -61,6 +61,8 @@ class BuildFinancialSnapshotTest(TestCase):
             name='Test Category',
             icon='cash',
             color='#28a745',
+            category_type='income',
+            description='Test Einnahmenkategorie',
         )
 
     def test_snapshot_with_no_data(self):
@@ -98,6 +100,12 @@ class BuildFinancialSnapshotTest(TestCase):
         self.assertIn('FORECAST', prompt)
         self.assertIn('VERMÖGEN', prompt)
 
+    def test_snapshot_to_prompt_contains_category_reference(self):
+        snapshot = build_financial_snapshot()
+        prompt = _snapshot_to_prompt_text(snapshot, 'short')
+        self.assertIn('KATEGORIEN (Referenz)', prompt)
+        self.assertIn('Test Category (Einnahme): Test Einnahmenkategorie', prompt)
+
 
 class GenerateFinancialOverviewTest(TestCase):
     """Test AI overview generation."""
@@ -107,6 +115,8 @@ class GenerateFinancialOverviewTest(TestCase):
             name='Test Category',
             icon='cash',
             color='#28a745',
+            category_type='income',
+            description='Test Einnahmenkategorie',
         )
 
     @patch('dashboard.ai_overview_service.complete')
@@ -164,6 +174,8 @@ class FinancialOverviewViewTest(TestCase):
             name='Test Category',
             icon='cash',
             color='#28a745',
+            category_type='income',
+            description='Test Einnahmenkategorie',
         )
 
     def test_overview_requires_login(self):

@@ -5,17 +5,39 @@ from decimal import Decimal
 
 class Category(models.Model):
     """Kategorie für Buchungen"""
+    CATEGORY_TYPE_CHOICES = [
+        ('expense', 'Ausgabe'),
+        ('income', 'Einnahme'),
+        ('neutral', 'Neutral'),
+    ]
+
     name = models.CharField(max_length=100, unique=True, verbose_name="Name")
     icon = models.CharField(max_length=50, blank=True, verbose_name="Bootstrap Icon")
     color = models.CharField(max_length=7, default="#6c757d", verbose_name="Farbe (Hex)")
+    category_type = models.CharField(
+        max_length=10,
+        choices=CATEGORY_TYPE_CHOICES,
+        default='expense',
+        verbose_name="Typ",
+    )
+    description = models.TextField(
+        blank=True,
+        max_length=500,
+        verbose_name="Beschreibung",
+        help_text="Kurze Erklärung für den KI-Finanzassistenten",
+    )
 
     class Meta:
         verbose_name = "Kategorie"
         verbose_name_plural = "Kategorien"
-        ordering = ['name']
+        ordering = ['category_type', 'name']
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_statistical(self):
+        return self.category_type != 'neutral'
 
 
 class RecurringSeries(models.Model):

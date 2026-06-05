@@ -7,6 +7,7 @@ import io
 
 from ai.service import complete_with_image
 from ai.exceptions import AIServiceError, AIProviderNotConfigured, AIResponseParseError
+from bookings.services import format_categories_for_ai_prompt
 
 
 @dataclass
@@ -90,30 +91,31 @@ def recognize_receipt(file_data: bytes, mime_type: str) -> ReceiptRecognitionRes
     system_prompt = """Du bist ein Assistent zur Analyse von Belegen und Rechnungen für eine Finanzverwaltungs-App.
 Extrahiere die relevanten Buchungsinformationen aus dem Beleg und antworte ausschließlich im folgenden JSON-Format, ohne zusätzlichen Text oder Markdown."""
 
+    categories_text = format_categories_for_ai_prompt()
+
     # User prompt
-    user_prompt = """Analysiere diesen Beleg und extrahiere die Buchungsinformationen.
+    user_prompt = f"""Analysiere diesen Beleg und extrahiere die Buchungsinformationen.
 
 Antworte NUR mit einem JSON-Objekt in diesem Format:
-{
+{{
   "date": "YYYY-MM-DD",
   "description": "Kurze prägnante Beschreibung (max. 60 Zeichen)",
   "amount": -29.50,
   "category_suggestion": "Telekommunikation",
   "notes": "Optionale Zusatzinformationen aus dem Beleg",
-  "confidence": {
+  "confidence": {{
     "date": "high|medium|low",
     "amount": "high|medium|low",
     "description": "high|medium|low"
-  },
+  }},
   "raw_text": "Relevanter extrahierter Text aus dem Beleg (max. 200 Zeichen)"
-}
+}}
 
 Regeln:
 - amount: negativ für Ausgaben, positiv für Einnahmen/Gutschriften
 - date: Rechnungsdatum oder Leistungsdatum, falls kein Datum erkennbar: null
-- category_suggestion: eine der folgenden Kategorien wählen oder "Sonstiges":
-  Gehalt, Miete, Lebensmittel, Transport, Versicherungen, Telekommunikation,
-  Gesundheit, Freizeit, Bildung, Sonstiges
+- category_suggestion: genau einen der folgenden Kategorienamen wählen (Name exakt übernehmen):
+{categories_text}
 - confidence: "high" wenn eindeutig erkennbar, "low" wenn geschätzt oder unklar"""
 
     # Call AI service

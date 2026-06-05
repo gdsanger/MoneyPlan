@@ -2,6 +2,7 @@
 from decimal import Decimal
 from unittest.mock import Mock, patch, MagicMock
 from django.test import TestCase
+from bookings.models import Category
 from bookings.receipt_service import (
     recognize_receipt,
     pdf_to_image,
@@ -52,6 +53,13 @@ class ReceiptRecognitionTestCase(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        Category.objects.create(
+            name='Telekommunikation',
+            icon='phone',
+            color='#6f42c1',
+            category_type='expense',
+            description='Mobilfunk und Internet',
+        )
         self.valid_ai_response = AIResponse(
             content='{"date": "2025-05-05", "description": "Telekom Rechnung", '
                    '"amount": -29.50, "category_suggestion": "Telekommunikation", '
@@ -79,6 +87,7 @@ class ReceiptRecognitionTestCase(TestCase):
         self.assertEqual(call_kwargs['image_mime_type'], 'image/jpeg')
         self.assertEqual(call_kwargs['feature'], 'receipt_recognition')
         self.assertIn('Analysiere diesen Beleg', call_kwargs['prompt'])
+        self.assertIn('Telekommunikation (Ausgabe): Mobilfunk und Internet', call_kwargs['prompt'])
 
         # Verify result
         self.assertIsInstance(result, ReceiptRecognitionResult)

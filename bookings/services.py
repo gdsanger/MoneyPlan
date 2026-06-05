@@ -11,6 +11,31 @@ from django.db.models import Sum, Q, QuerySet
 from .models import Booking, Category, Liability, Asset
 
 
+def exclude_neutral_categories(queryset: QuerySet) -> QuerySet:
+    """Exclude bookings assigned to neutral (non-statistical) categories."""
+    return queryset.exclude(category__category_type='neutral')
+
+
+def get_category_reference_for_ai() -> list[Category]:
+    """Return all statistical categories for AI context."""
+    return list(
+        Category.objects.exclude(category_type='neutral').order_by('category_type', 'name')
+    )
+
+
+def format_category_for_ai(category: Category) -> str:
+    """Format a single category line for AI prompts."""
+    type_label = category.get_category_type_display()
+    if category.description:
+        return f"- {category.name} ({type_label}): {category.description}"
+    return f"- {category.name} ({type_label})"
+
+
+def format_categories_for_ai_prompt() -> str:
+    """Format all statistical categories for AI prompts."""
+    return "\n".join(format_category_for_ai(cat) for cat in get_category_reference_for_ai())
+
+
 def get_current_balance() -> Decimal:
     """
     Sum of all `booked` bookings. This is the actual current balance.
@@ -301,18 +326,26 @@ def get_forecast(months: int | None = None) -> list[dict]:
     return forecast_data
 
 
-def get_top_categories(limit: int = 10, months_back: int = 3) -> list[dict]:
+def get_top_categories(
+    limit: int = 10,
+    months_back: int = 3,
+    category_type: str = 'expense',
+) -> list[dict]:
     """
-    Return top expense categories by total absolute amount over the last months_back months.
+    Return top categories by total amount over the last months_back months.
 
     Args:
         limit: Maximum number of categories to return (default: 10)
         months_back: Number of months to look back (default: 3)
+        category_type: 'expense' or 'income' (neutral categories are never included)
 
     Returns:
         list[dict]: List of dicts with structure:
             [{'category': Category, 'total': Decimal('...')}, ...]
     """
+    if category_type not in ('expense', 'income'):
+        raise ValueError("category_type must be 'expense' or 'income'")
+
     today = date.today()
 
     # Calculate the date months_back months ago
@@ -325,23 +358,25 @@ def get_top_categories(limit: int = 10, months_back: int = 3) -> list[dict]:
 
     start_date = date(target_year, target_month, 1)
 
-    # Get expenses (negative amounts) from the period
-    expenses = Booking.objects.filter(
+    amount_filter = {'amount__lt': 0} if category_type == 'expense' else {'amount__gt': 0}
+    order_field = 'total' if category_type == 'expense' else '-total'
+
+    bookings = Booking.objects.filter(
         date__gte=start_date,
         date__lte=today,
-        amount__lt=0
+        category__category_type=category_type,
+        **amount_filter,
     ).values('category').annotate(
         total=Sum('amount')
-    ).order_by('total')  # Most negative first
+    ).order_by(order_field)
 
-    # Convert to list of dicts with Category objects and positive totals
     result = []
-    for item in expenses[:limit]:
+    for item in bookings[:limit]:
         try:
             category = Category.objects.get(pk=item['category'])
             result.append({
                 'category': category,
-                'total': abs(item['total'])  # Positive for display
+                'total': abs(item['total']),
             })
         except Category.DoesNotExist:
             continue
@@ -391,41 +426,41 @@ def get_year_overview(year: int) -> list[dict]:
         is_future = first_day > today
         is_current = (year == today.year and month == today.month)
 
-        # Get booked income for this month
-        income_booked_qs = Booking.objects.filter(
+        # Get booked income for this month (exclude neutral categories)
+        income_booked_qs = exclude_neutral_categories(Booking.objects.filter(
             status='booked',
             amount__gt=0,
             date__gte=first_day,
-            date__lte=last_day
-        )
+            date__lte=last_day,
+        ))
         income_booked = income_booked_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        # Get planned income for this month
-        income_planned_qs = Booking.objects.filter(
+        # Get planned income for this month (exclude neutral categories)
+        income_planned_qs = exclude_neutral_categories(Booking.objects.filter(
             status='planned',
             amount__gt=0,
             date__gte=first_day,
-            date__lte=last_day
-        )
+            date__lte=last_day,
+        ))
         income_planned = income_planned_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        # Get booked expenses for this month (as positive number)
-        expenses_booked_qs = Booking.objects.filter(
+        # Get booked expenses for this month (exclude neutral categories)
+        expenses_booked_qs = exclude_neutral_categories(Booking.objects.filter(
             status='booked',
             amount__lt=0,
             date__gte=first_day,
-            date__lte=last_day
-        )
+            date__lte=last_day,
+        ))
         expenses_booked_total = expenses_booked_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         expenses_booked = abs(expenses_booked_total)
 
-        # Get planned expenses for this month (as positive number)
-        expenses_planned_qs = Booking.objects.filter(
+        # Get planned expenses for this month (exclude neutral categories)
+        expenses_planned_qs = exclude_neutral_categories(Booking.objects.filter(
             status='planned',
             amount__lt=0,
             date__gte=first_day,
-            date__lte=last_day
-        )
+            date__lte=last_day,
+        ))
         expenses_planned_total = expenses_planned_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         expenses_planned = abs(expenses_planned_total)
 
