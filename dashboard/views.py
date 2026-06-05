@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.db import models
+from ai.exceptions import AIProviderNotConfigured, AIServiceError
+from dashboard.ai_overview_service import generate_financial_overview
 from bookings.services import (
     get_current_balance,
     get_planned_income,
@@ -203,3 +205,36 @@ def year_overview(request, year=None):
         return render(request, 'dashboard/_year_grid.html', context)
 
     return render(request, 'dashboard/year_overview.html', context)
+
+
+@login_required
+def financial_overview(request):
+    """
+    AI-powered financial overview.
+    GET: Returns mode selection form
+    POST: Generates overview via AI (mode=short|detailed)
+    """
+    if request.method == 'POST':
+        mode = request.POST.get('mode', 'short')
+        if mode not in ('short', 'detailed'):
+            mode = 'short'
+
+        try:
+            result = generate_financial_overview(mode=mode)
+            return render(request, 'dashboard/_financial_overview_result.html', {
+                'result': result,
+            })
+        except AIProviderNotConfigured:
+            return render(request, 'dashboard/_financial_overview_form.html', {
+                'error': 'KI nicht konfiguriert — bitte API-Key in den KI-Einstellungen hinterlegen.',
+            })
+        except AIServiceError as e:
+            return render(request, 'dashboard/_financial_overview_form.html', {
+                'error': f'KI-Analyse fehlgeschlagen: {str(e)}',
+            })
+        except Exception as e:
+            return render(request, 'dashboard/_financial_overview_form.html', {
+                'error': f'Unerwarteter Fehler: {str(e)}',
+            })
+
+    return render(request, 'dashboard/_financial_overview_form.html')

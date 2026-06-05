@@ -14,6 +14,15 @@
                 {% include 'bookings/_quick_entry_button.html' %}
             </div>
             <button type="button"
+                    class="btn btn-outline-info btn-lg"
+                    hx-get="{% url 'dashboard:financial_overview' %}"
+                    hx-target="#overview-container"
+                    hx-swap="innerHTML"
+                    data-bs-toggle="modal"
+                    data-bs-target="#overviewModal">
+                <i class="bi bi-robot"></i> Finanzüberblick
+            </button>
+            <button type="button"
                     class="btn btn-outline-primary btn-lg"
                     hx-get="{% url 'bookings:receipt_upload' %}"
                     hx-target="#receipt-container"
@@ -395,6 +404,25 @@ fetch('{% url "dashboard:donut_data" %}')
         }
     });
 </script>
+
+<!-- Financial Overview Modal -->
+<div class="modal fade" id="overviewModal" tabindex="-1" aria-labelledby="overviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="overviewModalLabel">
+                    <i class="bi bi-robot"></i> KI-Finanzüberblick
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="overview-container">
+                    {% include 'dashboard/_financial_overview_form.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Receipt Upload Modal -->
 <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">

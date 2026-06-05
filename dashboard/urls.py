@@ -11,4 +11,5 @@ urlpatterns = [
     path('mark-as-booked/<int:booking_id>/', views.mark_as_booked, name='mark_as_booked'),
     path('jahresuebersicht/', views.year_overview, name='year_overview'),
     path('jahresuebersicht/<int:year>/', views.year_overview, name='year_overview_detail'),
+    path('finanzueberblick/', views.financial_overview, name='financial_overview'),
 ]
