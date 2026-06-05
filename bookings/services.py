@@ -200,7 +200,7 @@ def get_due_this_month() -> QuerySet:
     ).order_by('date')
 
 
-def get_forecast(months: int = 3) -> list[dict]:
+def get_forecast(months: int | None = None) -> list[dict]:
     """
     Return a list of dicts, one per month (current + next `months` months).
 
@@ -208,7 +208,7 @@ def get_forecast(months: int = 3) -> list[dict]:
     Also injects virtual time tracking forecast entry if unbilled entries exist.
 
     Args:
-        months: Number of future months to forecast (default: 3)
+        months: Number of future months to forecast (default: settings.FORECAST_MONTHS)
 
     Returns:
         list[dict]: List of monthly projections with structure:
@@ -222,6 +222,10 @@ def get_forecast(months: int = 3) -> list[dict]:
                 'timetracking_date': date(...),  # optional
             }
     """
+    if months is None:
+        from django.conf import settings
+        months = settings.FORECAST_MONTHS
+
     # Lazy import to avoid circular dependency
     try:
         from timetracking.services import get_forecast_entry

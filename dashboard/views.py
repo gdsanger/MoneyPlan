@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -56,6 +57,7 @@ def get_kpi_context():
         'today': today,
         'tt_forecast': tt_forecast,
         'tt_unbilled_total': tt_unbilled_total,
+        'forecast_months': settings.FORECAST_MONTHS,
     }
 
 
