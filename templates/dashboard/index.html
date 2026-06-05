@@ -1,6 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Dashboard - MoneyPlan{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -8,7 +13,6 @@
         <h1 class="mb-0">
             <i class="bi bi-speedometer2"></i> Dashboard
         </h1>
-        <!-- Quick Entry & Receipt Upload Buttons -->
         <div class="d-flex gap-2">
             <div id="quick-entry-container">
                 {% include 'bookings/_quick_entry_button.html' %}
@@ -34,7 +38,6 @@
         </div>
     </div>
 
-    <!-- KPI Cards (wrapped for HTMX targeting) -->
     <div id="kpi-cards-container">
         {% include 'dashboard/_kpi_cards.html' %}
     </div>
@@ -44,16 +47,31 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-graph-up"></i> Saldoverlauf (Forecast +3 Monate)
-                    </h5>
-                    <canvas id="forecastChart" style="max-height: 300px;"></canvas>
+                    <div class="dashboard-card-header mb-3">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-graph-up"></i>
+                            Saldoverlauf — Forecast +{{ forecast_months }} Monate
+                        </h5>
+                    </div>
+                    <div id="forecastSummary" class="forecast-summary d-none">
+                        <div class="forecast-summary-item">
+                            <span class="forecast-summary-label">Endsaldo ({{ forecast_months }} Monate)</span>
+                            <span class="forecast-summary-value" id="forecastEndBalance">—</span>
+                        </div>
+                        <div class="forecast-summary-item">
+                            <span class="forecast-summary-label">Niedrigster Punkt</span>
+                            <span class="forecast-summary-value" id="forecastMinBalance">—</span>
+                        </div>
+                    </div>
+                    <div class="forecast-chart-container">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Charts -->
+    <!-- Analysis Charts -->
     <div class="row mb-4">
         <div class="col-md-6 mb-3 mb-md-0">
             <div class="card h-100">
@@ -61,7 +79,9 @@
                     <h5 class="card-title">
                         <i class="bi bi-bar-chart"></i> Top 10 Kategorien
                     </h5>
-                    <canvas id="categoryChart" style="max-height: 300px;"></canvas>
+                    <div style="max-height: 300px;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -71,23 +91,25 @@
                     <h5 class="card-title">
                         <i class="bi bi-pie-chart"></i> Einnahmen vs. Ausgaben (aktueller Monat)
                     </h5>
-                    <canvas id="donutChart" style="max-height: 300px;"></canvas>
+                    <div style="max-height: 300px;">
+                        <canvas id="donutChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Fälligkeitsliste (Due This Month) -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
+    <!-- Operational Widgets -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card h-100 dashboard-operational-card">
                 <div class="card-body">
                     <h5 class="card-title">
                         <i class="bi bi-calendar-check"></i> Fälligkeitsliste ({{ due_bookings.count }} Einträge)
                     </h5>
                     {% if due_bookings %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-sm">
                             <thead>
                                 <tr>
                                     <th>Datum</th>
@@ -105,35 +127,31 @@
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-muted">Keine fälligen Buchungen im aktuellen Monat.</p>
+                    <p class="text-muted mb-0">Keine fälligen Buchungen im aktuellen Monat.</p>
                     {% endif %}
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Offene Aufgaben Widget -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
+        <div class="col-lg-6">
+            <div class="card h-100 dashboard-operational-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">
                             <i class="bi bi-check2-square"></i> Offene Aufgaben
                         </h5>
                         <a href="{% url 'tasks:list' %}" class="btn btn-sm btn-outline-primary">
-                            Alle Aufgaben anzeigen →
+                            Alle anzeigen →
                         </a>
                     </div>
                     {% if open_tasks %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-sm">
                             <thead>
                                 <tr>
-                                    <th style="width: 100px;">Priorität</th>
+                                    <th style="width: 90px;">Priorität</th>
                                     <th>Titel</th>
-                                    <th style="width: 120px;">Fälligkeit</th>
-                                    <th style="width: 120px;">Aktion</th>
+                                    <th style="width: 100px;">Fälligkeit</th>
+                                    <th style="width: 100px;">Aktion</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -163,7 +181,7 @@
                                             hx-target="#task-row-{{ task.id }}"
                                             hx-swap="outerHTML"
                                             title="Als erledigt markieren">
-                                            <i class="bi bi-check-square"></i> Erledigt
+                                            <i class="bi bi-check-square"></i>
                                         </button>
                                     </td>
                                 </tr>
@@ -182,8 +200,8 @@
         </div>
     </div>
 
-    <!-- Verbindlichkeiten Übersicht Widget -->
-    <div class="row mt-4">
+    <!-- Liabilities Overview -->
+    <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
@@ -252,7 +270,6 @@
 
 {% block extra_js %}
 <script>
-// Helper to format German currency
 function formatEuro(value) {
     return new Intl.NumberFormat('de-DE', {
         style: 'currency',
@@ -260,31 +277,78 @@ function formatEuro(value) {
     }).format(value);
 }
 
-// Forecast Chart
+function updateForecastSummary(summary) {
+    if (!summary) return;
+    const summaryEl = document.getElementById('forecastSummary');
+    summaryEl.classList.remove('d-none');
+    document.getElementById('forecastEndBalance').textContent =
+        formatEuro(summary.endBalance) + ' (' + summary.endLabel + ')';
+    document.getElementById('forecastMinBalance').textContent =
+        formatEuro(summary.minBalance) + ' (' + summary.minLabel + ')';
+    document.getElementById('forecastMinBalance').className =
+        'forecast-summary-value ' + (summary.minBalance < 0 ? 'text-danger' : 'text-warning');
+}
+
+function buildForecastDatasets(data) {
+    const balances = data.datasets[0].data;
+    const currentIndex = data.currentMonthIndex ?? 0;
+    const baseDataset = { ...data.datasets[0] };
+
+    const actualData = balances.map((v, i) => i <= currentIndex ? v : null);
+    const forecastData = balances.map((v, i) => i >= currentIndex ? v : null);
+
+    return [
+        {
+            ...baseDataset,
+            label: 'Ist / aktueller Monat',
+            data: actualData,
+            borderDash: [],
+            pointBackgroundColor: 'rgba(13, 202, 240, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+        },
+        {
+            ...baseDataset,
+            label: 'Prognose',
+            data: forecastData,
+            borderDash: [6, 4],
+            backgroundColor: 'rgba(13, 202, 240, 0.05)',
+            fill: false,
+            pointBackgroundColor: 'rgba(255, 193, 7, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+        }
+    ];
+}
+
 fetch('{% url "dashboard:forecast_data" %}')
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok: ' + response.statusText);
-        }
+        if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
         return response.json();
     })
     .then(data => {
+        updateForecastSummary(data.summary);
         const ctx = document.getElementById('forecastChart');
         new Chart(ctx, {
             type: 'line',
-            data: data,
+            data: {
+                labels: data.labels,
+                datasets: buildForecastDatasets(data),
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
+                    legend: { position: 'top' },
                     tooltip: {
                         callbacks: {
                             title: function(context) {
-                                // Use custom tooltip labels if available
                                 const index = context[0].dataIndex;
                                 return data.tooltipLabels ? data.tooltipLabels[index] : data.labels[index];
                             },
                             label: function(context) {
+                                if (context.parsed.y === null) return null;
                                 return context.dataset.label + ': ' + formatEuro(context.parsed.y);
                             }
                         }
@@ -292,11 +356,16 @@ fetch('{% url "dashboard:forecast_data" %}')
                 },
                 scales: {
                     y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(255, 255, 255, 0.08)' },
                         ticks: {
                             callback: function(value) {
                                 return formatEuro(value);
                             }
                         }
+                    },
+                    x: {
+                        grid: { display: false }
                     }
                 }
             }
@@ -304,18 +373,15 @@ fetch('{% url "dashboard:forecast_data" %}')
     })
     .catch(error => {
         console.error('Error loading forecast chart:', error);
-        const ctx = document.getElementById('forecastChart');
-        if (ctx) {
-            ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Forecast-Daten</p>';
+        const container = document.querySelector('.forecast-chart-container');
+        if (container) {
+            container.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Forecast-Daten</p>';
         }
     });
 
-// Category Chart (Horizontal Bar)
 fetch('{% url "dashboard:category_data" %}')
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok: ' + response.statusText);
-        }
+        if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
         return response.json();
     })
     .then(data => {
@@ -329,9 +395,7 @@ fetch('{% url "dashboard:category_data" %}')
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -342,12 +406,14 @@ fetch('{% url "dashboard:category_data" %}')
                     },
                     scales: {
                         x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.08)' },
                             ticks: {
                                 callback: function(value) {
                                     return formatEuro(value);
                                 }
                             }
-                        }
+                        },
+                        y: { grid: { display: false } }
                     }
                 }
             });
@@ -363,12 +429,9 @@ fetch('{% url "dashboard:category_data" %}')
         }
     });
 
-// Donut Chart
 fetch('{% url "dashboard:donut_data" %}')
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok: ' + response.statusText);
-        }
+        if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
         return response.json();
     })
     .then(data => {
@@ -405,9 +468,8 @@ fetch('{% url "dashboard:donut_data" %}')
     });
 </script>
 
-<!-- Financial Overview Modal -->
 <div class="modal fade" id="overviewModal" tabindex="-1" aria-labelledby="overviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="overviewModalLabel">
@@ -424,7 +486,6 @@ fetch('{% url "dashboard:donut_data" %}')
     </div>
 </div>
 
-<!-- Receipt Upload Modal -->
 <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">

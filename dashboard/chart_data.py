@@ -2,6 +2,7 @@
 Chart data endpoints for dashboard.
 Returns JSON for Chart.js consumption.
 """
+from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from bookings.services import get_forecast, get_top_categories, get_bookings_for_month
@@ -15,7 +16,7 @@ def forecast_chart_data(request):
     Shows current balance progression + future months forecast.
     Includes time tracking annotations in tooltip data.
     """
-    forecast_data = get_forecast(months=3)
+    forecast_data = get_forecast(months=settings.FORECAST_MONTHS)
 
     labels = [item['label'] for item in forecast_data]
     balances = [float(item['projected_balance']) for item in forecast_data]
@@ -29,16 +30,28 @@ def forecast_chart_data(request):
             label += f" (inkl. ⏱ Stundenabrechnung: +{tt_amount:.2f} €)"
         tooltip_labels.append(label)
 
+    end_balance = forecast_data[-1]['projected_balance']
+    min_entry = min(forecast_data, key=lambda item: item['projected_balance'])
+
     data = {
         'labels': labels,
-        'tooltipLabels': tooltip_labels,  # Custom labels for tooltips
+        'tooltipLabels': tooltip_labels,
+        'currentMonthIndex': 0,
+        'summary': {
+            'endBalance': float(end_balance),
+            'endLabel': forecast_data[-1]['label'],
+            'minBalance': float(min_entry['projected_balance']),
+            'minLabel': min_entry['label'],
+        },
         'datasets': [{
             'label': 'Saldoverlauf',
             'data': balances,
-            'borderColor': 'rgb(75, 192, 192)',
-            'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+            'borderColor': 'rgba(13, 202, 240, 1)',
+            'backgroundColor': 'rgba(13, 202, 240, 0.15)',
             'tension': 0.1,
-            'fill': True
+            'fill': True,
+            'pointRadius': 5,
+            'pointHoverRadius': 7,
         }]
     }
 

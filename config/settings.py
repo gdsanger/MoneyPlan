@@ -183,3 +183,6 @@ LOGOUT_REDIRECT_URL = 'login'
 # Crispy Forms
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+# Dashboard forecast horizon (future months; current month is added separately)
+FORECAST_MONTHS = 6

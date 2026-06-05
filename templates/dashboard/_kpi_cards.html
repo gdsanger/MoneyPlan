@@ -1,146 +1,188 @@
-<!-- KPI Cards (2x3 grid on desktop, stacked on mobile) -->
+<!-- KPI Cards grouped by category -->
+
+<!-- Liquidität -->
+<h6 class="dashboard-section-title"><i class="bi bi-droplet"></i> Liquidität</h6>
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">Geldmittel verfügbar</h6>
-                <h2 class="mb-1 {% if current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    {{ current_balance|floatformat:2 }} €
-                </h2>
-                <small class="text-muted">Ist-Saldo (gebucht)</small>
+    <div class="col-md-6 col-lg-3">
+        <div class="card kpi-card border-start border-3 border-success">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon text-success"><i class="bi bi-wallet2"></i></div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">Geldmittel verfügbar</h6>
+                    <div class="kpi-value {% if current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ current_balance|floatformat:2 }} €
+                    </div>
+                    <small class="text-muted">Ist-Saldo (gebucht)</small>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">Offene Ausgaben</h6>
-                <h2 class="mb-1 text-danger">
-                    {{ planned_expenses|floatformat:2 }} €
-                </h2>
-                <small class="text-muted">Geplante Ausgaben</small>
+    <div class="col-md-6 col-lg-3">
+        <div class="card kpi-card border-start border-3 border-info">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon text-info"><i class="bi bi-calendar-month"></i></div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">Verfügbare Mittel (Monat)</h6>
+                    <div class="kpi-value text-info">{{ available_funds_month|floatformat:2 }} €</div>
+                    <small class="text-muted">Projektion (aktueller Monat)</small>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">Offene Einnahmen</h6>
-                <h2 class="mb-1 text-success">
-                    {{ planned_income|floatformat:2 }} €
-                </h2>
-                <small class="text-muted">Geplante Einnahmen</small>
+    <div class="col-md-6 col-lg-3">
+        <div class="card kpi-card border-start border-3 border-info">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon text-info"><i class="bi bi-graph-up-arrow"></i></div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">Verfügbare Mittel (Gesamt)</h6>
+                    <div class="kpi-value text-info">{{ available_funds_total|floatformat:2 }} €</div>
+                    <small class="text-muted">Projektion (Gesamt)</small>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">Verfügbare Mittel (Monat)</h6>
-                <h2 class="mb-1 text-info">
-                    {{ available_funds_month|floatformat:2 }} €
-                </h2>
-                <small class="text-muted">Projektion (aktueller Monat)</small>
+    <div class="col-md-6 col-lg-3">
+        <div class="card kpi-card border-start border-3 {% if active_alerts_count > 0 %}border-warning{% else %}border-secondary{% endif %}">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon {% if active_alerts_count > 0 %}text-warning{% else %}text-muted{% endif %}">
+                    <i class="bi bi-bell"></i>
+                </div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">Aktive Alerts</h6>
+                    <div class="kpi-value {% if active_alerts_count > 0 %}text-warning{% else %}text-muted{% endif %}">
+                        {{ active_alerts_count }}
+                    </div>
+                    <small class="text-muted">Warnmeldungen</small>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">Verfügbare Mittel (Gesamt)</h6>
-                <h2 class="mb-1 text-info">
-                    {{ available_funds_total|floatformat:2 }} €
-                </h2>
-                <small class="text-muted">Projektion (Gesamt)</small>
+</div>
+
+<!-- Planung -->
+<h6 class="dashboard-section-title"><i class="bi bi-calendar2-check"></i> Planung</h6>
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-4">
+        <div class="card kpi-card border-start border-3 border-success">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon text-success"><i class="bi bi-arrow-down-circle"></i></div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">Offene Einnahmen</h6>
+                    <div class="kpi-value text-success">{{ planned_income|floatformat:2 }} €</div>
+                    <small class="text-muted">Geplante Einnahmen</small>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">Aktive Alerts</h6>
-                <h2 class="mb-1 {% if active_alerts_count > 0 %}text-warning{% else %}text-muted{% endif %}">
-                    {{ active_alerts_count }}
-                </h2>
-                <small class="text-muted">Warnmeldungen</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">Überfällige Aufgaben</h6>
-                <h2 class="mb-1 {% if overdue_tasks_count > 0 %}text-danger{% else %}text-muted{% endif %}">
-                    {{ overdue_tasks_count }}
-                </h2>
-                <small class="text-muted">Aufgaben</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">
-                    <a href="{% url 'bookings:liability_list' %}" class="text-decoration-none text-muted">
-                        Offene Verbindlichkeiten
-                    </a>
-                </h6>
-                <h2 class="mb-1 {% if total_liabilities > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ total_liabilities|floatformat:2 }} €
-                </h2>
-                <small class="text-muted">Restschuld gesamt</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">
-                    <a href="{% url 'bookings:asset_list' %}" class="text-decoration-none text-muted">
-                        Gesamtvermögen
-                    </a>
-                </h6>
-                <h2 class="mb-1 text-success">
-                    {{ total_assets|floatformat:2 }} €
-                </h2>
-                <small class="text-muted">Summe aller Vermögenswerte</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">
-                    <a href="{% url 'bookings:asset_list' %}" class="text-decoration-none text-muted">
-                        <strong>Nettovermögen</strong>
-                    </a>
-                </h6>
-                <h2 class="mb-1 {% if net_worth >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    <strong>{{ net_worth|floatformat:2 }} €</strong>
-                </h2>
-                <small class="text-muted">Vermögen − Verbindlichkeiten</small>
+    <div class="col-md-6 col-lg-4">
+        <div class="card kpi-card border-start border-3 border-danger">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon text-danger"><i class="bi bi-arrow-up-circle"></i></div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">Offene Ausgaben</h6>
+                    <div class="kpi-value text-danger">{{ planned_expenses|floatformat:2 }} €</div>
+                    <small class="text-muted">Geplante Ausgaben</small>
+                </div>
             </div>
         </div>
     </div>
     {% if tt_unbilled_total > 0 %}
-    <div class="col-md-4">
-        <div class="card border-warning">
-            <div class="card-body">
-                <h6 class="card-title text-muted mb-2">
-                    <a href="{% url 'timetracking:list' %}" class="text-decoration-none text-muted">
-                        Offene Stunden
-                    </a>
-                </h6>
-                <h2 class="mb-1 text-warning">
-                    {{ tt_unbilled_total|floatformat:2 }} €
-                </h2>
-                {% if tt_forecast %}
-                <small class="text-muted">⏱ Eingang: {{ tt_forecast.date|date:"d.m.Y" }}</small>
-                {% else %}
-                <small class="text-muted">Noch nicht abgerechnet</small>
-                {% endif %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card kpi-card border-start border-3 border-warning">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon text-warning"><i class="bi bi-clock-history"></i></div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">
+                        <a href="{% url 'timetracking:list' %}" class="text-decoration-none text-muted">
+                            Offene Stunden
+                        </a>
+                    </h6>
+                    <div class="kpi-value text-warning">{{ tt_unbilled_total|floatformat:2 }} €</div>
+                    {% if tt_forecast %}
+                    <small class="text-muted">Eingang: {{ tt_forecast.date|date:"d.m.Y" }}</small>
+                    {% else %}
+                    <small class="text-muted">Noch nicht abgerechnet</small>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
     {% endif %}
+</div>
+
+<!-- Vermögen -->
+<h6 class="dashboard-section-title"><i class="bi bi-piggy-bank"></i> Vermögen</h6>
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card kpi-card border-start border-3 {% if net_worth >= 0 %}border-success{% else %}border-danger{% endif %}">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon {% if net_worth >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    <i class="bi bi-calculator"></i>
+                </div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">
+                        <a href="{% url 'bookings:asset_list' %}" class="text-decoration-none text-muted">
+                            Nettovermögen
+                        </a>
+                    </h6>
+                    <div class="kpi-value {% if net_worth >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ net_worth|floatformat:2 }} €
+                    </div>
+                    <small class="text-muted">Vermögen − Verbindlichkeiten</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card kpi-card border-start border-3 border-success">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon text-success"><i class="bi bi-gem"></i></div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">
+                        <a href="{% url 'bookings:asset_list' %}" class="text-decoration-none text-muted">
+                            Gesamtvermögen
+                        </a>
+                    </h6>
+                    <div class="kpi-value text-success">{{ total_assets|floatformat:2 }} €</div>
+                    <small class="text-muted">Summe aller Vermögenswerte</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card kpi-card border-start border-3 {% if total_liabilities > 0 %}border-danger{% else %}border-success{% endif %}">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon {% if total_liabilities > 0 %}text-danger{% else %}text-success{% endif %}">
+                    <i class="bi bi-credit-card"></i>
+                </div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">
+                        <a href="{% url 'bookings:liability_list' %}" class="text-decoration-none text-muted">
+                            Offene Verbindlichkeiten
+                        </a>
+                    </h6>
+                    <div class="kpi-value {% if total_liabilities > 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ total_liabilities|floatformat:2 }} €
+                    </div>
+                    <small class="text-muted">Restschuld gesamt</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card kpi-card border-start border-3 {% if overdue_tasks_count > 0 %}border-danger{% else %}border-secondary{% endif %}">
+            <div class="card-body d-flex gap-3">
+                <div class="kpi-icon {% if overdue_tasks_count > 0 %}text-danger{% else %}text-muted{% endif %}">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <h6 class="card-title text-muted mb-1">Überfällige Aufgaben</h6>
+                    <div class="kpi-value {% if overdue_tasks_count > 0 %}text-danger{% else %}text-muted{% endif %}">
+                        {{ overdue_tasks_count }}
+                    </div>
+                    <small class="text-muted">Aufgaben</small>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

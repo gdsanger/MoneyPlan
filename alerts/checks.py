@@ -3,6 +3,7 @@ Alert checking functions for the alerts app.
 """
 from datetime import date, timedelta
 from decimal import Decimal
+from django.conf import settings
 from django.db.models import Q
 from .models import Alert, AlertConfig
 from bookings.models import Booking
@@ -210,7 +211,7 @@ def check_overdue(config: AlertConfig) -> int:
 
 def check_liquidity(config: AlertConfig) -> int:
     """
-    Get forecast for next 3 months. If any month's projected_balance < config.liquidity_threshold:
+    Get forecast for the configured horizon. If any month's projected_balance < config.liquidity_threshold:
     - dedup_key = f"liquidity_{date.today().isoformat()}"
     - Create Alert with details of which month(s) are critical
 
@@ -220,7 +221,7 @@ def check_liquidity(config: AlertConfig) -> int:
     Returns:
         int: Number of new alerts created (0 or 1)
     """
-    forecast = get_forecast(months=3)
+    forecast = get_forecast(months=settings.FORECAST_MONTHS)
 
     # Find months with balance below threshold
     critical_months = []
