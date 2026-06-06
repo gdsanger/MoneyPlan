@@ -11,3 +11,6 @@ gunicorn
 whitenoise
 markdown>=3.5
 bleach>=6.0
+weasyprint>=62.0
+pypdf>=4.0
+img2pdf>=0.5

@@ -101,6 +101,15 @@ def build_financial_snapshot() -> dict:
     except ImportError:
         pass
 
+    reimbursements_unreimbursed = Decimal('0.00')
+    reimbursements_forecast = None
+    try:
+        from reimbursements.services import get_unreimbursed_total, get_forecast_entry as get_reimbursements_forecast_entry
+        reimbursements_unreimbursed = get_unreimbursed_total()
+        reimbursements_forecast = get_reimbursements_forecast_entry()
+    except ImportError:
+        pass
+
     open_liabilities = [item for item in liabilities if not item['is_closed']]
 
     return {
@@ -128,6 +137,8 @@ def build_financial_snapshot() -> dict:
         'open_tasks_count': open_tasks,
         'tt_unbilled': tt_unbilled,
         'tt_forecast': tt_forecast,
+        'reimbursements_unreimbursed': reimbursements_unreimbursed,
+        'reimbursements_forecast': reimbursements_forecast,
     }
 
 
@@ -248,6 +259,14 @@ def _snapshot_to_prompt_text(snapshot: dict, mode: OverviewMode) -> str:
             lines.append(
                 f"  Prognose-Eintrag: {snapshot['tt_forecast']['date'].strftime('%d.%m.%Y')} "
                 f"{_format_euro(snapshot['tt_forecast']['amount'])}"
+            )
+
+    if snapshot.get('reimbursements_unreimbursed', 0) > 0:
+        lines.append(f"Offene Auslagen ISARtec: {_format_euro(snapshot['reimbursements_unreimbursed'])}")
+        if snapshot.get('reimbursements_forecast'):
+            lines.append(
+                f"  Prognose-Eintrag: {snapshot['reimbursements_forecast']['date'].strftime('%d.%m.%Y')} "
+                f"{_format_euro(snapshot['reimbursements_forecast']['amount'])}"
             )
 
     if mode == 'detailed':

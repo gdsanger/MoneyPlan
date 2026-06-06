@@ -28,6 +28,9 @@ def forecast_chart_data(request):
         if 'timetracking_amount' in item:
             tt_amount = float(item['timetracking_amount'])
             label += f" (inkl. ⏱ Stundenabrechnung: +{tt_amount:.2f} €)"
+        if 'reimbursements_amount' in item:
+            rb_amount = float(item['reimbursements_amount'])
+            label += f" (inkl. Auslagen ISARtec: +{rb_amount:.2f} €)"
         tooltip_labels.append(label)
 
     end_balance = forecast_data[-1]['projected_balance']

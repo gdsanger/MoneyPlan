@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'tasks',
     'ai',
     'timetracking',
+    'reimbursements',
 ]
 
 MIDDLEWARE = [

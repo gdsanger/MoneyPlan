@@ -1,0 +1,27 @@
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Beschreibung</th>
+                    <th>Betrag</th>
+                    <th>Status</th>
+                    <th>Beleg</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for claim in claims %}
+                {% include 'reimbursements/_row.html' %}
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Keine Auslagen vorhanden.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

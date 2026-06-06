@@ -172,6 +172,11 @@
                             <i class="bi bi-clock-history"></i> Zeiten
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'reimbursements:list' %}">
+                            <i class="bi bi-fuel-pump"></i> Auslagen
+                        </a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}

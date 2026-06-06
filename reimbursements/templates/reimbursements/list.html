@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Auslagen ISARtec - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <h2><i class="bi bi-fuel-pump"></i> Auslagen ISARtec</h2>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'reimbursements:settings' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-gear"></i> Einstellungen
+                </a>
+                {% if pending_count > 0 %}
+                <a href="{% url 'reimbursements:pdf_preview' %}" class="btn btn-outline-info btn-sm" target="_blank">
+                    <i class="bi bi-file-pdf"></i> PDF-Vorschau
+                </a>
+                <form method="post" action="{% url 'reimbursements:submit' %}" class="d-inline"
+                      onsubmit="return confirm('Alle {{ pending_count }} offenen Belege einreichen?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success btn-sm" {% if not config_ready %}disabled title="Einstellungen vervollständigen"{% endif %}>
+                        <i class="bi bi-send"></i> Antrag einreichen
+                    </button>
+                </form>
+                {% endif %}
+                <button class="btn btn-primary btn-sm"
+                        hx-get="{% url 'reimbursements:receipt_upload' %}"
+                        hx-target="#receipt-modal-content"
+                        hx-swap="innerHTML"
+                        data-bs-toggle="modal"
+                        data-bs-target="#receiptModal">
+                    <i class="bi bi-plus-circle"></i> Tankbeleg hochladen
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-warning">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-2">Offene Erstattung</h6>
+                        <h3 class="mb-1 text-warning">{{ unreimbursed_total|floatformat:2 }} €</h3>
+                        <small class="text-muted">Noch nicht erstattet</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-2">Erwarteter Eingang</h6>
+                        {% if forecast_entry %}
+                        <h3 class="mb-1">{{ forecast_entry.date|date:"d. M Y" }}</h3>
+                        <small class="text-muted">15. des Folgemonats</small>
+                        {% else %}
+                        <h3 class="mb-1 text-muted">—</h3>
+                        <small class="text-muted">Keine offenen Auslagen</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-2">Einreichung</h6>
+                        <h3 class="mb-1">{{ pending_count }}</h3>
+                        <small class="text-muted">Offene Belege zum Einreichen</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="filter-form" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select"
+                                hx-get="{% url 'reimbursements:list' %}"
+                                hx-trigger="change"
+                                hx-target="#claim-list-container"
+                                hx-swap="innerHTML"
+                                hx-include="#filter-form">
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Alle</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Offen</option>
+                            <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Eingereicht</option>
+                            <option value="reimbursed" {% if status_filter == 'reimbursed' %}selected{% endif %}>Erstattet</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="claim-list-container">
+            {% include 'reimbursements/_list.html' %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="receiptModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tankbeleg hochladen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="receipt-modal-content"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="formModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Auslage bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

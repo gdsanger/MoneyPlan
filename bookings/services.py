@@ -258,6 +258,12 @@ def get_forecast(months: int | None = None) -> list[dict]:
     except ImportError:
         tt_entry = None
 
+    try:
+        from reimbursements.services import get_forecast_entry as get_reimbursements_forecast_entry
+        reimbursements_entry = get_reimbursements_forecast_entry()
+    except ImportError:
+        reimbursements_entry = None
+
     today = date.today()
     current_balance = get_current_balance()
     forecast_data = []
@@ -316,6 +322,11 @@ def get_forecast(months: int | None = None) -> list[dict]:
             monthly_income += tt_entry['amount']
             month_data['timetracking_amount'] = tt_entry['amount']
             month_data['timetracking_date'] = tt_entry['date']
+
+        if reimbursements_entry and reimbursements_entry['date'].year == target_year and reimbursements_entry['date'].month == target_month:
+            monthly_income += reimbursements_entry['amount']
+            month_data['reimbursements_amount'] = reimbursements_entry['amount']
+            month_data['reimbursements_date'] = reimbursements_entry['date']
 
         # Update running balance
         running_balance = running_balance + monthly_income - monthly_expenses

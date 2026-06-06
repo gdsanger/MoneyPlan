@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 2cm 2.2cm; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #222; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5cm; }
+        .title { font-size: 18pt; font-weight: bold; }
+        .logo img { height: 48px; }
+        .section-title { font-weight: bold; margin: 0.8cm 0 0.3cm; font-size: 11pt; }
+        .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 0.6cm; }
+        .info-grid td { border: 1px solid #999; padding: 6px 10px; vertical-align: top; }
+        .info-grid .label { font-weight: bold; width: 22%; background: #f5f5f5; }
+        .purpose-box { border: 1px solid #999; padding: 8px 10px; min-height: 1.2cm; margin-bottom: 0.6cm; }
+        .expense-table { width: 100%; border-collapse: collapse; margin-bottom: 0.4cm; }
+        .expense-table th, .expense-table td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+        .expense-table th { background: #f0f0f0; font-weight: bold; }
+        .expense-table .amount { text-align: right; white-space: nowrap; }
+        .expense-table .total td { font-weight: bold; }
+        .note { font-size: 9pt; color: #444; margin: 0.4cm 0 1cm; }
+        .signature-grid { width: 100%; border-collapse: collapse; margin-top: 0.5cm; }
+        .signature-grid td { border: 1px solid #999; padding: 8px 10px; vertical-align: top; width: 50%; }
+        .signature-grid .label { font-weight: bold; background: #f5f5f5; }
+        .signature-line { margin-top: 1.2cm; border-top: 1px solid #999; padding-top: 4px; font-size: 9pt; color: #666; }
+        .empty-field { color: #aaa; min-height: 0.8cm; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Auslagenerstattung</div>
+        {% if logo_path %}
+        <div class="logo"><img src="{{ logo_path }}" alt="ISARTEC"></div>
+        {% endif %}
+    </div>
+
+    <div class="section-title">Angaben zur Person / Kontoinformationen</div>
+    <table class="info-grid">
+        <tr>
+            <td class="label">Name</td>
+            <td>{{ config.employee_name }}</td>
+            <td class="label">Bank</td>
+            <td>{{ config.bank_name }}</td>
+        </tr>
+        <tr>
+            <td class="label">IBAN</td>
+            <td>{{ config.iban }}</td>
+            <td class="label">BIC</td>
+            <td>{{ config.bic }}</td>
+        </tr>
+    </table>
+
+    <div class="section-title">Bitte beschreiben Sie Grund und Zweck der Auslage:</div>
+    <div class="purpose-box">{{ config.expense_purpose }}</div>
+
+    <table class="expense-table">
+        <thead>
+            <tr>
+                <th>Art der Kosten</th>
+                <th>Bezeichnung</th>
+                <th class="amount">Auslagen</th>
+                <th>Anmerkungen/Kommentare</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.cost_type }}</td>
+                <td>{{ row.label }}</td>
+                <td class="amount">{{ row.amount }}</td>
+                <td>{{ row.notes }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total">
+                <td colspan="2">Gesamt</td>
+                <td class="amount">{{ total }}</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p class="note">Bitte fügen Sie die Original-Belege diesem Antrag bei.</p>
+
+    <table class="signature-grid">
+        <tr>
+            <td>
+                <div><strong>Ort:</strong> {{ config.place }}</div>
+                <div><strong>Datum:</strong> {{ today }}</div>
+                <div class="signature-line">Unterschrift Antragsteller/in</div>
+            </td>
+            <td>
+                <div class="section-title" style="margin-top:0">Freigabe durch:</div>
+                <div><strong>Kostenstelle:</strong> <span class="empty-field">&nbsp;</span></div>
+                <div><strong>Datum:</strong> <span class="empty-field">&nbsp;</span></div>
+                <div class="signature-line">Unterschrift Vorgesetzte/r</div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
