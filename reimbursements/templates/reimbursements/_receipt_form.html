@@ -9,6 +9,10 @@
             <small class="text-muted">{{ receipt_result.ai_provider }} / {{ receipt_result.ai_model }}</small>
         </div>
 
+        {% if upload_error %}
+        <div class="alert alert-danger">{{ upload_error }}</div>
+        {% endif %}
+
         <form method="post"
               hx-post="{% url 'reimbursements:receipt_confirm' %}"
               hx-target="#receipt-modal-content"

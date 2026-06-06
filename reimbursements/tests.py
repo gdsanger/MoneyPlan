@@ -5,6 +5,7 @@ from io import BytesIO
 from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -138,6 +139,54 @@ class ReimbursementViewsTestCase(TestCase):
         claim = ExpenseClaim.objects.get(description='Shell Landshut')
         self.assertEqual(claim.status, ExpenseClaim.STATUS_PENDING)
         self.assertEqual(claim.amount, Decimal('101.07'))
+
+    @patch('reimbursements.views.handle_upload')
+    @patch('reimbursements.views.magic.from_buffer')
+    @patch('reimbursements.views.recognize_fuel_receipt')
+    def test_receipt_confirm_upload_failure_no_duplicate(self, mock_recognize, mock_magic, mock_upload):
+        mock_magic.return_value = 'image/jpeg'
+        mock_recognize.return_value = FuelReceiptResult(
+            date='2026-04-27',
+            description='Shell Landshut',
+            amount=Decimal('101.07'),
+            notes='',
+            confidence={'date': 'high', 'amount': 'high', 'description': 'high'},
+            raw_text='Shell',
+            ai_provider='openai',
+            ai_model='gpt-4o',
+        )
+        mock_upload.side_effect = ValidationError('Datei zu groß')
+
+        image_file = SimpleUploadedFile('receipt.jpg', b'fake image', content_type='image/jpeg')
+        self.client.post(
+            reverse('reimbursements:receipt_upload'),
+            {'receipt_file': image_file},
+            HTTP_HX_REQUEST='true',
+        )
+
+        confirm_data = {
+            'date': '2026-04-27',
+            'description': 'Shell Landshut',
+            'amount': '101.07',
+            'notes': '',
+        }
+        response = self.client.post(
+            reverse('reimbursements:receipt_confirm'),
+            confirm_data,
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Datei zu groß')
+        self.assertEqual(ExpenseClaim.objects.count(), 0)
+        self.assertIn('fuel_receipt_result', self.client.session)
+
+        response = self.client.post(
+            reverse('reimbursements:receipt_confirm'),
+            confirm_data,
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertEqual(ExpenseClaim.objects.count(), 0)
+        self.assertIn('fuel_receipt_result', self.client.session)
 
     @patch('reimbursements.views.send_submission_mail')
     @patch('reimbursements.views.generate_submission_pdf')

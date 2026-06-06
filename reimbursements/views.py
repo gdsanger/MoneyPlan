@@ -7,7 +7,9 @@ from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -143,12 +145,6 @@ def receipt_confirm(request):
             'receipt_result': receipt_obj,
         })
 
-    claim = form.save(commit=False)
-    claim.status = ExpenseClaim.STATUS_PENDING
-    claim.ai_confidence = receipt_result_data.get('confidence', {})
-    claim.ai_raw_text = receipt_result_data.get('raw_text', '')
-    claim.save()
-
     file_data = base64.b64decode(request.session['fuel_receipt_file_data'])
     file_name = request.session['fuel_receipt_file_name']
     mime_type = request.session['fuel_receipt_file_mime_type']
@@ -161,7 +157,29 @@ def receipt_confirm(request):
         size=len(file_data),
         charset=None,
     )
-    handle_upload(file_obj, claim)
+
+    receipt_obj = type('obj', (object,), receipt_result_data)()
+    try:
+        with transaction.atomic():
+            claim = form.save(commit=False)
+            claim.status = ExpenseClaim.STATUS_PENDING
+            claim.ai_confidence = receipt_result_data.get('confidence', {})
+            claim.ai_raw_text = receipt_result_data.get('raw_text', '')
+            claim.save()
+            handle_upload(file_obj, claim)
+    except ValidationError as e:
+        error_message = '; '.join(e.messages)
+        return render(request, 'reimbursements/_receipt_form.html', {
+            'form': form,
+            'receipt_result': receipt_obj,
+            'upload_error': error_message,
+        })
+    except Exception as e:
+        return render(request, 'reimbursements/_receipt_form.html', {
+            'form': form,
+            'receipt_result': receipt_obj,
+            'upload_error': f'Anhang konnte nicht gespeichert werden: {e}',
+        })
 
     for key in ('fuel_receipt_result', 'fuel_receipt_file_data', 'fuel_receipt_file_name', 'fuel_receipt_file_mime_type'):
         request.session.pop(key, None)
