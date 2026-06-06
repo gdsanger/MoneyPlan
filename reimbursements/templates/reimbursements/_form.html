@@ -1,9 +1,10 @@
 <form method="post"
-      {% if claim %}
+      {% if claim %}action="{% url 'reimbursements:edit' claim.id %}"{% endif %}
+      {% if request.htmx %}
       hx-post="{% url 'reimbursements:edit' claim.id %}"
-      {% endif %}
       hx-target="#form-modal-content"
-      hx-swap="innerHTML">
+      hx-swap="innerHTML"
+      {% endif %}>
     {% csrf_token %}
     <div class="mb-3">
         <label class="form-label">Datum</label>
@@ -22,7 +23,11 @@
         {{ form.notes }}
     </div>
     <div class="d-flex justify-content-end gap-2">
+        {% if request.htmx %}
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+        {% else %}
+        <a href="{% url 'reimbursements:list' %}" class="btn btn-secondary">Abbrechen</a>
+        {% endif %}
         <button type="submit" class="btn btn-primary">Speichern</button>
     </div>
 </form>

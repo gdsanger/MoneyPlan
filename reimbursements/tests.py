@@ -288,6 +288,19 @@ class ReimbursementViewsTestCase(TestCase):
         self.assertEqual(ReimbursementSubmission.objects.count(), 1)
         mock_mail.assert_called_once()
 
+    def test_claim_edit_non_htmx_get(self):
+        claim = ExpenseClaim.objects.create(
+            date=date(2026, 4, 27),
+            description='Shell',
+            amount=Decimal('101.07'),
+            status=ExpenseClaim.STATUS_PENDING,
+        )
+
+        response = self.client.get(reverse('reimbursements:edit', args=[claim.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Auslage bearbeiten')
+        self.assertContains(response, 'Shell')
+
     def test_claim_delete_rejects_submitted_claim(self):
         claim = ExpenseClaim.objects.create(
             date=date(2026, 4, 27),

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Auslage bearbeiten - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-8 offset-lg-2">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Auslage bearbeiten</h5>
+                <a href="{% url 'reimbursements:list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Zurück
+                </a>
+            </div>
+            <div class="card-body">
+                {% include 'reimbursements/_form.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
