@@ -1,12 +1,17 @@
 {% load crispy_forms_tags %}
 
 <p class="text-muted">
-    Stammdaten für den ISARtec-Antrag und die Empfänger-Adresse für die Einreichung.
+    Stammdaten für den ISARtec-Antrag, Logo, Unterschrift und die Empfänger-Adresse für die Einreichung.
     SMTP-Einstellungen werden aus den <a href="{% url 'alerts:settings' %}">Alert-Einstellungen</a> übernommen.
 </p>
+{% if config %}
+{% include 'reimbursements/_settings_assets.html' %}
+{% endif %}
 <form method="post"
       action="{% url 'reimbursements:settings' %}"
+      enctype="multipart/form-data"
       hx-post="{% url 'reimbursements:settings' %}"
+      hx-encoding="multipart/form-data"
       hx-target="#settings-form-container"
       hx-swap="innerHTML">
     {% csrf_token %}

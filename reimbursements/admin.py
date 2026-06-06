@@ -4,7 +4,7 @@ from .models import ReimbursementConfig, ExpenseClaim, ReimbursementSubmission
 
 @admin.register(ReimbursementConfig)
 class ReimbursementConfigAdmin(admin.ModelAdmin):
-    list_display = ('employee_name', 'recipient_email', 'place')
+    list_display = ('employee_name', 'recipient_email', 'place', 'logo', 'signature_image')
 
 
 @admin.register(ExpenseClaim)

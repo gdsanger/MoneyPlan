@@ -344,7 +344,7 @@ def settings_view(request):
     config = ReimbursementConfig.get()
 
     if request.method == 'POST':
-        form = ReimbursementConfigForm(request.POST, instance=config)
+        form = ReimbursementConfigForm(request.POST, request.FILES, instance=config)
         if form.is_valid():
             form.save()
             messages.success(request, 'Einstellungen gespeichert.')
@@ -355,6 +355,9 @@ def settings_view(request):
         form = ReimbursementConfigForm(instance=config)
 
     if request.htmx:
-        return render(request, 'reimbursements/_settings_form.html', {'form': form})
+        return render(request, 'reimbursements/_settings_form.html', {
+            'form': form,
+            'config': config,
+        })
 
     return render(request, 'reimbursements/settings.html', {'form': form, 'config': config})

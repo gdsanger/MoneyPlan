@@ -1,4 +1,20 @@
+import uuid
+from pathlib import Path
+
 from django.db import models
+
+
+def _config_asset_path(folder: str, filename: str) -> str:
+    ext = Path(filename).suffix.lower()
+    return f'uploads/reimbursements/config/{folder}/{uuid.uuid4().hex[:8]}{ext}'
+
+
+def config_logo_upload_path(instance, filename):
+    return _config_asset_path('logo', filename)
+
+
+def config_signature_upload_path(instance, filename):
+    return _config_asset_path('signature', filename)
 
 
 class ReimbursementConfig(models.Model):
@@ -14,6 +30,20 @@ class ReimbursementConfig(models.Model):
     )
     place = models.CharField(max_length=100, default='Landshut', verbose_name='Ort')
     recipient_email = models.EmailField(blank=True, verbose_name='Empfänger E-Mail')
+    logo = models.FileField(
+        upload_to=config_logo_upload_path,
+        blank=True,
+        null=True,
+        verbose_name='Logo',
+        help_text='Logo für den Antrag (PNG, JPG, SVG, WEBP).',
+    )
+    signature_image = models.ImageField(
+        upload_to=config_signature_upload_path,
+        blank=True,
+        null=True,
+        verbose_name='Unterschrift',
+        help_text='Digitale Unterschrift als Bild (PNG, JPG, WEBP).',
+    )
 
     class Meta:
         verbose_name = 'Auslagen-Konfiguration'
