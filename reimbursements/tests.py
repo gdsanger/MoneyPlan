@@ -228,6 +228,21 @@ class ReimbursementViewsTestCase(TestCase):
         self.assertIsNone(claim.submitted_at)
         mock_mail.assert_not_called()
 
+    def test_submit_claims_rejects_missing_attachment(self):
+        claim = ExpenseClaim.objects.create(
+            date=date(2026, 4, 27),
+            description='Shell',
+            amount=Decimal('101.07'),
+            status=ExpenseClaim.STATUS_PENDING,
+        )
+
+        response = self.client.post(reverse('reimbursements:submit'))
+        self.assertEqual(response.status_code, 302)
+        claim.refresh_from_db()
+        self.assertEqual(claim.status, ExpenseClaim.STATUS_PENDING)
+        self.assertIsNone(claim.submitted_at)
+        self.assertEqual(ReimbursementSubmission.objects.count(), 0)
+
     @patch('reimbursements.views.send_submission_mail')
     @patch('reimbursements.views.generate_submission_pdf')
     def test_submit_claims(self, mock_pdf, mock_mail):
@@ -376,9 +391,25 @@ class ReimbursementViewsTestCase(TestCase):
 
 
 class PdfServiceTestCase(TestCase):
+    def test_generate_submission_pdf_requires_attachments(self):
+        from reimbursements.pdf_service import generate_submission_pdf
+
+        ReimbursementConfig.get()
+        claim = ExpenseClaim.objects.create(
+            date=date(2026, 4, 27),
+            description='Shell',
+            amount=Decimal('101.07'),
+            status=ExpenseClaim.STATUS_PENDING,
+        )
+
+        with self.assertRaises(ValueError) as ctx:
+            generate_submission_pdf([claim])
+        self.assertIn('keinen Anhang', str(ctx.exception))
+
     @patch('reimbursements.pdf_service._append_attachment_pages')
     @patch('reimbursements.pdf_service.generate_application_pdf_bytes')
-    def test_generate_submission_pdf(self, mock_app_pdf, mock_append):
+    @patch('reimbursements.pdf_service.ensure_claims_have_receipts')
+    def test_generate_submission_pdf(self, mock_ensure, mock_app_pdf, mock_append):
         from pypdf import PdfWriter
         from reimbursements.pdf_service import generate_submission_pdf
 

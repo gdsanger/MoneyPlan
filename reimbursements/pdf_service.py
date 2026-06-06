@@ -13,6 +13,23 @@ from attachments.services import get_attachments_for
 from .models import ExpenseClaim, ReimbursementConfig
 
 
+def claims_missing_receipts(claims: list[ExpenseClaim]) -> list[ExpenseClaim]:
+    """Return claims that have no file attachment."""
+    return [claim for claim in claims if not get_attachments_for(claim).exists()]
+
+
+def ensure_claims_have_receipts(claims: list[ExpenseClaim]) -> None:
+    """Raise ValueError if any claim is missing a receipt attachment."""
+    missing = claims_missing_receipts(claims)
+    if not missing:
+        return
+
+    descriptions = ', '.join(
+        f'{claim.date:%d.%m.%Y} ({claim.description})' for claim in missing
+    )
+    raise ValueError(f'Folgende Belege haben keinen Anhang: {descriptions}')
+
+
 def format_euro(amount: Decimal) -> str:
     """Format amount as German currency string."""
     return f'{amount:,.2f} €'.replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -82,7 +99,9 @@ def _append_attachment_pages(writer, claim: ExpenseClaim) -> None:
 
     attachments = get_attachments_for(claim)
     if not attachments:
-        return
+        raise ValueError(
+            f'Beleg vom {claim.date:%d.%m.%Y} ({claim.description}) hat keinen Anhang.'
+        )
 
     attachment = attachments[0]
     attachment.file.open('rb')
@@ -118,6 +137,8 @@ def generate_submission_pdf(claims: list[ExpenseClaim] | None = None) -> tuple[b
 
     if not claims:
         raise ValueError('Keine offenen Belege zum Einreichen vorhanden.')
+
+    ensure_claims_have_receipts(claims)
 
     config = ReimbursementConfig.get()
     application_pdf = generate_application_pdf_bytes(claims, config)
