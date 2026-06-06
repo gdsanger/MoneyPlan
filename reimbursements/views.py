@@ -298,6 +298,23 @@ def submit_claims(request):
     date_from = min(c.date for c in claims)
     date_to = max(c.date for c in claims)
 
+    try:
+        with transaction.atomic():
+            submission = ReimbursementSubmission.objects.create(total_amount=total_amount)
+            submission.pdf_file.save(filename, ContentFile(pdf_bytes), save=True)
+            submission.claims.set(claims)
+
+            now = timezone.now()
+            claim_ids = [claim.id for claim in claims]
+            ExpenseClaim.objects.filter(id__in=claim_ids).update(
+                status=ExpenseClaim.STATUS_SUBMITTED,
+                submitted_at=now,
+                updated_at=now,
+            )
+    except Exception as e:
+        messages.error(request, f'Einreichung konnte nicht gespeichert werden: {e}')
+        return redirect('reimbursements:list')
+
     success, mail_message = send_submission_mail(
         pdf_bytes=pdf_bytes,
         filename=filename,
@@ -308,18 +325,11 @@ def submit_claims(request):
     )
 
     if not success:
-        messages.error(request, mail_message)
+        messages.error(
+            request,
+            f'Belege wurden als eingereicht gespeichert, aber die E-Mail konnte nicht gesendet werden: {mail_message}',
+        )
         return redirect('reimbursements:list')
-
-    submission = ReimbursementSubmission.objects.create(total_amount=total_amount)
-    submission.pdf_file.save(filename, ContentFile(pdf_bytes), save=True)
-    submission.claims.set(claims)
-
-    now = timezone.now()
-    for claim in claims:
-        claim.status = ExpenseClaim.STATUS_SUBMITTED
-        claim.submitted_at = now
-        claim.save(update_fields=['status', 'submitted_at', 'updated_at'])
 
     messages.success(request, mail_message)
     return redirect('reimbursements:list')

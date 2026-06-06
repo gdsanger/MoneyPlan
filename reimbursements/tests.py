@@ -190,6 +190,26 @@ class ReimbursementViewsTestCase(TestCase):
 
     @patch('reimbursements.views.send_submission_mail')
     @patch('reimbursements.views.generate_submission_pdf')
+    @patch('reimbursements.models.ReimbursementSubmission.objects.create')
+    def test_submit_claims_db_failure_before_email(self, mock_create, mock_pdf, mock_mail):
+        claim = ExpenseClaim.objects.create(
+            date=date(2026, 4, 27),
+            description='Shell',
+            amount=Decimal('101.07'),
+            status=ExpenseClaim.STATUS_PENDING,
+        )
+        mock_pdf.return_value = (b'%PDF-1.4 fake', '20260427 ISARtec Auslagenerstattung.pdf')
+        mock_create.side_effect = Exception('DB error')
+
+        response = self.client.post(reverse('reimbursements:submit'))
+        self.assertEqual(response.status_code, 302)
+        claim.refresh_from_db()
+        self.assertEqual(claim.status, ExpenseClaim.STATUS_PENDING)
+        self.assertIsNone(claim.submitted_at)
+        mock_mail.assert_not_called()
+
+    @patch('reimbursements.views.send_submission_mail')
+    @patch('reimbursements.views.generate_submission_pdf')
     def test_submit_claims(self, mock_pdf, mock_mail):
         claim = ExpenseClaim.objects.create(
             date=date(2026, 4, 27),
@@ -199,6 +219,26 @@ class ReimbursementViewsTestCase(TestCase):
         )
         mock_pdf.return_value = (b'%PDF-1.4 fake', '20260427 ISARtec Auslagenerstattung.pdf')
         mock_mail.return_value = (True, 'OK')
+
+        response = self.client.post(reverse('reimbursements:submit'))
+        self.assertEqual(response.status_code, 302)
+        claim.refresh_from_db()
+        self.assertEqual(claim.status, ExpenseClaim.STATUS_SUBMITTED)
+        self.assertIsNotNone(claim.submitted_at)
+        self.assertEqual(ReimbursementSubmission.objects.count(), 1)
+        mock_mail.assert_called_once()
+
+    @patch('reimbursements.views.send_submission_mail')
+    @patch('reimbursements.views.generate_submission_pdf')
+    def test_submit_claims_email_failure_after_db_save(self, mock_pdf, mock_mail):
+        claim = ExpenseClaim.objects.create(
+            date=date(2026, 4, 27),
+            description='Shell',
+            amount=Decimal('101.07'),
+            status=ExpenseClaim.STATUS_PENDING,
+        )
+        mock_pdf.return_value = (b'%PDF-1.4 fake', '20260427 ISARtec Auslagenerstattung.pdf')
+        mock_mail.return_value = (False, 'SMTP error')
 
         response = self.client.post(reverse('reimbursements:submit'))
         self.assertEqual(response.status_code, 302)
