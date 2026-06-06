@@ -1,0 +1,67 @@
+{% load attachments_tags %}
+<tr id="claim-row-{{ claim.id }}" class="{% if claim.status == 'pending' %}table-warning bg-opacity-10{% elif claim.status == 'reimbursed' %}opacity-75{% endif %}">
+    <td>{{ claim.date|date:"d.m.Y" }}</td>
+    <td>
+        {{ claim.description }}
+        {% if claim.notes %}
+        <br><small class="text-muted">{{ claim.notes|truncatewords:8 }}</small>
+        {% endif %}
+    </td>
+    <td class="text-success fw-bold">{{ claim.amount|floatformat:2 }} €</td>
+    <td>
+        {% if claim.status == 'pending' %}
+        <span class="badge bg-warning text-dark">Offen</span>
+        {% elif claim.status == 'submitted' %}
+        <span class="badge bg-info">Eingereicht</span>
+        {% else %}
+        <span class="badge bg-success">Erstattet</span>
+        {% endif %}
+    </td>
+    <td>
+        {% with attachments=claim|attachments_for %}
+        {% if attachments %}
+        <a href="{{ attachments.0.file.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-paperclip"></i>
+        </a>
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+        {% endwith %}
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm" role="group">
+            {% if claim.status != 'pending' %}
+            <button class="btn btn-sm {% if claim.status == 'reimbursed' %}btn-success{% else %}btn-outline-warning{% endif %}"
+                    hx-post="{% url 'reimbursements:toggle_reimbursed' claim.id %}"
+                    hx-target="#claim-row-{{ claim.id }}"
+                    hx-swap="outerHTML"
+                    title="Erstattungsstatus ändern">
+                {% if claim.status == 'reimbursed' %}
+                <i class="bi bi-check-circle-fill"></i> Erstattet
+                {% else %}
+                <i class="bi bi-circle"></i> Offen
+                {% endif %}
+            </button>
+            {% endif %}
+            {% if claim.status == 'pending' %}
+            <a href="{% url 'reimbursements:edit' claim.id %}"
+               class="btn btn-outline-primary"
+               hx-get="{% url 'reimbursements:edit' claim.id %}"
+               hx-target="#form-modal-content"
+               hx-swap="innerHTML"
+               data-bs-toggle="modal"
+               data-bs-target="#formModal"
+               title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="{% url 'reimbursements:delete' claim.id %}" class="d-inline"
+                  onsubmit="return confirm('Beleg wirklich löschen?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger" title="Löschen">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </td>
+</tr>

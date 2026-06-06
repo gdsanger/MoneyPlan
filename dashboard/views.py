@@ -43,6 +43,15 @@ def get_kpi_context():
         tt_forecast = None
         tt_unbilled_total = Decimal('0.00')
 
+    try:
+        from reimbursements.services import get_forecast_entry as get_reimbursements_forecast_entry
+        from reimbursements.services import get_unreimbursed_total
+        reimbursements_forecast = get_reimbursements_forecast_entry()
+        reimbursements_unreimbursed_total = get_unreimbursed_total()
+    except ImportError:
+        reimbursements_forecast = None
+        reimbursements_unreimbursed_total = Decimal('0.00')
+
     return {
         'current_balance': get_current_balance(),
         'planned_income': get_planned_income(),
@@ -57,6 +66,8 @@ def get_kpi_context():
         'today': today,
         'tt_forecast': tt_forecast,
         'tt_unbilled_total': tt_unbilled_total,
+        'reimbursements_forecast': reimbursements_forecast,
+        'reimbursements_unreimbursed_total': reimbursements_unreimbursed_total,
         'forecast_months': settings.FORECAST_MONTHS,
     }
 

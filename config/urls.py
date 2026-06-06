@@ -32,6 +32,7 @@ urlpatterns = [
     path('aufgaben/', include('tasks.urls')),
     path('ki/', include('ai.urls')),
     path('zeiten/', include('timetracking.urls')),
+    path('auslagen/', include('reimbursements.urls')),
 ]
 
 if settings.DEBUG:
