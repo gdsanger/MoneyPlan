@@ -198,6 +198,10 @@ def claim_edit(request, claim_id):
     """Edit an expense claim."""
     claim = get_object_or_404(ExpenseClaim, pk=claim_id)
 
+    if claim.status != ExpenseClaim.STATUS_PENDING:
+        messages.error(request, 'Eingereichte oder erstattete Belege können nicht bearbeitet werden.')
+        return redirect('reimbursements:list')
+
     if request.method == 'POST':
         form = ExpenseClaimForm(request.POST, instance=claim)
         if form.is_valid():
