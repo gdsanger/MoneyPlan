@@ -7,7 +7,7 @@
         body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #222; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5cm; }
         .title { font-size: 18pt; font-weight: bold; }
-        .logo img { height: 48px; }
+        .logo img { max-height: 56px; max-width: 220px; }
         .section-title { font-weight: bold; margin: 0.8cm 0 0.3cm; font-size: 11pt; }
         .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 0.6cm; }
         .info-grid td { border: 1px solid #999; padding: 6px 10px; vertical-align: top; }
@@ -19,18 +19,36 @@
         .expense-table .amount { text-align: right; white-space: nowrap; }
         .expense-table .total td { font-weight: bold; }
         .note { font-size: 9pt; color: #444; margin: 0.4cm 0 1cm; }
-        .signature-grid { width: 100%; border-collapse: collapse; margin-top: 0.5cm; }
-        .signature-grid td { border: 1px solid #999; padding: 8px 10px; vertical-align: top; width: 50%; }
-        .signature-grid .label { font-weight: bold; background: #f5f5f5; }
-        .signature-line { margin-top: 1.2cm; border-top: 1px solid #999; padding-top: 4px; font-size: 9pt; color: #666; }
+        .signature-section {
+            border: 1px solid #999;
+            padding: 10px 12px;
+            margin-top: 0.5cm;
+        }
+        .signature-section + .signature-section {
+            margin-top: 0.8cm;
+        }
+        .signature-image {
+            display: block;
+            max-height: 2.2cm;
+            max-width: 8cm;
+            margin: 0.4cm 0 0.2cm;
+        }
+        .signature-line {
+            margin-top: 0.6cm;
+            border-top: 1px solid #999;
+            padding-top: 4px;
+            font-size: 9pt;
+            color: #666;
+        }
         .empty-field { color: #aaa; min-height: 0.8cm; }
+        .field-row { margin-bottom: 0.25cm; }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">Auslagenerstattung</div>
         {% if logo_path %}
-        <div class="logo"><img src="{{ logo_path }}" alt="ISARTEC"></div>
+        <div class="logo"><img src="{{ logo_path }}" alt="Logo"></div>
         {% endif %}
     </div>
 
@@ -81,20 +99,20 @@
 
     <p class="note">Bitte fügen Sie die Original-Belege diesem Antrag bei.</p>
 
-    <table class="signature-grid">
-        <tr>
-            <td>
-                <div><strong>Ort:</strong> {{ config.place }}</div>
-                <div><strong>Datum:</strong> {{ today }}</div>
-                <div class="signature-line">Unterschrift Antragsteller/in</div>
-            </td>
-            <td>
-                <div class="section-title" style="margin-top:0">Freigabe durch:</div>
-                <div><strong>Kostenstelle:</strong> <span class="empty-field">&nbsp;</span></div>
-                <div><strong>Datum:</strong> <span class="empty-field">&nbsp;</span></div>
-                <div class="signature-line">Unterschrift Vorgesetzte/r</div>
-            </td>
-        </tr>
-    </table>
+    <div class="signature-section">
+        <div class="field-row"><strong>Ort:</strong> {{ config.place }}</div>
+        <div class="field-row"><strong>Datum:</strong> {{ today }}</div>
+        {% if signature_path %}
+        <img src="{{ signature_path }}" class="signature-image" alt="Unterschrift Antragsteller">
+        {% endif %}
+        <div class="signature-line">Unterschrift Antragsteller/in</div>
+    </div>
+
+    <div class="signature-section">
+        <div class="section-title" style="margin-top:0">Freigabe durch:</div>
+        <div class="field-row"><strong>Kostenstelle:</strong> <span class="empty-field">&nbsp;</span></div>
+        <div class="field-row"><strong>Datum:</strong> <span class="empty-field">&nbsp;</span></div>
+        <div class="signature-line">Unterschrift Vorgesetzte/r</div>
+    </div>
 </body>
 </html>
