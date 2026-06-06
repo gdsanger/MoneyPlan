@@ -221,6 +221,9 @@ def claim_delete(request, claim_id):
     """Delete an expense claim."""
     claim = get_object_or_404(ExpenseClaim, pk=claim_id)
     if request.method == 'POST':
+        if claim.status != ExpenseClaim.STATUS_PENDING:
+            messages.error(request, 'Eingereichte oder erstattete Belege können nicht gelöscht werden.')
+            return redirect('reimbursements:list')
         claim.delete()
         if request.htmx:
             response = HttpResponse(status=204)

@@ -288,6 +288,30 @@ class ReimbursementViewsTestCase(TestCase):
         self.assertEqual(ReimbursementSubmission.objects.count(), 1)
         mock_mail.assert_called_once()
 
+    def test_claim_delete_rejects_submitted_claim(self):
+        claim = ExpenseClaim.objects.create(
+            date=date(2026, 4, 27),
+            description='Shell',
+            amount=Decimal('101.07'),
+            status=ExpenseClaim.STATUS_SUBMITTED,
+        )
+
+        response = self.client.post(reverse('reimbursements:delete', args=[claim.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(ExpenseClaim.objects.filter(pk=claim.id).exists())
+
+    def test_claim_delete_allows_pending_claim(self):
+        claim = ExpenseClaim.objects.create(
+            date=date(2026, 4, 27),
+            description='Shell',
+            amount=Decimal('101.07'),
+            status=ExpenseClaim.STATUS_PENDING,
+        )
+
+        response = self.client.post(reverse('reimbursements:delete', args=[claim.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ExpenseClaim.objects.filter(pk=claim.id).exists())
+
     def test_settings_save(self):
         response = self.client.post(reverse('reimbursements:settings'), {
             'employee_name': 'Test User',
