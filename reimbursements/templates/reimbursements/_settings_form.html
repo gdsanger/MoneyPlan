@@ -1,0 +1,17 @@
+{% load crispy_forms_tags %}
+
+<p class="text-muted">
+    Stammdaten für den ISARtec-Antrag und die Empfänger-Adresse für die Einreichung.
+    SMTP-Einstellungen werden aus den <a href="{% url 'alerts:settings' %}">Alert-Einstellungen</a> übernommen.
+</p>
+<form method="post"
+      action="{% url 'reimbursements:settings' %}"
+      hx-post="{% url 'reimbursements:settings' %}"
+      hx-target="#settings-form-container"
+      hx-swap="innerHTML">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <button type="submit" class="btn btn-primary">
+        <i class="bi bi-save"></i> Speichern
+    </button>
+</form>

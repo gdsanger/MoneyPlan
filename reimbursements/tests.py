@@ -325,6 +325,15 @@ class ReimbursementViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(ExpenseClaim.objects.filter(pk=claim.id).exists())
 
+    def test_settings_htmx_get(self):
+        response = self.client.get(
+            reverse('reimbursements:settings'),
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Empfänger')
+        self.assertContains(response, 'Speichern')
+
     def test_settings_save(self):
         response = self.client.post(reverse('reimbursements:settings'), {
             'employee_name': 'Test User',
