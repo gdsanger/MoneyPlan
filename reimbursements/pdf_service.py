@@ -60,7 +60,8 @@ def generate_application_pdf_bytes(claims: list[ExpenseClaim], config: Reimburse
         'rows': rows,
         'total': format_euro(total),
         'today': today.strftime('%d.%m.%Y'),
-        'logo_path': _logo_file_uri(),
+        'logo_path': _logo_file_uri(config),
+        'signature_path': _signature_file_uri(config),
     })
 
     try:
@@ -71,11 +72,27 @@ def generate_application_pdf_bytes(claims: list[ExpenseClaim], config: Reimburse
     return HTML(string=html, base_url=str(settings.BASE_DIR)).write_pdf()
 
 
-def _logo_file_uri() -> str:
-    logo = Path(settings.BASE_DIR) / 'static' / 'img' / 'isartec-logo.svg'
-    if logo.exists():
-        return logo.as_uri()
+def _media_file_uri(file_field) -> str:
+    if file_field and file_field.name:
+        path = Path(file_field.path)
+        if path.exists():
+            return path.as_uri()
     return ''
+
+
+def _logo_file_uri(config: ReimbursementConfig) -> str:
+    uri = _media_file_uri(config.logo)
+    if uri:
+        return uri
+
+    fallback = Path(settings.BASE_DIR) / 'static' / 'img' / 'isartec-logo.svg'
+    if fallback.exists():
+        return fallback.as_uri()
+    return ''
+
+
+def _signature_file_uri(config: ReimbursementConfig) -> str:
+    return _media_file_uri(config.signature_image)
 
 
 def _image_to_pdf_bytes(image_bytes: bytes, mime_type: str) -> bytes:

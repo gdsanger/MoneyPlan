@@ -1,0 +1,20 @@
+{% if config.logo or config.signature_image %}
+<div class="row g-3 mb-4">
+    {% if config.logo %}
+    <div class="col-md-6">
+        <div class="border rounded p-3 bg-light">
+            <div class="text-muted small mb-2">Aktuelles Logo</div>
+            <img src="{{ config.logo.url }}" alt="Logo" class="img-fluid" style="max-height: 64px;">
+        </div>
+    </div>
+    {% endif %}
+    {% if config.signature_image %}
+    <div class="col-md-6">
+        <div class="border rounded p-3 bg-light">
+            <div class="text-muted small mb-2">Aktuelle Unterschrift</div>
+            <img src="{{ config.signature_image.url }}" alt="Unterschrift" class="img-fluid" style="max-height: 80px;">
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
