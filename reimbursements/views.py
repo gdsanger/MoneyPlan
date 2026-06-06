@@ -24,7 +24,7 @@ from .mailer import send_submission_mail
 from .models import ExpenseClaim, ReimbursementConfig, ReimbursementSubmission
 from .pdf_service import generate_submission_pdf
 from .receipt_service import recognize_fuel_receipt
-from .services import get_forecast_entry, get_pending_claims, get_unreimbursed_total
+from .services import get_forecast_entry, get_pending_claims, get_unreimbursed_total, lock_pending_claims
 
 
 @login_required
@@ -278,31 +278,21 @@ def submit_claims(request):
     if request.method != 'POST':
         return HttpResponse(status=405)
 
-    claims = list(get_pending_claims())
-    if not claims:
-        messages.error(request, 'Keine offenen Belege zum Einreichen.')
-        return redirect('reimbursements:list')
-
     config = ReimbursementConfig.get()
     if not config.recipient_email:
         messages.error(request, 'Bitte Empfänger-E-Mail in den Auslagen-Einstellungen hinterlegen.')
         return redirect('reimbursements:settings')
 
     try:
-        pdf_bytes, filename = generate_submission_pdf(claims)
-    except Exception as e:
-        messages.error(request, f'PDF-Generierung fehlgeschlagen: {e}')
-        return redirect('reimbursements:list')
-
-    total_amount = sum((c.amount for c in claims), Decimal('0.00'))
-    date_from = min(c.date for c in claims)
-    date_to = max(c.date for c in claims)
-
-    try:
         with transaction.atomic():
-            submission = ReimbursementSubmission.objects.create(total_amount=total_amount)
-            submission.pdf_file.save(filename, ContentFile(pdf_bytes), save=True)
-            submission.claims.set(claims)
+            claims = lock_pending_claims()
+            if not claims:
+                messages.error(request, 'Keine offenen Belege zum Einreichen.')
+                return redirect('reimbursements:list')
+
+            total_amount = sum((c.amount for c in claims), Decimal('0.00'))
+            date_from = min(c.date for c in claims)
+            date_to = max(c.date for c in claims)
 
             now = timezone.now()
             claim_ids = [claim.id for claim in claims]
@@ -311,6 +301,12 @@ def submit_claims(request):
                 submitted_at=now,
                 updated_at=now,
             )
+
+            pdf_bytes, filename = generate_submission_pdf(claims)
+
+            submission = ReimbursementSubmission.objects.create(total_amount=total_amount)
+            submission.pdf_file.save(filename, ContentFile(pdf_bytes), save=True)
+            submission.claims.set(claims)
     except Exception as e:
         messages.error(request, f'Einreichung konnte nicht gespeichert werden: {e}')
         return redirect('reimbursements:list')

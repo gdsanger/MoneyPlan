@@ -17,6 +17,20 @@ def get_pending_claims():
     return ExpenseClaim.objects.filter(status=ExpenseClaim.STATUS_PENDING).order_by('date')
 
 
+def lock_pending_claims() -> list[ExpenseClaim]:
+    """
+    Lock pending claims for submission.
+
+    Must be called inside transaction.atomic(). Concurrent submit requests
+    block here until the first transaction completes.
+    """
+    return list(
+        ExpenseClaim.objects.filter(status=ExpenseClaim.STATUS_PENDING)
+        .order_by('date')
+        .select_for_update()
+    )
+
+
 def get_unreimbursed_total() -> Decimal:
     """Sum of amounts for all unreimbursed claims."""
     claims = get_unreimbursed_claims()

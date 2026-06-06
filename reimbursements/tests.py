@@ -13,7 +13,9 @@ from django.urls import reverse
 from bookings.services import get_forecast
 from reimbursements.models import ExpenseClaim, ReimbursementConfig, ReimbursementSubmission
 from reimbursements.receipt_service import FuelReceiptResult
-from reimbursements.services import get_forecast_entry, get_unreimbursed_total
+from django.db import transaction
+
+from reimbursements.services import get_forecast_entry, get_unreimbursed_total, lock_pending_claims
 
 
 class ReimbursementServicesTestCase(TestCase):
@@ -39,6 +41,24 @@ class ReimbursementServicesTestCase(TestCase):
 
     def test_get_unreimbursed_total(self):
         self.assertEqual(get_unreimbursed_total(), Decimal('165.94'))
+
+    def test_lock_pending_claims_excludes_submitted(self):
+        with transaction.atomic():
+            locked = lock_pending_claims()
+        self.assertEqual(len(locked), 1)
+        self.assertEqual(locked[0].description, 'Shell')
+        submitted = ExpenseClaim.objects.get(description='Aral')
+        reimbursed = ExpenseClaim.objects.get(description='Alt')
+        locked_ids = {claim.id for claim in locked}
+        self.assertNotIn(submitted.id, locked_ids)
+        self.assertNotIn(reimbursed.id, locked_ids)
+
+        ExpenseClaim.objects.filter(status=ExpenseClaim.STATUS_PENDING).update(
+            status=ExpenseClaim.STATUS_SUBMITTED,
+        )
+        with transaction.atomic():
+            locked_after = lock_pending_claims()
+        self.assertEqual(locked_after, [])
 
     def test_get_forecast_entry(self):
         entry = get_forecast_entry()
@@ -227,6 +247,26 @@ class ReimbursementViewsTestCase(TestCase):
         self.assertIsNotNone(claim.submitted_at)
         self.assertEqual(ReimbursementSubmission.objects.count(), 1)
         mock_mail.assert_called_once()
+
+    @patch('reimbursements.views.send_submission_mail')
+    @patch('reimbursements.views.generate_submission_pdf')
+    def test_submit_claims_second_request_has_no_pending(self, mock_pdf, mock_mail):
+        ExpenseClaim.objects.create(
+            date=date(2026, 4, 27),
+            description='Shell',
+            amount=Decimal('101.07'),
+            status=ExpenseClaim.STATUS_PENDING,
+        )
+        mock_pdf.return_value = (b'%PDF-1.4 fake', '20260427 ISARtec Auslagenerstattung.pdf')
+        mock_mail.return_value = (True, 'OK')
+
+        first = self.client.post(reverse('reimbursements:submit'))
+        second = self.client.post(reverse('reimbursements:submit'))
+
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.assertEqual(ReimbursementSubmission.objects.count(), 1)
+        self.assertEqual(mock_mail.call_count, 1)
 
     @patch('reimbursements.views.send_submission_mail')
     @patch('reimbursements.views.generate_submission_pdf')
