@@ -80,16 +80,15 @@
 
     document.getElementById('confirm-delete-btn').addEventListener('click', function() {
         if (deleteUrl) {
-            // Use HTMX to delete and reload the month view
-            htmx.ajax('POST', deleteUrl, {}).then(function() {
-                // Reload the current month view
+            const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+            deleteModal.hide();
+            // swap: 'none' prevents the empty DELETE response from wiping the page body
+            htmx.ajax('POST', deleteUrl, { swap: 'none' }).then(function() {
                 htmx.ajax('GET', window.location.pathname, {
                     target: '#month-content',
                     swap: 'innerHTML'
                 });
             });
-            const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-            deleteModal.hide();
         }
     });
 </script>
