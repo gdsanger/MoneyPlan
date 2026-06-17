@@ -482,7 +482,7 @@ def receipt_confirm(request):
         )
 
         attachment = handle_upload(
-            uploaded_file=file_obj,
+            file=file_obj,
             content_object=booking
         )
 
