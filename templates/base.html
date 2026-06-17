@@ -119,63 +119,43 @@
                             <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'bookings:list' %}">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-journal-text"></i> Buchungen
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'bookings:list' %}"><i class="bi bi-list-ul"></i> Alle Buchungen</a></li>
+                            <li><a class="dropdown-item" href="{% url 'bookings:month_view' %}"><i class="bi bi-calendar3"></i> Monatsansicht</a></li>
+                            <li><a class="dropdown-item" href="{% url 'dashboard:year_overview' %}"><i class="bi bi-calendar4-week"></i> Jahresübersicht</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'bookings:categories' %}"><i class="bi bi-tags"></i> Kategorien</a></li>
+                            <li><a class="dropdown-item" href="{% url 'bookings:series_list' %}"><i class="bi bi-arrow-repeat"></i> Serien</a></li>
+                        </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'bookings:month_view' %}">
-                            <i class="bi bi-calendar3"></i> Monatsansicht
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-bank"></i> Finanzen
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'bookings:liability_list' %}"><i class="bi bi-credit-card"></i> Verbindlichkeiten</a></li>
+                            <li><a class="dropdown-item" href="{% url 'bookings:asset_list' %}"><i class="bi bi-piggy-bank"></i> Vermögen</a></li>
+                            <li><a class="dropdown-item" href="{% url 'alerts:list' %}"><i class="bi bi-bell"></i> Fälligkeiten</a></li>
+                        </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:year_overview' %}">
-                            <i class="bi bi-calendar4-week"></i> Jahresübersicht
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-grid"></i> Sonstiges
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'bookings:categories' %}">
-                            <i class="bi bi-tags"></i> Kategorien
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'bookings:series_list' %}">
-                            <i class="bi bi-arrow-repeat"></i> Serien
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'bookings:liability_list' %}">
-                            <i class="bi bi-credit-card"></i> Verbindlichkeiten
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'bookings:asset_list' %}">
-                            <i class="bi bi-piggy-bank"></i> Vermögen
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'alerts:list' %}">
-                            <i class="bi bi-bell"></i> Fälligkeiten
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'tasks:list' %}">
-                            <i class="bi bi-check2-square"></i> Aufgaben
-                            {% if task_badge_count > 0 %}
-                            <span class="badge bg-danger">{{ task_badge_count }}</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'timetracking:list' %}">
-                            <i class="bi bi-clock-history"></i> Zeiten
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'reimbursements:list' %}">
-                            <i class="bi bi-fuel-pump"></i> Auslagen
-                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'tasks:list' %}">
+                                <i class="bi bi-check2-square"></i> Aufgaben
+                                {% if task_badge_count > 0 %}
+                                <span class="badge bg-danger ms-1">{{ task_badge_count }}</span>
+                                {% endif %}
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'timetracking:list' %}"><i class="bi bi-clock-history"></i> Zeiten</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reimbursements:list' %}"><i class="bi bi-fuel-pump"></i> Auslagen</a></li>
+                        </ul>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
