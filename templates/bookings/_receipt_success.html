@@ -1,0 +1,18 @@
+{% if same_month %}
+<div class="alert alert-success" role="alert">
+    <i class="bi bi-check-circle-fill"></i>
+    Buchung "{{ booking.description }}" wurde erstellt.
+</div>
+{% else %}
+<div class="alert alert-info" role="alert">
+    <i class="bi bi-info-circle-fill"></i>
+    Buchung "{{ booking.description }}" wurde für <strong>{{ booking_month_label }}</strong> angelegt.
+    Das ist nicht der aktuell angezeigte Monat, die Buchung erscheint daher nicht in dieser Liste.
+</div>
+<div class="d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+    <a href="{% url 'bookings:month_view_detail' booking.date.year booking.date.month %}" class="btn btn-primary">
+        <i class="bi bi-calendar3"></i> Zur Monatsansicht {{ booking_month_label }} wechseln
+    </a>
+</div>
+{% endif %}

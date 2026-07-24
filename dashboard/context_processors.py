@@ -41,3 +41,51 @@ def alert_count(request):
         'has_critical_alerts': has_critical,
         'task_badge_count': task_badge_count,
     }
+
+
+# URL-Namen je Navigations-Bereich. "Buchungen" und "Finanzen" leben beide im
+# bookings-Namespace, daher reicht der Namespace allein nicht zur Abgrenzung.
+_NAV_BUCHUNGEN_NAMES = {
+    'bookings:list', 'bookings:create', 'bookings:quick_create',
+    'bookings:receipt_upload', 'bookings:receipt_confirm', 'bookings:edit',
+    'bookings:delete', 'bookings:toggle_status', 'bookings:duplicate',
+    'bookings:series', 'bookings:categories', 'bookings:series_list',
+    'bookings:series_wizard', 'bookings:series_preview', 'bookings:series_confirm',
+    'bookings:series_delete', 'bookings:month_view', 'bookings:month_view_detail',
+    'dashboard:year_overview', 'dashboard:year_overview_detail',
+}
+_NAV_FINANZEN_NAMES = {
+    'bookings:liability_list', 'bookings:liability_create', 'bookings:liability_detail',
+    'bookings:liability_edit', 'bookings:liability_delete',
+    'bookings:asset_list', 'bookings:asset_create', 'bookings:asset_edit',
+    'bookings:asset_delete', 'bookings:asset_update_value',
+    'alerts:list', 'alerts:test_mail',
+}
+_NAV_SONSTIGES_NAMESPACES = {'tasks', 'timetracking', 'reimbursements'}
+
+
+def nav_active_section(request):
+    """
+    Bestimmt den aktuell aktiven Navigationsbereich anhand des Resolver-Matches,
+    damit die Navbar (base.html) den passenden Menüpunkt hervorheben kann.
+    """
+    match = getattr(request, 'resolver_match', None)
+    if match is None:
+        return {'nav_active_view': None, 'nav_active_section': None}
+
+    view_name = match.view_name
+    section = None
+
+    if view_name == 'dashboard:index':
+        section = 'dashboard'
+    elif view_name in _NAV_BUCHUNGEN_NAMES:
+        section = 'buchungen'
+    elif view_name in _NAV_FINANZEN_NAMES:
+        section = 'finanzen'
+    elif match.namespace in _NAV_SONSTIGES_NAMESPACES:
+        section = 'sonstiges'
+
+    return {
+        'nav_active_view': view_name,
+        'nav_active_section': section,
+    }

@@ -1,7 +1,8 @@
+{% load badge_extras %}
 {% for item in liabilities_overview %}
 {% with liability=item.liability %}
-<tr class="{% if item.is_closed %}opacity-50 text-decoration-line-through{% endif %}">
-    <td>
+<tr id="liability-row-{{ liability.id }}" class="{% if item.is_closed %}opacity-50 text-decoration-line-through{% endif %}">
+    <td class="table-stack-heading">
         <a href="{% url 'bookings:liability_detail' liability.id %}" class="text-decoration-none">
             <strong>{{ liability.name }}</strong>
         </a>
@@ -9,17 +10,17 @@
         <br><small class="text-muted">{{ liability.description|truncatewords:10 }}</small>
         {% endif %}
     </td>
-    <td>
-        <span class="badge" style="background-color: {{ liability.category.color }}">
+    <td data-label="Kategorie">
+        <span class="badge" style="background-color: {{ liability.category.color }}; color: {{ liability.category.color|contrast_text_color }};">
             <i class="{{ liability.category.icon }}"></i> {{ liability.category.name }}
         </span>
     </td>
-    <td class="text-end">{{ liability.initial_amount|floatformat:2 }} €</td>
-    <td class="text-end text-success">{{ item.total_repaid|floatformat:2 }} €</td>
-    <td class="text-end {% if item.remaining > 0 %}text-danger{% else %}text-success{% endif %}">
+    <td class="text-end" data-label="Vortrag">{{ liability.initial_amount|floatformat:2 }} €</td>
+    <td class="text-end text-success" data-label="Getilgt">{{ item.total_repaid|floatformat:2 }} €</td>
+    <td class="text-end {% if item.remaining > 0 %}text-danger{% else %}text-success{% endif %}" data-label="Restschuld">
         {{ item.remaining|floatformat:2 }} €
     </td>
-    <td>
+    <td class="table-stack-block" data-label="Fortschritt">
         <div class="progress" style="height: 25px;">
             <div class="progress-bar {% if item.is_closed %}bg-success{% else %}bg-warning{% endif %}"
                  role="progressbar"
@@ -31,43 +32,54 @@
             </div>
         </div>
     </td>
-    <td>
+    <td data-label="Fälligkeit">
         {% if liability.due_date %}
             {{ liability.due_date|date:"d.m.Y" }}
         {% else %}
             <span class="text-muted">—</span>
         {% endif %}
     </td>
-    <td>
+    <td data-label="Status">
         {% if item.is_closed %}
-        <span class="badge bg-success">Abgeschlossen</span>
+        <span class="badge text-bg-success">Abgeschlossen</span>
         {% else %}
-        <span class="badge bg-danger">Offen</span>
+        <span class="badge text-bg-danger">Offen</span>
         {% endif %}
     </td>
-    <td>
-        <div class="btn-group btn-group-sm" role="group">
-            <a href="{% url 'bookings:liability_detail' liability.id %}"
-               class="btn btn-outline-info"
-               title="Details anzeigen">
-                <i class="bi bi-eye"></i>
-            </a>
-            <a href="{% url 'bookings:liability_edit' liability.id %}"
-               class="btn btn-outline-primary"
-               hx-get="{% url 'bookings:liability_edit' liability.id %}"
-               hx-target="#form-modal-content"
-               hx-swap="innerHTML"
-               data-bs-toggle="modal"
-               data-bs-target="#formModal"
-               title="Bearbeiten">
-                <i class="bi bi-pencil"></i>
-            </a>
-            <button type="button"
-                    class="btn btn-outline-danger"
-                    onclick="showDeleteModal({{ liability.id }}, '{{ liability.name|escapejs }}')"
-                    title="Löschen">
-                <i class="bi bi-trash"></i>
+    <td class="table-stack-actions">
+        <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary row-actions-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                <i class="bi bi-three-dots-vertical"></i>
             </button>
+            <ul class="dropdown-menu dropdown-menu-end row-actions-menu">
+                <li>
+                    <a href="{% url 'bookings:liability_detail' liability.id %}" class="dropdown-item">
+                        <i class="bi bi-eye"></i> Details anzeigen
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'bookings:liability_edit' liability.id %}"
+                       class="dropdown-item"
+                       hx-get="{% url 'bookings:liability_edit' liability.id %}"
+                       hx-target="#form-modal-content"
+                       hx-swap="innerHTML"
+                       data-bs-toggle="modal"
+                       data-bs-target="#formModal">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a>
+                </li>
+                <li>
+                    <button type="button"
+                            class="dropdown-item text-danger"
+                            data-delete-url="{% url 'bookings:liability_delete' liability.id %}"
+                            data-delete-title="Verbindlichkeit löschen"
+                            data-delete-message="Verbindlichkeit „{{ liability.name }}“ wirklich löschen?"
+                            data-delete-warning="Die Verbindlichkeit wird gelöscht, aber verknüpfte Buchungen bleiben erhalten (ohne Zuordnung)."
+                            data-delete-target="#liability-row-{{ liability.id }}">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </li>
+            </ul>
         </div>
     </td>
 </tr>

@@ -1,8 +1,8 @@
 <tr id="category-row-{{ category.id }}">
-    <td>
+    <td data-label="Farbe">
         <span class="badge" style="background-color: {{ category.color }}; width: 40px; height: 25px; display: inline-block;"></span>
     </td>
-    <td>
+    <td data-label="Icon">
         {% if category.icon %}
         <span class="fs-4">
             <i class="bi {{ category.icon }}"></i>
@@ -11,39 +11,45 @@
         <span class="text-muted">-</span>
         {% endif %}
     </td>
-    <td>{{ category.name }}</td>
-    <td>
+    <td class="table-stack-heading">{{ category.name }}</td>
+    <td data-label="Beschreibung">
         {% if category.description %}
         <span class="text-muted" title="{{ category.description }}">{{ category.description|truncatechars:60 }}</span>
         {% else %}
         <span class="text-muted">-</span>
         {% endif %}
     </td>
-    <td>
-        <span class="badge bg-secondary">{{ category.booking_count }}</span>
+    <td data-label="Anzahl Buchungen">
+        <span class="badge text-bg-secondary">{{ category.booking_count }}</span>
     </td>
-    <td>
-        <div class="btn-group btn-group-sm" role="group">
-            <!-- Edit -->
-            <a
-                href="{% url 'category_edit' category.id %}"
-                class="btn btn-outline-primary"
-                hx-get="{% url 'category_edit' category.id %}"
-                hx-target="#form-modal-content"
-                hx-swap="innerHTML"
-                data-bs-toggle="modal"
-                data-bs-target="#formModal"
-                title="Bearbeiten">
-                <i class="bi bi-pencil"></i>
-            </a>
-
-            <!-- Delete -->
-            <button
-                class="btn btn-outline-danger"
-                onclick="showDeleteModal({{ category.id }}, '{{ category.name|escapejs }}', '{% url 'category_delete' category.id %}')"
-                title="Löschen">
-                <i class="bi bi-trash"></i>
+    <td class="table-stack-actions">
+        <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary row-actions-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                <i class="bi bi-three-dots-vertical"></i>
             </button>
+            <ul class="dropdown-menu dropdown-menu-end row-actions-menu">
+                <li>
+                    <a href="{% url 'category_edit' category.id %}"
+                       class="dropdown-item"
+                       hx-get="{% url 'category_edit' category.id %}"
+                       hx-target="#form-modal-content"
+                       hx-swap="innerHTML"
+                       data-bs-toggle="modal"
+                       data-bs-target="#formModal">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a>
+                </li>
+                <li>
+                    <button type="button"
+                            class="dropdown-item text-danger"
+                            data-delete-url="{% url 'category_delete' category.id %}"
+                            data-delete-title="Kategorie löschen"
+                            data-delete-message="Sind Sie sicher, dass Sie die Kategorie „{{ category.name }}“ löschen möchten?"
+                            data-delete-target="#category-row-{{ category.id }}">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </li>
+            </ul>
         </div>
     </td>
 </tr>

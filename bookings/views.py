@@ -13,7 +13,7 @@ from calendar import monthrange
 from decimal import Decimal
 import magic
 from .models import Booking, Category, RecurringSeries, Liability, Asset
-from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm
+from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
@@ -33,6 +33,11 @@ from .receipt_service import recognize_receipt, ReceiptRecognitionResult
 from attachments.services import get_attachments_for, handle_upload
 from attachments.models import Attachment
 from ai.exceptions import AIProviderNotConfigured, AIServiceError, AIResponseParseError
+
+MONTH_NAMES = [
+    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+]
 
 
 @login_required
@@ -311,6 +316,25 @@ def quick_create(request):
     return redirect('dashboard:index')
 
 
+def _get_return_month_context(request):
+    """
+    Extract the optional month-view origin (year/month) a receipt upload was
+    started from, so the caller can return there / detect a cross-month booking.
+    Present as GET params when the modal is opened from month_view, and
+    resubmitted as hidden POST fields through the upload/confirm steps.
+    """
+    return_year = request.POST.get('return_year') or request.GET.get('return_year')
+    return_month = request.POST.get('return_month') or request.GET.get('return_month')
+    try:
+        return_year = int(return_year)
+        return_month = int(return_month)
+        if not (1 <= return_month <= 12):
+            raise ValueError
+    except (TypeError, ValueError):
+        return {'return_year': None, 'return_month': None}
+    return {'return_year': return_year, 'return_month': return_month}
+
+
 @login_required
 def receipt_upload(request):
     """
@@ -318,11 +342,13 @@ def receipt_upload(request):
     GET: Returns upload form
     POST: Analyzes file and returns pre-filled booking form
     """
+    month_context = _get_return_month_context(request)
+
     if request.method == 'POST':
         # Check if file was uploaded
         if 'receipt_file' not in request.FILES:
             messages.error(request, 'Bitte wählen Sie eine Datei aus.')
-            return render(request, 'bookings/_receipt_upload.html', {'error': 'Keine Datei ausgewählt'})
+            return render(request, 'bookings/_receipt_upload.html', {'error': 'Keine Datei ausgewählt', **month_context})
 
         uploaded_file = request.FILES['receipt_file']
 
@@ -337,7 +363,8 @@ def receipt_upload(request):
         if mime_type not in allowed_types:
             messages.error(request, f'Nicht unterstütztes Dateiformat: {mime_type}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'Nicht unterstütztes Dateiformat. Unterstützt: PDF, JPG, PNG, WEBP'
+                'error': f'Nicht unterstütztes Dateiformat. Unterstützt: PDF, JPG, PNG, WEBP',
+                **month_context,
             })
 
         # Validate file size (10 MB)
@@ -345,7 +372,8 @@ def receipt_upload(request):
         if len(file_data) > max_size:
             messages.error(request, 'Datei zu groß (max. 10 MB)')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': 'Datei zu groß (max. 10 MB)'
+                'error': 'Datei zu groß (max. 10 MB)',
+                **month_context,
             })
 
         try:
@@ -394,6 +422,7 @@ def receipt_upload(request):
                 'form': form,
                 'receipt_result': result,
                 'is_receipt_form': True,
+                **month_context,
             }
 
             return render(request, 'bookings/_receipt_form.html', context)
@@ -401,36 +430,41 @@ def receipt_upload(request):
         except AIProviderNotConfigured as e:
             messages.error(request, 'KI nicht konfiguriert — bitte API-Key in den Einstellungen hinterlegen')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': 'KI nicht konfiguriert — bitte API-Key in den Einstellungen hinterlegen'
+                'error': 'KI nicht konfiguriert — bitte API-Key in den Einstellungen hinterlegen',
+                **month_context,
             })
 
         except AIServiceError as e:
             messages.error(request, f'KI-Fehler: {str(e)}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'KI-Analyse fehlgeschlagen: {str(e)}'
+                'error': f'KI-Analyse fehlgeschlagen: {str(e)}',
+                **month_context,
             })
 
         except AIResponseParseError as e:
             messages.error(request, f'Fehler beim Verarbeiten der KI-Antwort: {str(e)}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'Ungültige KI-Antwort. Bitte versuchen Sie es erneut.'
+                'error': f'Ungültige KI-Antwort. Bitte versuchen Sie es erneut.',
+                **month_context,
             })
 
         except ValueError as e:
             # PDF conversion error
             messages.error(request, f'Fehler beim Verarbeiten der Datei: {str(e)}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'Fehler beim Verarbeiten der Datei: {str(e)}'
+                'error': f'Fehler beim Verarbeiten der Datei: {str(e)}',
+                **month_context,
             })
 
         except Exception as e:
             messages.error(request, f'Unerwarteter Fehler: {str(e)}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'Unerwarteter Fehler: {str(e)}'
+                'error': f'Unerwarteter Fehler: {str(e)}',
+                **month_context,
             })
 
     # GET request: show upload form
-    return render(request, 'bookings/_receipt_upload.html')
+    return render(request, 'bookings/_receipt_upload.html', month_context)
 
 
 @login_required
@@ -442,11 +476,14 @@ def receipt_confirm(request):
     if request.method != 'POST':
         return HttpResponse(status=405)
 
+    month_context = _get_return_month_context(request)
+
     # Check if we have session data
     if 'receipt_result' not in request.session or 'receipt_file_data' not in request.session:
         messages.error(request, 'Keine Beleg-Daten gefunden. Bitte laden Sie den Beleg erneut hoch.')
         return render(request, 'bookings/_receipt_upload.html', {
-            'error': 'Session abgelaufen. Bitte laden Sie den Beleg erneut hoch.'
+            'error': 'Session abgelaufen. Bitte laden Sie den Beleg erneut hoch.',
+            **month_context,
         })
 
     # Validate form
@@ -458,6 +495,7 @@ def receipt_confirm(request):
             'form': form,
             'receipt_result': type('obj', (object,), receipt_result_data)(),  # Convert dict to object
             'is_receipt_form': True,
+            **month_context,
         }
         return render(request, 'bookings/_receipt_form.html', context)
 
@@ -500,6 +538,25 @@ def receipt_confirm(request):
     del request.session['receipt_file_mime_type']
 
     messages.success(request, f'Buchung "{booking.description}" aus Beleg erstellt.')
+
+    # Opened from the month view: report back into the modal instead of
+    # navigating away, since the booking may belong to a different month
+    # than the one currently displayed (and would otherwise look "lost").
+    if request.htmx and month_context['return_year'] and month_context['return_month']:
+        return_year = month_context['return_year']
+        return_month = month_context['return_month']
+        same_month = booking.date.year == return_year and booking.date.month == return_month
+        response = render(request, 'bookings/_receipt_success.html', {
+            'booking': booking,
+            'same_month': same_month,
+            'return_year': return_year,
+            'return_month': return_month,
+            'booking_month_label': f"{MONTH_NAMES[booking.date.month - 1]} {booking.date.year}",
+        })
+        if same_month:
+            # Let month_view.html reload #month-content and close the modal
+            response['HX-Trigger'] = 'receiptBookingSaved'
+        return response
 
     # For HTMX: redirect to booking list
     if request.htmx:
@@ -903,6 +960,9 @@ def series_delete(request, series_id):
     series.bookings.all().delete()
     series.delete()
 
+    if request.htmx:
+        return HttpResponse('')
+
     # Add success message
     messages.success(
         request,
@@ -958,6 +1018,9 @@ def month_view(request, year=None, month=None):
     )
 
     # Calculate running balance and month totals
+    # These are always based on the full, unfiltered month so that the
+    # cumulative balance per row and the summary bar stay correct even
+    # when the filter below hides some rows.
     running_balance = carry_forward
     month_income = Decimal('0.00')
     month_expenses = Decimal('0.00')
@@ -983,6 +1046,64 @@ def month_view(request, year=None, month=None):
     month_result = month_income + month_expenses
     end_balance = carry_forward + month_result
 
+    # Apply row filters (date/amount/category/description) on top of the
+    # already-computed running balances. This only narrows which rows are
+    # displayed - it never changes the running balance or the summary bar.
+    filter_form = MonthFilterForm(
+        request.GET,
+        month_url=reverse('bookings:month_view_detail', args=[year, month])
+    )
+    is_filtered = False
+    if filter_form.is_valid():
+        date_from = filter_form.cleaned_data.get('date_from')
+        date_to = filter_form.cleaned_data.get('date_to')
+        amount_min = filter_form.cleaned_data.get('amount_min')
+        amount_max = filter_form.cleaned_data.get('amount_max')
+        booking_type = filter_form.cleaned_data.get('type')
+        category_filter = filter_form.cleaned_data.get('category')
+        description_filter = filter_form.cleaned_data.get('description')
+
+        is_filtered = any([
+            date_from, date_to, amount_min is not None, amount_max is not None,
+            booking_type, category_filter, description_filter,
+        ])
+
+        def matches_filter(booking):
+            if date_from and booking.date < date_from:
+                return False
+            if date_to and booking.date > date_to:
+                return False
+            if amount_min is not None and booking.amount < amount_min:
+                return False
+            if amount_max is not None and booking.amount > amount_max:
+                return False
+            if booking_type == 'income' and booking.amount < 0:
+                return False
+            if booking_type == 'expense' and booking.amount >= 0:
+                return False
+            if category_filter and booking.category_id != category_filter.id:
+                return False
+            if description_filter and description_filter.lower() not in booking.description.lower():
+                return False
+            return True
+
+        filtered_bookings_with_balance = [
+            item for item in bookings_with_balance if matches_filter(item['booking'])
+        ]
+    else:
+        filtered_bookings_with_balance = bookings_with_balance
+
+    # Sum of the currently visible (filtered) rows, shown separately from
+    # the month summary bar which always reflects the full month.
+    filtered_income = Decimal('0.00')
+    filtered_expenses = Decimal('0.00')
+    for item in filtered_bookings_with_balance:
+        if item['booking'].amount >= 0:
+            filtered_income += item['booking'].amount
+        else:
+            filtered_expenses += item['booking'].amount
+    filtered_result = filtered_income + filtered_expenses
+
     # Calculate previous and next month
     prev_month = month - 1
     prev_year = year
@@ -996,12 +1117,7 @@ def month_view(request, year=None, month=None):
         next_month = 1
         next_year += 1
 
-    # German month names
-    month_names = [
-        'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-        'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
-    ]
-    month_label = f"{month_names[month - 1]} {year}"
+    month_label = f"{MONTH_NAMES[month - 1]} {year}"
 
     context = {
         'year': year,
@@ -1015,7 +1131,13 @@ def month_view(request, year=None, month=None):
         'prev_month_cumulative_result': prev_month_cumulative_result,
         'end_balance': end_balance,
         'prev_month_end_balance': prev_month_end_balance,
-        'bookings_with_balance': bookings_with_balance,
+        'bookings_with_balance': filtered_bookings_with_balance,
+        'total_booking_count': len(bookings_with_balance),
+        'filter_form': filter_form,
+        'is_filtered': is_filtered,
+        'filtered_income': filtered_income,
+        'filtered_expenses': filtered_expenses,
+        'filtered_result': filtered_result,
         'prev_year': prev_year,
         'prev_month': prev_month,
         'next_year': next_year,

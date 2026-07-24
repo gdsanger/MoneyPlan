@@ -1,24 +1,24 @@
 <tr id="asset-row-{{ asset.id }}">
-    <td>
+    <td class="table-stack-heading">
         <strong>{{ asset.name }}</strong>
         {% if asset.description %}
         <br><small class="text-muted">{{ asset.description|truncatewords:10 }}</small>
         {% endif %}
     </td>
-    <td>
+    <td data-label="Kategorie">
         {{ asset.get_category_display }}
     </td>
-    <td class="text-end">
+    <td class="text-end" data-label="Kaufpreis">
         {% if asset.purchase_price %}
             {{ asset.purchase_price|floatformat:2 }} €
         {% else %}
             <span class="text-muted">—</span>
         {% endif %}
     </td>
-    <td class="text-end">
+    <td class="text-end" data-label="Aktueller Wert">
         <strong>{{ asset.current_value|floatformat:2 }} €</strong>
     </td>
-    <td class="text-end">
+    <td class="text-end" data-label="Wertentwicklung">
         {% if asset.value_change is not None %}
             {% if asset.value_change >= 0 %}
                 <span class="text-success">
@@ -39,33 +39,44 @@
             <span class="text-muted">—</span>
         {% endif %}
     </td>
-    <td>
+    <td data-label="Zuletzt aktualisiert">
         <small class="text-muted">{{ asset.last_updated|date:"d.m.Y" }}</small>
     </td>
-    <td>
-        <div class="btn-group btn-group-sm" role="group">
-            <button type="button"
-                    class="btn btn-outline-secondary"
-                    title="Wert aktualisieren"
-                    onclick="showValueUpdateModal({{ asset.id }}, '{{ asset.name|escapejs }}', {{ asset.current_value }})">
-                <i class="bi bi-pencil-square"></i>
+    <td class="table-stack-actions">
+        <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary row-actions-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                <i class="bi bi-three-dots-vertical"></i>
             </button>
-            <a href="{% url 'bookings:asset_edit' asset.id %}"
-               class="btn btn-outline-primary"
-               hx-get="{% url 'bookings:asset_edit' asset.id %}"
-               hx-target="#form-modal-content"
-               hx-swap="innerHTML"
-               data-bs-toggle="modal"
-               data-bs-target="#formModal"
-               title="Bearbeiten">
-                <i class="bi bi-pencil"></i>
-            </a>
-            <button type="button"
-                    class="btn btn-outline-danger"
-                    onclick="showDeleteModal({{ asset.id }}, '{{ asset.name|escapejs }}')"
-                    title="Löschen">
-                <i class="bi bi-trash"></i>
-            </button>
+            <ul class="dropdown-menu dropdown-menu-end row-actions-menu">
+                <li>
+                    <button type="button"
+                            class="dropdown-item"
+                            onclick="showValueUpdateModal({{ asset.id }}, '{{ asset.name|escapejs }}', {{ asset.current_value }})">
+                        <i class="bi bi-pencil-square"></i> Wert aktualisieren
+                    </button>
+                </li>
+                <li>
+                    <a href="{% url 'bookings:asset_edit' asset.id %}"
+                       class="dropdown-item"
+                       hx-get="{% url 'bookings:asset_edit' asset.id %}"
+                       hx-target="#form-modal-content"
+                       hx-swap="innerHTML"
+                       data-bs-toggle="modal"
+                       data-bs-target="#formModal">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a>
+                </li>
+                <li>
+                    <button type="button"
+                            class="dropdown-item text-danger"
+                            data-delete-url="{% url 'bookings:asset_delete' asset.id %}"
+                            data-delete-title="Vermögensgegenstand löschen"
+                            data-delete-message="Vermögensgegenstand „{{ asset.name }}“ wirklich löschen?"
+                            data-delete-target="#asset-row-{{ asset.id }}">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </li>
+            </ul>
         </div>
     </td>
 </tr>

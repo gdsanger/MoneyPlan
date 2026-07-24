@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load badge_extras %}
 
 {% block title %}Wiederkehrende Serien - MoneyPlan{% endblock %}
 
@@ -17,7 +18,7 @@
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover table-stack">
                     <thead>
                         <tr>
                             <th>Beschreibung</th>
@@ -33,48 +34,58 @@
                     <tbody>
                         {% for item in series_with_counts %}
                         {% with series=item.series booking_count=item.booking_count %}
-                        <tr>
-                            <td>
+                        <tr id="series-row-{{ series.id }}">
+                            <td class="table-stack-heading">
                                 <strong>{{ series.description }}</strong>
                                 {% if series.notes %}
                                 <br><small class="text-muted">{{ series.notes|truncatewords:10 }}</small>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Betrag">
                                 <span class="{% if series.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
                                     {% if series.amount >= 0 %}+{% endif %}{{ series.amount }} €
                                 </span>
                             </td>
-                            <td>{{ series.get_interval_display }}</td>
-                            <td>{{ series.start_date|date:"d.m.Y" }}</td>
-                            <td>
+                            <td data-label="Intervall">{{ series.get_interval_display }}</td>
+                            <td data-label="Start">{{ series.start_date|date:"d.m.Y" }}</td>
+                            <td data-label="Ende">
                                 {% if series.end_date %}
                                     {{ series.end_date|date:"d.m.Y" }}
                                 {% else %}
                                     <span class="text-muted">Unbegrenzt</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <span class="badge" style="background-color: {{ series.category.color }}">
+                            <td data-label="Kategorie">
+                                <span class="badge" style="background-color: {{ series.category.color }}; color: {{ series.category.color|contrast_text_color }};">
                                     <i class="bi bi-{{ series.category.icon }}"></i> {{ series.category.name }}
                                 </span>
                             </td>
-                            <td class="text-center">
-                                <span class="badge bg-secondary">{{ booking_count }}</span>
+                            <td class="text-center" data-label="Anzahl Buchungen">
+                                <span class="badge text-bg-secondary">{{ booking_count }}</span>
                             </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{% url 'bookings:list' %}?series={{ series.id }}"
-                                       class="btn btn-outline-info"
-                                       title="Buchungen anzeigen">
-                                        <i class="bi bi-journal-text"></i>
-                                    </a>
-                                    <button type="button"
-                                            class="btn btn-outline-danger"
-                                            onclick="showDeleteModal({{ series.id }}, '{{ series.description|escapejs }}', {{ booking_count }})"
-                                            title="Löschen">
-                                        <i class="bi bi-trash"></i>
+                            <td class="table-stack-actions">
+                                <div class="dropdown">
+                                    <button type="button" class="btn btn-outline-secondary row-actions-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                                        <i class="bi bi-three-dots-vertical"></i>
                                     </button>
+                                    <ul class="dropdown-menu dropdown-menu-end row-actions-menu">
+                                        <li>
+                                            <a href="{% url 'bookings:list' %}?series={{ series.id }}" class="dropdown-item">
+                                                <i class="bi bi-journal-text"></i> Buchungen anzeigen
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <button type="button"
+                                                    class="dropdown-item text-danger"
+                                                    data-delete-url="{% url 'bookings:series_delete' series.id %}"
+                                                    data-delete-title="Serie löschen"
+                                                    data-delete-message="Serie „{{ series.description }}“ wirklich löschen?"
+                                                    data-delete-warning="Diese Aktion löscht die Serie und alle {{ booking_count }} verknüpften Buchungen."
+                                                    data-delete-target="#series-row-{{ series.id }}">
+                                                <i class="bi bi-trash"></i> Löschen
+                                            </button>
+                                        </li>
+                                    </ul>
                                 </div>
                             </td>
                         </tr>
@@ -92,50 +103,5 @@
     </div>
     {% endif %}
 </div>
-
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Serie löschen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p><strong>Sind Sie sicher?</strong></p>
-                <p id="delete-series-description"></p>
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong>Warnung:</strong> Diese Aktion löscht die Serie und alle <span id="delete-booking-count"></span> verknüpften Buchungen.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <form method="post" id="delete-form" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash"></i> Löschen
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function showDeleteModal(seriesId, description, bookingCount) {
-        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        const form = document.getElementById('delete-form');
-
-        // Update modal content
-        document.getElementById('delete-series-description').textContent = 'Serie: "' + description + '"';
-        document.getElementById('delete-booking-count').textContent = bookingCount;
-
-        // Update form action
-        form.action = '{% url "bookings:series_delete" 0 %}'.replace('0', seriesId);
-
-        modal.show();
-    }
-</script>
 {% endblock %}
 

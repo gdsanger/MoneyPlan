@@ -1,0 +1,158 @@
+/*
+ * MoneyPlan – globale Styles
+ *
+ * Wird nach Bootstrap eingebunden, damit Regeln hier Bootstrap-Defaults
+ * überschreiben können. Mobile-first: Basis-Regeln gelten für kleine
+ * Viewports, Anpassungen für größere Screens folgen über Bootstraps
+ * Standard-Breakpoints (sm 576px, md 768px, lg 992px, xl 1200px, xxl 1400px),
+ * z.B. `@media (min-width: 768px) { ... }`.
+ */
+
+/* --- Utilities: Tap-Ziele -------------------------------------------- */
+/* Für interaktive Elemente auf Touch-Geräten (empfohlene Mindestgröße 44x44px). */
+.tap-target {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- Navigation: aktiver Bereich ---------------------------------------- */
+/* Bootstraps Standard-Aktiv-Farbe (nur Weiß statt gedimmtes Weiß) ist im
+   Dark Theme zu subtil, um auf einen Blick zu erkennen, wo man sich befindet. */
+.navbar .nav-link.active,
+.navbar .dropdown-toggle.active {
+    color: var(--bs-info) !important;
+    font-weight: 600;
+}
+
+#mobileNav .nav-link.active {
+    background-color: rgba(var(--bs-primary-rgb), 0.15);
+    color: var(--bs-info) !important;
+    border-radius: 0.375rem;
+}
+
+/* --- Utilities: Tabelle → Karten (mobile) ----------------------------- */
+/* Platzhalter für das "Tabelle→Karten"-Muster auf schmalen Viewports.
+   Konkrete Umsetzung erfolgt in den jeweiligen Kind-Issues; hier nur die
+   gemeinsame Grundstruktur, damit alle Listen dieselben Klassennamen nutzen. */
+.table-cards {
+    /* auf Mobile: Karten-Layout je Zeile */
+}
+
+.table-cards .table-cards-row {
+    /* auf Mobile: als Karte dargestellte Tabellenzeile */
+}
+
+@media (min-width: 768px) {
+    .table-cards {
+        /* ab md: normale Tabellendarstellung */
+    }
+}
+
+/* --- Mobile Schnellzugriff (Bottom-Bar) -------------------------------- */
+/* Feste Leiste für die 1-2 wichtigsten Aktionen (Neue Buchung / Aus Beleg),
+   damit sie am Handy ohne Umweg über das Menü erreichbar sind. Nur < lg,
+   Bootstraps Breakpoint für den Umschlag der Navbar auf ein Hamburger-Menü. */
+.mobile-quick-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    background-color: var(--bs-dark);
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.mobile-quick-actions .btn {
+    flex: 1;
+}
+
+@media (min-width: 992px) {
+    .mobile-quick-actions {
+        display: none;
+    }
+}
+
+/* Platz für die Bottom-Bar reservieren, damit sie den Seiteninhalt nicht verdeckt. */
+@media (max-width: 991.98px) {
+    main.has-mobile-quick-actions {
+        padding-bottom: 4.5rem;
+    }
+}
+
+/* --- Financial Overview (Markdown-Rendering) -------------------------- */
+.financial-overview-content h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--bs-info);
+    border-bottom: 1px solid var(--bs-border-color);
+    padding-bottom: 0.35rem;
+}
+
+.financial-overview-content h2:first-child {
+    margin-top: 0;
+}
+
+.financial-overview-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.financial-overview-content p {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+.financial-overview-content ul,
+.financial-overview-content ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.financial-overview-content li {
+    margin-bottom: 0.35rem;
+    line-height: 1.5;
+}
+
+.financial-overview-content li > ul,
+.financial-overview-content li > ol {
+    margin-top: 0.35rem;
+    margin-bottom: 0;
+}
+
+.financial-overview-content strong {
+    color: var(--bs-emphasis-color);
+}
+
+.financial-overview-content blockquote {
+    border-left: 3px solid var(--bs-info);
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: var(--bs-secondary-color);
+}
+
+.financial-overview-content table {
+    width: 100%;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.financial-overview-content th,
+.financial-overview-content td {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--bs-border-color);
+}
+
+.financial-overview-content th {
+    background-color: rgba(var(--bs-emphasis-color-rgb), 0.1);
+}

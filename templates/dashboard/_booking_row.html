@@ -1,19 +1,20 @@
+{% load badge_extras %}
 <tr id="booking-row-{{ booking.id }}" class="{% if booking.date < today %}table-danger{% endif %}">
-    <td>{{ booking.date|date:"d.m.Y" }}</td>
-    <td>{{ booking.description }}</td>
-    <td class="{% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+    <td data-label="Datum">{{ booking.date|date:"d.m.Y" }}</td>
+    <td class="table-stack-heading">{{ booking.description }}</td>
+    <td class="{% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}" data-label="Betrag">
         {{ booking.amount|floatformat:2 }} €
     </td>
-    <td>
+    <td data-label="Kategorie">
         {% if booking.category %}
-        <span class="badge" style="background-color: {{ booking.category.color }};">
+        <span class="badge" style="background-color: {{ booking.category.color }}; color: {{ booking.category.color|contrast_text_color }};">
             <i class="bi bi-{{ booking.category.icon }}"></i> {{ booking.category.name }}
         </span>
         {% else %}
         <span class="text-muted">-</span>
         {% endif %}
     </td>
-    <td>
+    <td class="table-stack-block" data-label="Aktion">
         {% if booking.status == 'planned' %}
         <button
             class="btn btn-sm btn-success"
@@ -24,7 +25,7 @@
             <i class="bi bi-check-circle"></i> Als gebucht markieren
         </button>
         {% else %}
-        <span class="badge bg-success">
+        <span class="badge text-bg-success">
             <i class="bi bi-check-circle-fill"></i> Gebucht
         </span>
         {% endif %}
