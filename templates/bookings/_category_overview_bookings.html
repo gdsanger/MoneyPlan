@@ -1,0 +1,33 @@
+{% if bookings %}
+<div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+        <thead>
+            <tr>
+                <th style="width: 7rem;">Datum</th>
+                <th>Beschreibung</th>
+                <th class="text-end" style="width: 8rem;">Betrag</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in bookings %}
+            <tr>
+                <td class="text-nowrap">{{ booking.date|date:'d.m.Y' }}</td>
+                <td>
+                    {{ booking.description }}
+                    {% if booking.status == 'planned' %}
+                    <span class="badge bg-warning text-dark ms-1">geplant</span>
+                    {% endif %}
+                </td>
+                <td class="text-end fw-semibold text-nowrap {% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ booking.amount|floatformat:2 }} €
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center text-muted py-2">
+    <i class="bi bi-inbox"></i> Keine Buchungen in diesem Zeitraum
+</div>
+{% endif %}

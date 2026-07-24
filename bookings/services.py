@@ -7,7 +7,8 @@ Positive amounts = income, negative amounts = expenses.
 from decimal import Decimal
 from datetime import date
 from calendar import monthrange
-from django.db.models import Sum, Q, QuerySet
+from django.db.models import Sum, Q, Count, QuerySet
+from django.db.models.functions import Coalesce
 from .models import Booking, Category, Liability, Asset
 
 
@@ -393,6 +394,80 @@ def get_top_categories(
             continue
 
     return result
+
+
+def get_category_overview(
+    start_date: date,
+    end_date: date,
+    include_planned: bool = False,
+) -> dict:
+    """
+    Return all categories grouped by type with their booking total in a period.
+
+    Each category is annotated with `total` (Sum of booking amounts, signed) and
+    `booking_count` (number of matching bookings) for the given date range. This
+    includes categories without any bookings in the period (total = 0).
+
+    Args:
+        start_date: First day of the period (inclusive)
+        end_date: Last day of the period (inclusive)
+        include_planned: If True, include `planned` bookings; otherwise only `booked`.
+
+    Returns:
+        dict: {
+            'income':  {'categories': [Category, ...], 'total': Decimal},
+            'expense': {'categories': [Category, ...], 'total': Decimal},
+            'neutral': {'categories': [Category, ...], 'total': Decimal},
+        }
+        Each Category carries `.total` and `.booking_count` annotations.
+    """
+    booking_q = Q(bookings__date__gte=start_date, bookings__date__lte=end_date)
+    if not include_planned:
+        booking_q &= Q(bookings__status='booked')
+
+    categories = Category.objects.annotate(
+        total=Coalesce(Sum('bookings__amount', filter=booking_q), Decimal('0.00')),
+        booking_count=Count('bookings', filter=booking_q),
+    ).order_by('category_type', 'name')
+
+    groups = {
+        'income': {'categories': [], 'total': Decimal('0.00')},
+        'expense': {'categories': [], 'total': Decimal('0.00')},
+        'neutral': {'categories': [], 'total': Decimal('0.00')},
+    }
+
+    for category in categories:
+        group = groups.get(category.category_type)
+        if group is None:
+            continue
+        group['categories'].append(category)
+        group['total'] += category.total
+
+    return groups
+
+
+def get_category_bookings(
+    category: Category,
+    start_date: date,
+    end_date: date,
+    include_planned: bool = False,
+) -> QuerySet:
+    """
+    Return the bookings of a single category within a period (for drilldown).
+
+    Args:
+        category: The Category to list bookings for
+        start_date: First day of the period (inclusive)
+        end_date: Last day of the period (inclusive)
+        include_planned: If True, include `planned` bookings; otherwise only `booked`.
+
+    Returns:
+        QuerySet: Bookings ordered by date, id.
+    """
+    bookings = category.bookings.filter(date__gte=start_date, date__lte=end_date)
+    if not include_planned:
+        bookings = bookings.filter(status='booked')
+    return bookings.order_by('date', 'id')
 
 
 def get_year_overview(year: int) -> list[dict]:
