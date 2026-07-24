@@ -25,6 +25,10 @@
               hx-target="#receipt-container"
               hx-swap="innerHTML">
             {% csrf_token %}
+            {% if return_year and return_month %}
+            <input type="hidden" name="return_year" value="{{ return_year }}">
+            <input type="hidden" name="return_month" value="{{ return_month }}">
+            {% endif %}
 
             <div class="mb-3">
                 <label for="{{ form.date.id_for_label }}" class="form-label">

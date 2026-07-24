@@ -31,6 +31,11 @@ from attachments.services import get_attachments_for, handle_upload
 from attachments.models import Attachment
 from ai.exceptions import AIProviderNotConfigured, AIServiceError, AIResponseParseError
 
+MONTH_NAMES = [
+    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+]
+
 
 @login_required
 def booking_list(request):
@@ -308,6 +313,25 @@ def quick_create(request):
     return redirect('dashboard:index')
 
 
+def _get_return_month_context(request):
+    """
+    Extract the optional month-view origin (year/month) a receipt upload was
+    started from, so the caller can return there / detect a cross-month booking.
+    Present as GET params when the modal is opened from month_view, and
+    resubmitted as hidden POST fields through the upload/confirm steps.
+    """
+    return_year = request.POST.get('return_year') or request.GET.get('return_year')
+    return_month = request.POST.get('return_month') or request.GET.get('return_month')
+    try:
+        return_year = int(return_year)
+        return_month = int(return_month)
+        if not (1 <= return_month <= 12):
+            raise ValueError
+    except (TypeError, ValueError):
+        return {'return_year': None, 'return_month': None}
+    return {'return_year': return_year, 'return_month': return_month}
+
+
 @login_required
 def receipt_upload(request):
     """
@@ -315,11 +339,13 @@ def receipt_upload(request):
     GET: Returns upload form
     POST: Analyzes file and returns pre-filled booking form
     """
+    month_context = _get_return_month_context(request)
+
     if request.method == 'POST':
         # Check if file was uploaded
         if 'receipt_file' not in request.FILES:
             messages.error(request, 'Bitte wählen Sie eine Datei aus.')
-            return render(request, 'bookings/_receipt_upload.html', {'error': 'Keine Datei ausgewählt'})
+            return render(request, 'bookings/_receipt_upload.html', {'error': 'Keine Datei ausgewählt', **month_context})
 
         uploaded_file = request.FILES['receipt_file']
 
@@ -334,7 +360,8 @@ def receipt_upload(request):
         if mime_type not in allowed_types:
             messages.error(request, f'Nicht unterstütztes Dateiformat: {mime_type}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'Nicht unterstütztes Dateiformat. Unterstützt: PDF, JPG, PNG, WEBP'
+                'error': f'Nicht unterstütztes Dateiformat. Unterstützt: PDF, JPG, PNG, WEBP',
+                **month_context,
             })
 
         # Validate file size (10 MB)
@@ -342,7 +369,8 @@ def receipt_upload(request):
         if len(file_data) > max_size:
             messages.error(request, 'Datei zu groß (max. 10 MB)')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': 'Datei zu groß (max. 10 MB)'
+                'error': 'Datei zu groß (max. 10 MB)',
+                **month_context,
             })
 
         try:
@@ -391,6 +419,7 @@ def receipt_upload(request):
                 'form': form,
                 'receipt_result': result,
                 'is_receipt_form': True,
+                **month_context,
             }
 
             return render(request, 'bookings/_receipt_form.html', context)
@@ -398,36 +427,41 @@ def receipt_upload(request):
         except AIProviderNotConfigured as e:
             messages.error(request, 'KI nicht konfiguriert — bitte API-Key in den Einstellungen hinterlegen')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': 'KI nicht konfiguriert — bitte API-Key in den Einstellungen hinterlegen'
+                'error': 'KI nicht konfiguriert — bitte API-Key in den Einstellungen hinterlegen',
+                **month_context,
             })
 
         except AIServiceError as e:
             messages.error(request, f'KI-Fehler: {str(e)}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'KI-Analyse fehlgeschlagen: {str(e)}'
+                'error': f'KI-Analyse fehlgeschlagen: {str(e)}',
+                **month_context,
             })
 
         except AIResponseParseError as e:
             messages.error(request, f'Fehler beim Verarbeiten der KI-Antwort: {str(e)}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'Ungültige KI-Antwort. Bitte versuchen Sie es erneut.'
+                'error': f'Ungültige KI-Antwort. Bitte versuchen Sie es erneut.',
+                **month_context,
             })
 
         except ValueError as e:
             # PDF conversion error
             messages.error(request, f'Fehler beim Verarbeiten der Datei: {str(e)}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'Fehler beim Verarbeiten der Datei: {str(e)}'
+                'error': f'Fehler beim Verarbeiten der Datei: {str(e)}',
+                **month_context,
             })
 
         except Exception as e:
             messages.error(request, f'Unerwarteter Fehler: {str(e)}')
             return render(request, 'bookings/_receipt_upload.html', {
-                'error': f'Unerwarteter Fehler: {str(e)}'
+                'error': f'Unerwarteter Fehler: {str(e)}',
+                **month_context,
             })
 
     # GET request: show upload form
-    return render(request, 'bookings/_receipt_upload.html')
+    return render(request, 'bookings/_receipt_upload.html', month_context)
 
 
 @login_required
@@ -439,11 +473,14 @@ def receipt_confirm(request):
     if request.method != 'POST':
         return HttpResponse(status=405)
 
+    month_context = _get_return_month_context(request)
+
     # Check if we have session data
     if 'receipt_result' not in request.session or 'receipt_file_data' not in request.session:
         messages.error(request, 'Keine Beleg-Daten gefunden. Bitte laden Sie den Beleg erneut hoch.')
         return render(request, 'bookings/_receipt_upload.html', {
-            'error': 'Session abgelaufen. Bitte laden Sie den Beleg erneut hoch.'
+            'error': 'Session abgelaufen. Bitte laden Sie den Beleg erneut hoch.',
+            **month_context,
         })
 
     # Validate form
@@ -455,6 +492,7 @@ def receipt_confirm(request):
             'form': form,
             'receipt_result': type('obj', (object,), receipt_result_data)(),  # Convert dict to object
             'is_receipt_form': True,
+            **month_context,
         }
         return render(request, 'bookings/_receipt_form.html', context)
 
@@ -497,6 +535,25 @@ def receipt_confirm(request):
     del request.session['receipt_file_mime_type']
 
     messages.success(request, f'Buchung "{booking.description}" aus Beleg erstellt.')
+
+    # Opened from the month view: report back into the modal instead of
+    # navigating away, since the booking may belong to a different month
+    # than the one currently displayed (and would otherwise look "lost").
+    if request.htmx and month_context['return_year'] and month_context['return_month']:
+        return_year = month_context['return_year']
+        return_month = month_context['return_month']
+        same_month = booking.date.year == return_year and booking.date.month == return_month
+        response = render(request, 'bookings/_receipt_success.html', {
+            'booking': booking,
+            'same_month': same_month,
+            'return_year': return_year,
+            'return_month': return_month,
+            'booking_month_label': f"{MONTH_NAMES[booking.date.month - 1]} {booking.date.year}",
+        })
+        if same_month:
+            # Let month_view.html reload #month-content and close the modal
+            response['HX-Trigger'] = 'receiptBookingSaved'
+        return response
 
     # For HTMX: redirect to booking list
     if request.htmx:
@@ -939,12 +996,7 @@ def month_view(request, year=None, month=None):
         next_month = 1
         next_year += 1
 
-    # German month names
-    month_names = [
-        'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-        'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
-    ]
-    month_label = f"{month_names[month - 1]} {year}"
+    month_label = f"{MONTH_NAMES[month - 1]} {year}"
 
     context = {
         'year': year,

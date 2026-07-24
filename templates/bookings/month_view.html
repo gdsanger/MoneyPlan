@@ -8,9 +8,20 @@
         <h1>
             <i class="bi bi-calendar3"></i> Monatsansicht
         </h1>
-        <a href="{% url 'bookings:create' %}" class="btn btn-primary" hx-get="{% url 'bookings:create' %}" hx-target="#form-modal-content" hx-swap="innerHTML" data-bs-toggle="modal" data-bs-target="#formModal">
-            <i class="bi bi-plus-circle"></i> Neue Buchung
-        </a>
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    hx-get="{% url 'bookings:receipt_upload' %}?return_year={{ year }}&return_month={{ month }}"
+                    hx-target="#receipt-container"
+                    hx-swap="innerHTML"
+                    data-bs-toggle="modal"
+                    data-bs-target="#receiptModal">
+                <i class="bi bi-file-earmark-text"></i> Aus Beleg
+            </button>
+            <a href="{% url 'bookings:create' %}" class="btn btn-primary" hx-get="{% url 'bookings:create' %}" hx-target="#form-modal-content" hx-swap="innerHTML" data-bs-toggle="modal" data-bs-target="#formModal">
+                <i class="bi bi-plus-circle"></i> Neue Buchung
+            </a>
+        </div>
     </div>
 
     <!-- Month Content Container -->
@@ -56,7 +67,40 @@
     </div>
 </div>
 
+<!-- Receipt Upload Modal -->
+<div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="receiptModalLabel">
+                    <i class="bi bi-file-earmark-text"></i> Buchung aus Beleg erstellen
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="receipt-container">
+                    {% include 'bookings/_receipt_upload.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    // Booking created from receipt (and it belongs to the currently displayed
+    // month): reload the month content and close the modal, matching the
+    // status-toggle / delete reload pattern above.
+    document.body.addEventListener('receiptBookingSaved', function() {
+        htmx.ajax('GET', window.location.pathname, {
+            target: '#month-content',
+            swap: 'innerHTML'
+        });
+        const receiptModal = bootstrap.Modal.getInstance(document.getElementById('receiptModal'));
+        if (receiptModal) {
+            receiptModal.hide();
+        }
+    });
+
     // Toggle status and reload month view
     function toggleStatusAndReload(bookingId, year, month) {
         htmx.ajax('POST', `/bookings/${bookingId}/status/`, {}).then(function() {

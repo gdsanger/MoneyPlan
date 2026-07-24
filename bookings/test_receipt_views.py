@@ -197,3 +197,111 @@ class ReceiptUploadViewTestCase(TestCase):
         response = self.client.get(reverse('bookings:receipt_upload'))
         self.assertEqual(response.status_code, 302)  # Redirect to login
         self.assertIn('/accounts/login/', response.url)
+
+    def test_receipt_upload_get_with_month_context_renders_hidden_fields(self):
+        """Test that opening from the month view carries the return month through."""
+        response = self.client.get(
+            reverse('bookings:receipt_upload'), {'return_year': '2025', 'return_month': '5'}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="return_year" value="2025"')
+        self.assertContains(response, 'name="return_month" value="5"')
+
+    @patch('bookings.views.magic.from_buffer')
+    @patch('bookings.views.recognize_receipt')
+    def test_receipt_confirm_from_month_view_same_month(self, mock_recognize, mock_magic):
+        """Test confirming from month view reloads the month instead of redirecting."""
+        mock_magic.return_value = 'image/jpeg'
+        mock_recognize.return_value = ReceiptRecognitionResult(
+            date='2025-05-05',
+            description='Test Receipt',
+            amount=Decimal('-50.00'),
+            category_suggestion='Telekommunikation',
+            notes='Test notes',
+            confidence={'date': 'high', 'amount': 'high', 'description': 'high'},
+            raw_text='Test receipt text',
+            ai_provider='openai',
+            ai_model='gpt-4o-mini'
+        )
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        image_file = SimpleUploadedFile(
+            name='receipt.jpg', content=b'fake image data', content_type='image/jpeg'
+        )
+
+        self.client.post(
+            reverse('bookings:receipt_upload'),
+            {'receipt_file': image_file, 'return_year': '2025', 'return_month': '5'},
+            HTTP_HX_REQUEST='true'
+        )
+
+        response = self.client.post(
+            reverse('bookings:receipt_confirm'),
+            {
+                'date': '2025-05-05',
+                'description': 'Test Receipt',
+                'amount': '-50.00',
+                'category': self.category.id,
+                'status': 'planned',
+                'notes': 'Test notes',
+                'return_year': '2025',
+                'return_month': '5',
+            },
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('HX-Redirect', response)
+        self.assertEqual(response['HX-Trigger'], 'receiptBookingSaved')
+        self.assertContains(response, 'wurde erstellt')
+        self.assertTrue(Booking.objects.filter(description='Test Receipt').exists())
+
+    @patch('bookings.views.magic.from_buffer')
+    @patch('bookings.views.recognize_receipt')
+    def test_receipt_confirm_from_month_view_different_month(self, mock_recognize, mock_magic):
+        """Test that a receipt dated outside the displayed month gives a clear notice, not HX-Trigger reload."""
+        mock_magic.return_value = 'image/jpeg'
+        mock_recognize.return_value = ReceiptRecognitionResult(
+            date='2025-05-05',
+            description='Other Month Receipt',
+            amount=Decimal('-20.00'),
+            category_suggestion='Telekommunikation',
+            notes='',
+            confidence={'date': 'high', 'amount': 'high', 'description': 'high'},
+            raw_text='Test receipt text',
+            ai_provider='openai',
+            ai_model='gpt-4o-mini'
+        )
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        image_file = SimpleUploadedFile(
+            name='receipt.jpg', content=b'fake image data', content_type='image/jpeg'
+        )
+
+        # Opened from June 2025 month view, but the receipt is dated in May 2025
+        self.client.post(
+            reverse('bookings:receipt_upload'),
+            {'receipt_file': image_file, 'return_year': '2025', 'return_month': '6'},
+            HTTP_HX_REQUEST='true'
+        )
+
+        response = self.client.post(
+            reverse('bookings:receipt_confirm'),
+            {
+                'date': '2025-05-05',
+                'description': 'Other Month Receipt',
+                'amount': '-20.00',
+                'category': self.category.id,
+                'status': 'planned',
+                'return_year': '2025',
+                'return_month': '6',
+            },
+            HTTP_HX_REQUEST='true'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('HX-Redirect', response)
+        self.assertNotIn('HX-Trigger', response)
+        self.assertContains(response, 'Mai 2025')
+        self.assertContains(response, 'Zur Monatsansicht')
+        self.assertTrue(Booking.objects.filter(description='Other Month Receipt').exists())
