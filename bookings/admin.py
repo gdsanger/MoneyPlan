@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, RecurringSeries, Booking, Liability, Asset
+from .models import Category, RecurringSeries, Booking, Liability, Asset, ReconciliationLog
 
 
 @admin.register(Category)
@@ -41,5 +41,12 @@ class AssetAdmin(admin.ModelAdmin):
     list_filter = ['category']
     search_fields = ['name', 'description', 'notes']
     readonly_fields = ['last_updated', 'created_at']
+
+
+@admin.register(ReconciliationLog)
+class ReconciliationLogAdmin(admin.ModelAdmin):
+    list_display = ['date', 'actual_balance', 'expected_balance', 'difference', 'booking']
+    readonly_fields = ['created_at']
+    date_hierarchy = 'date'
 
 

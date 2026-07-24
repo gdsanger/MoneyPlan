@@ -111,6 +111,30 @@ class Booking(models.Model):
         return self.amount < 0
 
 
+class ReconciliationLog(models.Model):
+    """Protokolleintrag eines Kontenabgleichs (Ist-Gesamtstand vs. MoneyPlan-Saldo)."""
+    date = models.DateField(default=timezone.localdate, verbose_name="Datum")
+    actual_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ist-Gesamtstand")
+    expected_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="MoneyPlan-Soll")
+    difference = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Differenz")
+    booking = models.ForeignKey(
+        'Booking',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reconciliation_logs',
+        verbose_name="Ausgleichsbuchung",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
+
+    class Meta:
+        verbose_name = "Abgleich-Protokoll"
+        verbose_name_plural = "Abgleich-Protokolle"
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.date}: Ist {self.actual_balance} € / Soll {self.expected_balance} € (Diff {self.difference} €)"
+
+
 class Liability(models.Model):
     """Verbindlichkeit (Schuld/Darlehen)"""
     name = models.CharField(max_length=255, verbose_name="Name")

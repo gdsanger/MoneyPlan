@@ -1,0 +1,39 @@
+<div class="border rounded p-3 mt-2">
+    <div class="d-flex justify-content-between mb-2">
+        <span class="text-secondary">MoneyPlan-Soll</span>
+        <strong>{{ expected_balance|floatformat:2 }} €</strong>
+    </div>
+
+    {% if actual_balance is not None %}
+    <div class="d-flex justify-content-between mb-3">
+        <span class="text-secondary">Differenz</span>
+        <strong class="{% if difference == 0 %}text-muted{% elif difference > 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ difference|floatformat:2 }} €
+        </strong>
+    </div>
+
+    <div class="mb-3">
+        <label for="{{ form.category.id_for_label }}" class="form-label">{{ form.category.label }}</label>
+        {{ form.category }}
+    </div>
+
+    <button type="submit"
+            class="btn btn-primary w-100"
+            hx-post="{% url 'bookings:reconciliation_create' %}"
+            hx-include="#reconciliation-form"
+            hx-target="#reconciliation-result"
+            hx-swap="innerHTML">
+        <i class="bi bi-check2-circle"></i>
+        {% if difference == 0 %}Abgleich protokollieren{% else %}Ausgleichsbuchung erstellen{% endif %}
+    </button>
+    {% else %}
+    <p class="text-secondary mb-0">Ist-Gesamtstand oben eingeben, um MoneyPlan-Soll und Differenz zu vergleichen.</p>
+    {% endif %}
+</div>
+
+{% if form.actual_balance.errors or form.category.errors %}
+<div class="alert alert-danger mt-2 mb-0">
+    {{ form.actual_balance.errors }}
+    {{ form.category.errors }}
+</div>
+{% endif %}

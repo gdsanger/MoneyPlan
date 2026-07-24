@@ -10,10 +10,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib import messages
 from datetime import date, datetime
 from calendar import monthrange
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import magic
-from .models import Booking, Category, RecurringSeries, Liability, Asset
-from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm
+from .models import Booking, Category, RecurringSeries, Liability, Asset, ReconciliationLog
+from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm, ReconciliationForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
@@ -27,6 +27,7 @@ from .services import (
     get_assets_by_category,
     get_category_overview,
     get_category_bookings,
+    get_current_balance,
 )
 from .wizard import preview_series_bookings, create_series_bookings
 from .receipt_service import recognize_receipt, ReceiptRecognitionResult
@@ -1423,5 +1424,101 @@ def asset_update_value(request, asset_id):
             'form': form,
         }
         return render(request, 'bookings/_asset_row.html', context)
+
+
+def _parse_decimal(raw):
+    """Best-effort parse of a decimal from a query/form value (accepts comma as separator)."""
+    if not raw:
+        return None
+    try:
+        return Decimal(raw.strip().replace(',', '.'))
+    except InvalidOperation:
+        return None
+
+
+def _reconciliation_context(form, expected_balance, actual_balance):
+    difference = (actual_balance - expected_balance) if actual_balance is not None else None
+    return {
+        'form': form,
+        'expected_balance': expected_balance,
+        'actual_balance': actual_balance,
+        'difference': difference,
+        'logs': ReconciliationLog.objects.select_related('booking')[:12],
+    }
+
+
+@login_required
+def reconciliation_view(request):
+    """Kontenabgleich: Ist-Gesamtstand gegen das MoneyPlan-Soll prüfen und Differenz anzeigen."""
+    expected_balance = get_current_balance()
+    actual_balance = _parse_decimal(request.GET.get('actual_balance'))
+
+    default_category = Category.objects.filter(category_type='neutral').first()
+    category_id = request.GET.get('category') or (default_category.pk if default_category else None)
+
+    form = ReconciliationForm(
+        initial={'actual_balance': actual_balance, 'category': category_id},
+        calc_url=reverse('bookings:reconciliation'),
+    )
+
+    context = _reconciliation_context(form, expected_balance, actual_balance)
+
+    if request.htmx:
+        return render(request, 'bookings/_reconciliation_result.html', context)
+
+    return render(request, 'bookings/reconciliation.html', context)
+
+
+@login_required
+def reconciliation_create(request):
+    """Erstellt die Ausgleichsbuchung (gebucht, heutiges Datum, Differenzbetrag, neutrale Kategorie) und protokolliert den Abgleich."""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    expected_balance = get_current_balance()
+    form = ReconciliationForm(request.POST, calc_url=reverse('bookings:reconciliation'))
+
+    if form.is_valid():
+        actual_balance = form.cleaned_data['actual_balance']
+        category = form.cleaned_data['category']
+        difference = actual_balance - expected_balance
+
+        booking = None
+        if difference != 0:
+            booking = Booking.objects.create(
+                date=date.today(),
+                description='Kontenabgleich',
+                amount=difference,
+                category=category,
+                status='booked',
+                notes=f'Ist-Gesamtstand: {actual_balance:.2f} € / MoneyPlan-Soll: {expected_balance:.2f} €',
+            )
+
+        ReconciliationLog.objects.create(
+            actual_balance=actual_balance,
+            expected_balance=expected_balance,
+            difference=difference,
+            booking=booking,
+        )
+
+        if request.htmx:
+            response = HttpResponse('')
+            response['HX-Redirect'] = reverse('bookings:reconciliation')
+            return response
+
+        if difference == 0:
+            messages.success(request, 'Ist-Gesamtstand stimmt mit dem MoneyPlan-Saldo überein — keine Ausgleichsbuchung nötig.')
+        else:
+            messages.success(request, f'Ausgleichsbuchung über {difference:+.2f} € wurde erstellt.')
+
+        return redirect('bookings:reconciliation')
+
+    actual_balance = form.data.get('actual_balance') and _parse_decimal(form.data.get('actual_balance'))
+    context = _reconciliation_context(form, expected_balance, actual_balance)
+
+    if request.htmx:
+        return render(request, 'bookings/_reconciliation_result.html', context)
+
+    return render(request, 'bookings/reconciliation.html', context)
 
 
