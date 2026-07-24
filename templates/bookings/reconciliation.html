@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Kontenabgleich - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">
+        <i class="bi bi-clipboard-check"></i> Kontenabgleich
+    </h1>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <p class="text-secondary">
+                        Ist-Gesamtstand aller realen Konten eintragen und mit dem MoneyPlan-Saldo vergleichen.
+                        Bei einer Differenz kann direkt eine neutrale Ausgleichsbuchung erstellt werden, die
+                        den Saldo (und damit den Forecast-Startpunkt) korrigiert.
+                    </p>
+
+                    <form id="reconciliation-form" method="post" action="{% url 'bookings:reconciliation_create' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ form.actual_balance.id_for_label }}" class="form-label">{{ form.actual_balance.label }}</label>
+                            {{ form.actual_balance }}
+                            <div class="form-text">{{ form.actual_balance.help_text }}</div>
+                        </div>
+
+                        <div id="reconciliation-result">
+                            {% include 'bookings/_reconciliation_result.html' %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-clock-history"></i> Abgleich-Protokoll</h5>
+                    {% if logs %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover table-stack">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th class="text-end">Ist-Gesamtstand</th>
+                                    <th class="text-end">MoneyPlan-Soll</th>
+                                    <th class="text-end">Differenz</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <td>{{ log.date }}</td>
+                                    <td class="text-end">{{ log.actual_balance|floatformat:2 }} €</td>
+                                    <td class="text-end">{{ log.expected_balance|floatformat:2 }} €</td>
+                                    <td class="text-end {% if log.difference == 0 %}text-muted{% elif log.difference > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ log.difference|floatformat:2 }} €
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Noch kein Abgleich durchgeführt.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

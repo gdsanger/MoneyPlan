@@ -37,4 +37,7 @@ urlpatterns = [
     path('vermoegen/<int:asset_id>/bearbeiten/', views.asset_edit, name='asset_edit'),
     path('vermoegen/<int:asset_id>/loeschen/', views.asset_delete, name='asset_delete'),
     path('vermoegen/<int:asset_id>/wert-aktualisieren/', views.asset_update_value, name='asset_update_value'),
+    # Kontenabgleich
+    path('kontenabgleich/', views.reconciliation_view, name='reconciliation'),
+    path('kontenabgleich/ausgleichsbuchung/', views.reconciliation_create, name='reconciliation_create'),
 ]

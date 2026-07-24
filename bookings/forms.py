@@ -501,6 +501,41 @@ class AssetForm(forms.ModelForm):
         self.fields['notes'].required = False
 
 
+class ReconciliationForm(forms.Form):
+    """Ist-Gesamtstand erfassen und Kategorie für die Ausgleichsbuchung wählen"""
+
+    actual_balance = forms.DecimalField(
+        max_digits=10, decimal_places=2,
+        label='Ist-Gesamtstand',
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control form-control-lg',
+            'step': '0.01',
+            'inputmode': 'decimal',
+            'placeholder': '0.00',
+            'autocomplete': 'off',
+        }),
+        help_text='Summe der realen Kontostände (Girokonto, Tagesgeld, Bargeld, ...).',
+    )
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.all(),
+        label='Kategorie der Ausgleichsbuchung',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    def __init__(self, *args, calc_url=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['category'].required = True
+
+        if calc_url:
+            self.fields['actual_balance'].widget.attrs.update({
+                'hx-get': calc_url,
+                'hx-trigger': 'input changed delay:400ms, change',
+                'hx-target': '#reconciliation-result',
+                'hx-include': '#reconciliation-form',
+                'hx-swap': 'innerHTML',
+            })
+
+
 class AssetQuickUpdateForm(forms.ModelForm):
     """Quick form for updating only the current value of an asset"""
 

@@ -59,6 +59,7 @@ _NAV_FINANZEN_NAMES = {
     'bookings:liability_edit', 'bookings:liability_delete',
     'bookings:asset_list', 'bookings:asset_create', 'bookings:asset_edit',
     'bookings:asset_delete', 'bookings:asset_update_value',
+    'bookings:reconciliation', 'bookings:reconciliation_create',
     'alerts:list', 'alerts:test_mail',
 }
 _NAV_SONSTIGES_NAMESPACES = {'tasks', 'timetracking', 'reimbursements'}
