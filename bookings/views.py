@@ -12,7 +12,7 @@ from calendar import monthrange
 from decimal import Decimal
 import magic
 from .models import Booking, Category, RecurringSeries, Liability, Asset
-from .forms import BookingForm, BookingFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm
+from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
@@ -840,6 +840,9 @@ def month_view(request, year=None, month=None):
     )
 
     # Calculate running balance and month totals
+    # These are always based on the full, unfiltered month so that the
+    # cumulative balance per row and the summary bar stay correct even
+    # when the filter below hides some rows.
     running_balance = carry_forward
     month_income = Decimal('0.00')
     month_expenses = Decimal('0.00')
@@ -864,6 +867,64 @@ def month_view(request, year=None, month=None):
 
     month_result = month_income + month_expenses
     end_balance = carry_forward + month_result
+
+    # Apply row filters (date/amount/category/description) on top of the
+    # already-computed running balances. This only narrows which rows are
+    # displayed - it never changes the running balance or the summary bar.
+    filter_form = MonthFilterForm(
+        request.GET,
+        month_url=reverse('bookings:month_view_detail', args=[year, month])
+    )
+    is_filtered = False
+    if filter_form.is_valid():
+        date_from = filter_form.cleaned_data.get('date_from')
+        date_to = filter_form.cleaned_data.get('date_to')
+        amount_min = filter_form.cleaned_data.get('amount_min')
+        amount_max = filter_form.cleaned_data.get('amount_max')
+        booking_type = filter_form.cleaned_data.get('type')
+        category_filter = filter_form.cleaned_data.get('category')
+        description_filter = filter_form.cleaned_data.get('description')
+
+        is_filtered = any([
+            date_from, date_to, amount_min is not None, amount_max is not None,
+            booking_type, category_filter, description_filter,
+        ])
+
+        def matches_filter(booking):
+            if date_from and booking.date < date_from:
+                return False
+            if date_to and booking.date > date_to:
+                return False
+            if amount_min is not None and booking.amount < amount_min:
+                return False
+            if amount_max is not None and booking.amount > amount_max:
+                return False
+            if booking_type == 'income' and booking.amount < 0:
+                return False
+            if booking_type == 'expense' and booking.amount >= 0:
+                return False
+            if category_filter and booking.category_id != category_filter.id:
+                return False
+            if description_filter and description_filter.lower() not in booking.description.lower():
+                return False
+            return True
+
+        filtered_bookings_with_balance = [
+            item for item in bookings_with_balance if matches_filter(item['booking'])
+        ]
+    else:
+        filtered_bookings_with_balance = bookings_with_balance
+
+    # Sum of the currently visible (filtered) rows, shown separately from
+    # the month summary bar which always reflects the full month.
+    filtered_income = Decimal('0.00')
+    filtered_expenses = Decimal('0.00')
+    for item in filtered_bookings_with_balance:
+        if item['booking'].amount >= 0:
+            filtered_income += item['booking'].amount
+        else:
+            filtered_expenses += item['booking'].amount
+    filtered_result = filtered_income + filtered_expenses
 
     # Calculate previous and next month
     prev_month = month - 1
@@ -897,7 +958,13 @@ def month_view(request, year=None, month=None):
         'prev_month_cumulative_result': prev_month_cumulative_result,
         'end_balance': end_balance,
         'prev_month_end_balance': prev_month_end_balance,
-        'bookings_with_balance': bookings_with_balance,
+        'bookings_with_balance': filtered_bookings_with_balance,
+        'total_booking_count': len(bookings_with_balance),
+        'filter_form': filter_form,
+        'is_filtered': is_filtered,
+        'filtered_income': filtered_income,
+        'filtered_expenses': filtered_expenses,
+        'filtered_result': filtered_result,
         'prev_year': prev_year,
         'prev_month': prev_month,
         'next_year': next_year,

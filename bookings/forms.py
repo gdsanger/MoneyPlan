@@ -176,6 +176,76 @@ class BookingFilterForm(forms.Form):
                 pass
 
 
+class MonthFilterForm(forms.Form):
+    """Form for filtering bookings within the monthly view (date, amount, category, description)"""
+
+    TYPE_CHOICES = [
+        ('', 'Alle'),
+        ('income', 'Einnahme'),
+        ('expense', 'Ausgabe'),
+    ]
+
+    date_from = forms.DateField(
+        required=False,
+        label='Datum von',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control', 'hx-trigger': 'change'})
+    )
+
+    date_to = forms.DateField(
+        required=False,
+        label='Datum bis',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control', 'hx-trigger': 'change'})
+    )
+
+    amount_min = forms.DecimalField(
+        required=False,
+        label='Betrag von',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'min', 'hx-trigger': 'change'})
+    )
+
+    amount_max = forms.DecimalField(
+        required=False,
+        label='Betrag bis',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'max', 'hx-trigger': 'change'})
+    )
+
+    type = forms.ChoiceField(
+        choices=TYPE_CHOICES,
+        required=False,
+        label='Typ',
+        widget=forms.Select(attrs={'class': 'form-select', 'hx-trigger': 'change'})
+    )
+
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.all(),
+        required=False,
+        label='Kategorie',
+        empty_label='Alle',
+        widget=forms.Select(attrs={'class': 'form-select', 'hx-trigger': 'change'})
+    )
+
+    description = forms.CharField(
+        required=False,
+        label='Beschreibung',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Suche in Beschreibung...',
+            'hx-trigger': 'keyup changed delay:500ms, change',
+        })
+    )
+
+    def __init__(self, *args, month_url=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if month_url:
+            for field in self.fields.values():
+                field.widget.attrs.update({
+                    'hx-get': month_url,
+                    'hx-target': '#month-content',
+                    'hx-swap': 'innerHTML',
+                    'hx-include': '#month-filter-form',
+                })
+
+
 class CategoryForm(forms.ModelForm):
     """Form for creating and editing categories"""
 

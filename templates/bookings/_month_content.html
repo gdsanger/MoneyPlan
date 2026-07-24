@@ -6,6 +6,7 @@
                     hx-get="{% url 'bookings:month_view_detail' prev_year prev_month %}"
                     hx-target="#month-content"
                     hx-swap="innerHTML"
+                    hx-include="#month-filter-form"
                     hx-push-url="true">
                 <i class="bi bi-chevron-left"></i> Vorheriger Monat
             </button>
@@ -14,10 +15,60 @@
                     hx-get="{% url 'bookings:month_view_detail' next_year next_month %}"
                     hx-target="#month-content"
                     hx-swap="innerHTML"
+                    hx-include="#month-filter-form"
                     hx-push-url="true">
                 Nächster Monat <i class="bi bi-chevron-right"></i>
             </button>
         </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">
+                <i class="bi bi-funnel"></i> Filter
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary"
+                    hx-get="{% url 'bookings:month_view_detail' year month %}"
+                    hx-target="#month-content"
+                    hx-swap="innerHTML">
+                <i class="bi bi-x-circle"></i> Filter zurücksetzen
+            </button>
+        </div>
+        <form method="get" id="month-filter-form">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label for="{{ filter_form.date_from.id_for_label }}" class="form-label">{{ filter_form.date_from.label }}</label>
+                    {{ filter_form.date_from }}
+                </div>
+                <div class="col-md-2">
+                    <label for="{{ filter_form.date_to.id_for_label }}" class="form-label">{{ filter_form.date_to.label }}</label>
+                    {{ filter_form.date_to }}
+                </div>
+                <div class="col-md-2">
+                    <label for="{{ filter_form.amount_min.id_for_label }}" class="form-label">{{ filter_form.amount_min.label }}</label>
+                    {{ filter_form.amount_min }}
+                </div>
+                <div class="col-md-2">
+                    <label for="{{ filter_form.amount_max.id_for_label }}" class="form-label">{{ filter_form.amount_max.label }}</label>
+                    {{ filter_form.amount_max }}
+                </div>
+                <div class="col-md-2">
+                    <label for="{{ filter_form.type.id_for_label }}" class="form-label">{{ filter_form.type.label }}</label>
+                    {{ filter_form.type }}
+                </div>
+                <div class="col-md-2">
+                    <label for="{{ filter_form.category.id_for_label }}" class="form-label">{{ filter_form.category.label }}</label>
+                    {{ filter_form.category }}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ filter_form.description.id_for_label }}" class="form-label">{{ filter_form.description.label }}</label>
+                    {{ filter_form.description }}
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -77,6 +128,16 @@
         </div>
     </div>
 </div>
+
+{% if is_filtered %}
+<!-- Filtered Summary (separate from the month summary bar, which always reflects the full month) -->
+<div class="alert alert-info d-flex flex-wrap gap-4 align-items-center">
+    <div><i class="bi bi-funnel"></i> <strong>Summe der gefilterten Buchungen</strong> ({{ bookings_with_balance|length }} von {{ total_booking_count }})</div>
+    <div>Einnahmen: <span class="text-success">{{ filtered_income|floatformat:2 }} €</span></div>
+    <div>Ausgaben: <span class="text-danger">{{ filtered_expenses|floatformat:2 }} €</span></div>
+    <div>Ergebnis: <span class="{% if filtered_result >= 0 %}text-success{% else %}text-danger{% endif %}">{{ filtered_result|floatformat:2 }} €</span></div>
+</div>
+{% endif %}
 
 <!-- Bookings Table -->
 <div class="card">
@@ -191,7 +252,11 @@
                     {% empty %}
                     <tr>
                         <td colspan="7" class="text-center text-muted">
-                            <i class="bi bi-inbox"></i> Keine Buchungen in diesem Monat
+                            {% if is_filtered %}
+                                <i class="bi bi-funnel"></i> Keine Buchungen entsprechen dem Filter
+                            {% else %}
+                                <i class="bi bi-inbox"></i> Keine Buchungen in diesem Monat
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
