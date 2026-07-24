@@ -8,11 +8,15 @@
             <div class="card-body d-flex gap-3">
                 <div class="kpi-icon text-success"><i class="bi bi-wallet2"></i></div>
                 <div>
-                    <h6 class="card-title text-muted mb-1">Geldmittel verfügbar</h6>
+                    <h6 class="card-title text-muted mb-1">
+                        Ist-Saldo
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Summe aller bereits gebuchten Ein- und Ausgänge – der tatsächliche Kontostand heute."></i>
+                    </h6>
                     <div class="kpi-value {% if current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ current_balance|floatformat:2 }} €
                     </div>
-                    <small class="text-muted">Ist-Saldo (gebucht)</small>
+                    <small class="text-muted">Aktueller Kontostand (gebucht)</small>
                 </div>
             </div>
         </div>
@@ -22,9 +26,13 @@
             <div class="card-body d-flex gap-3">
                 <div class="kpi-icon text-info"><i class="bi bi-calendar-month"></i></div>
                 <div>
-                    <h6 class="card-title text-muted mb-1">Verfügbare Mittel (Monat)</h6>
+                    <h6 class="card-title text-muted mb-1">
+                        Projektion Monatsende
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Ist-Saldo zuzüglich aller für den aktuellen Monat noch geplanten Ein- und Ausgänge."></i>
+                    </h6>
                     <div class="kpi-value text-info">{{ available_funds_month|floatformat:2 }} €</div>
-                    <small class="text-muted">Projektion (aktueller Monat)</small>
+                    <small class="text-muted">Ist-Saldo + geplante Buchungen (Monat)</small>
                 </div>
             </div>
         </div>
@@ -34,9 +42,13 @@
             <div class="card-body d-flex gap-3">
                 <div class="kpi-icon text-info"><i class="bi bi-graph-up-arrow"></i></div>
                 <div>
-                    <h6 class="card-title text-muted mb-1">Verfügbare Mittel (Gesamt)</h6>
+                    <h6 class="card-title text-muted mb-1">
+                        Projektion Gesamt
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Ist-Saldo zuzüglich aller zukünftig geplanten Buchungen und noch nicht abgerechneter Stunden."></i>
+                    </h6>
                     <div class="kpi-value text-info">{{ available_funds_total|floatformat:2 }} €</div>
-                    <small class="text-muted">Projektion (Gesamt)</small>
+                    <small class="text-muted">Ist-Saldo + alle geplanten Buchungen</small>
                 </div>
             </div>
         </div>
@@ -48,7 +60,11 @@
                     <i class="bi bi-bell"></i>
                 </div>
                 <div>
-                    <h6 class="card-title text-muted mb-1">Aktive Alerts</h6>
+                    <h6 class="card-title text-muted mb-1">
+                        Aktive Alerts
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Anzahl aktuell offener Warnmeldungen zu Fälligkeiten und Liquidität."></i>
+                    </h6>
                     <div class="kpi-value {% if active_alerts_count > 0 %}text-warning{% else %}text-muted{% endif %}">
                         {{ active_alerts_count }}
                     </div>
@@ -67,7 +83,11 @@
             <div class="card-body d-flex gap-3">
                 <div class="kpi-icon text-success"><i class="bi bi-arrow-down-circle"></i></div>
                 <div>
-                    <h6 class="card-title text-muted mb-1">Offene Einnahmen</h6>
+                    <h6 class="card-title text-muted mb-1">
+                        Offene Einnahmen
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Summe aller geplanten, noch nicht gebuchten Einnahmen."></i>
+                    </h6>
                     <div class="kpi-value text-success">{{ planned_income|floatformat:2 }} €</div>
                     <small class="text-muted">Geplante Einnahmen</small>
                 </div>
@@ -79,7 +99,11 @@
             <div class="card-body d-flex gap-3">
                 <div class="kpi-icon text-danger"><i class="bi bi-arrow-up-circle"></i></div>
                 <div>
-                    <h6 class="card-title text-muted mb-1">Offene Ausgaben</h6>
+                    <h6 class="card-title text-muted mb-1">
+                        Offene Ausgaben
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Summe aller geplanten, noch nicht gebuchten Ausgaben."></i>
+                    </h6>
                     <div class="kpi-value text-danger">{{ planned_expenses|floatformat:2 }} €</div>
                     <small class="text-muted">Geplante Ausgaben</small>
                 </div>
@@ -96,6 +120,8 @@
                         <a href="{% url 'timetracking:list' %}" class="text-decoration-none text-muted">
                             Offene Stunden
                         </a>
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Noch nicht abgerechnete Zeiterfassungsstunden, umgerechnet in Euro."></i>
                     </h6>
                     <div class="kpi-value text-warning">{{ tt_unbilled_total|floatformat:2 }} €</div>
                     {% if tt_forecast %}
@@ -118,6 +144,8 @@
                         <a href="{% url 'reimbursements:list' %}" class="text-decoration-none text-muted">
                             Offene Auslagen ISARtec
                         </a>
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Noch nicht erstattete Auslagen für ISARtec."></i>
                     </h6>
                     <div class="kpi-value text-info">{{ reimbursements_unreimbursed_total|floatformat:2 }} €</div>
                     {% if reimbursements_forecast %}
@@ -146,6 +174,8 @@
                         <a href="{% url 'bookings:asset_list' %}" class="text-decoration-none text-muted">
                             Nettovermögen
                         </a>
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Gesamtvermögen abzüglich offener Verbindlichkeiten."></i>
                     </h6>
                     <div class="kpi-value {% if net_worth >= 0 %}text-success{% else %}text-danger{% endif %}">
                         {{ net_worth|floatformat:2 }} €
@@ -164,6 +194,8 @@
                         <a href="{% url 'bookings:asset_list' %}" class="text-decoration-none text-muted">
                             Gesamtvermögen
                         </a>
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Summe aller erfassten Vermögenswerte."></i>
                     </h6>
                     <div class="kpi-value text-success">{{ total_assets|floatformat:2 }} €</div>
                     <small class="text-muted">Summe aller Vermögenswerte</small>
@@ -182,6 +214,8 @@
                         <a href="{% url 'bookings:liability_list' %}" class="text-decoration-none text-muted">
                             Offene Verbindlichkeiten
                         </a>
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Summe der noch offenen Restschulden aus allen Verbindlichkeiten."></i>
                     </h6>
                     <div class="kpi-value {% if total_liabilities > 0 %}text-danger{% else %}text-success{% endif %}">
                         {{ total_liabilities|floatformat:2 }} €
@@ -198,7 +232,11 @@
                     <i class="bi bi-exclamation-triangle"></i>
                 </div>
                 <div>
-                    <h6 class="card-title text-muted mb-1">Überfällige Aufgaben</h6>
+                    <h6 class="card-title text-muted mb-1">
+                        Überfällige Aufgaben
+                        <i class="bi bi-info-circle kpi-info-icon" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Anzahl der Aufgaben, deren Fälligkeitsdatum bereits verstrichen ist."></i>
+                    </h6>
                     <div class="kpi-value {% if overdue_tasks_count > 0 %}text-danger{% else %}text-muted{% endif %}">
                         {{ overdue_tasks_count }}
                     </div>

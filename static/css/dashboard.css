@@ -30,6 +30,12 @@
     line-height: 1.2;
 }
 
+.kpi-info-icon {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+    cursor: help;
+}
+
 .forecast-summary {
     display: flex;
     flex-wrap: wrap;

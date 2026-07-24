@@ -24,7 +24,11 @@
         <div class="col-md-4">
             <div class="card bg-success text-white">
                 <div class="card-body">
-                    <h5 class="card-title">Gesamtvermögen</h5>
+                    <h5 class="card-title">
+                        Gesamtvermögen
+                        <i class="bi bi-info-circle kpi-info-icon text-white-50" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Summe aller erfassten Vermögenswerte."></i>
+                    </h5>
                     <h2>{{ total_assets|floatformat:2 }} €</h2>
                     <small>Summe aller Vermögenswerte</small>
                 </div>
@@ -33,7 +37,11 @@
         <div class="col-md-4">
             <div class="card bg-danger text-white">
                 <div class="card-body">
-                    <h5 class="card-title">Offene Verbindlichkeiten</h5>
+                    <h5 class="card-title">
+                        Offene Verbindlichkeiten
+                        <i class="bi bi-info-circle kpi-info-icon text-white-50" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Summe der noch offenen Restschulden aus allen Verbindlichkeiten."></i>
+                    </h5>
                     <h2>{{ total_liabilities|floatformat:2 }} €</h2>
                     <small>Gesamte Restschuld</small>
                 </div>
@@ -42,7 +50,11 @@
         <div class="col-md-4">
             <div class="card {% if net_worth >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
                 <div class="card-body">
-                    <h5 class="card-title"><strong>Nettovermögen</strong></h5>
+                    <h5 class="card-title">
+                        <strong>Nettovermögen</strong>
+                        <i class="bi bi-info-circle kpi-info-icon text-white-50" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="Gesamtvermögen abzüglich offener Verbindlichkeiten."></i>
+                    </h5>
                     <h1><strong>{{ net_worth|floatformat:2 }} €</strong></h1>
                     <small>Vermögen − Verbindlichkeiten</small>
                 </div>
