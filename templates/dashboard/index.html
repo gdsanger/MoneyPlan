@@ -123,7 +123,7 @@
                     </h5>
                     {% if due_bookings %}
                     <div class="table-responsive">
-                        <table class="table table-hover table-sm">
+                        <table class="table table-hover table-sm table-stack">
                             <thead>
                                 <tr>
                                     <th>Datum</th>
@@ -159,7 +159,7 @@
                     </div>
                     {% if open_tasks %}
                     <div class="table-responsive">
-                        <table class="table table-hover table-sm">
+                        <table class="table table-hover table-sm table-stack">
                             <thead>
                                 <tr>
                                     <th style="width: 90px;">Priorität</th>
@@ -171,7 +171,7 @@
                             <tbody>
                                 {% for task in open_tasks %}
                                 <tr id="task-row-{{ task.id }}" class="{% if task.is_overdue %}table-danger{% elif task.is_due_soon %}table-warning{% endif %}">
-                                    <td>
+                                    <td data-label="Priorität">
                                         {% if task.priority == 'high' %}
                                         <span class="badge bg-danger">Hoch</span>
                                         {% elif task.priority == 'medium' %}
@@ -180,15 +180,15 @@
                                         <span class="badge bg-secondary">Niedrig</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ task.title }}</td>
-                                    <td>
+                                    <td class="table-stack-heading">{{ task.title }}</td>
+                                    <td data-label="Fälligkeit">
                                         {% if task.due_date %}
                                             {{ task.due_date|date:"d.m.Y" }}
                                         {% else %}
                                             <span class="text-muted">—</span>
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td class="table-stack-actions">
                                         <button
                                             class="btn btn-sm btn-outline-success"
                                             hx-post="{% url 'tasks:toggle_done' task.id %}"
@@ -229,7 +229,7 @@
                     </div>
                     {% if open_liabilities %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-stack">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -242,16 +242,16 @@
                                 {% for item in open_liabilities %}
                                 {% with liability=item.liability %}
                                 <tr>
-                                    <td>
+                                    <td class="table-stack-heading">
                                         <a href="{% url 'bookings:liability_detail' liability.id %}" class="text-decoration-none">
                                             <strong>{{ liability.name }}</strong>
                                         </a>
                                     </td>
-                                    <td class="text-end">{{ liability.initial_amount|floatformat:2 }} €</td>
-                                    <td class="text-end text-danger">
+                                    <td class="text-end" data-label="Vortrag">{{ liability.initial_amount|floatformat:2 }} €</td>
+                                    <td class="text-end text-danger" data-label="Restschuld">
                                         <strong>{{ item.remaining|floatformat:2 }} €</strong>
                                     </td>
-                                    <td>
+                                    <td class="table-stack-block" data-label="Fortschritt">
                                         <div class="progress" style="height: 25px;">
                                             <div class="progress-bar bg-warning"
                                                  role="progressbar"
