@@ -42,77 +42,6 @@
         {% include 'dashboard/_kpi_cards.html' %}
     </div>
 
-    <!-- Forecast Chart -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="dashboard-card-header mb-3">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-graph-up"></i>
-                            Saldoverlauf — Forecast +{{ forecast_months }} Monate
-                        </h5>
-                    </div>
-                    <div id="forecastSummary" class="forecast-summary d-none">
-                        <div class="forecast-summary-item">
-                            <span class="forecast-summary-label">Endsaldo ({{ forecast_months }} Monate)</span>
-                            <span class="forecast-summary-value" id="forecastEndBalance">—</span>
-                        </div>
-                        <div class="forecast-summary-item">
-                            <span class="forecast-summary-label">Niedrigster Punkt</span>
-                            <span class="forecast-summary-value" id="forecastMinBalance">—</span>
-                        </div>
-                    </div>
-                    <div class="forecast-chart-container">
-                        <canvas id="forecastChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Analysis Charts -->
-    <div class="row mb-4">
-        <div class="col-md-6 mb-3 mb-md-0">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-bar-chart"></i> Top 10 Ausgaben (3 Monate)
-                    </h5>
-                    <div style="max-height: 300px;">
-                        <canvas id="categoryExpenseChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6 mb-3 mb-md-0">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-bar-chart-fill"></i> Top 10 Einnahmen (3 Monate)
-                    </h5>
-                    <div style="max-height: 300px;">
-                        <canvas id="categoryIncomeChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-pie-chart"></i> Einnahmen vs. Ausgaben (aktueller Monat)
-                    </h5>
-                    <div style="max-height: 300px;">
-                        <canvas id="donutChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Operational Widgets -->
     <div class="row mb-4">
         <div class="col-lg-6 mb-4 mb-lg-0">
@@ -209,6 +138,91 @@
                         <strong>Keine offenen Aufgaben — alles erledigt ✓</strong>
                     </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="dashboard-card-header mb-3">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-graph-up"></i>
+                            Saldoverlauf — Forecast +{{ forecast_months }} Monate
+                        </h5>
+                    </div>
+                    <div id="forecastSummary" class="forecast-summary d-none">
+                        <div class="forecast-summary-item">
+                            <span class="forecast-summary-label">Endsaldo ({{ forecast_months }} Monate)</span>
+                            <span class="forecast-summary-value" id="forecastEndBalance">—</span>
+                        </div>
+                        <div class="forecast-summary-item">
+                            <span class="forecast-summary-label">Niedrigster Punkt</span>
+                            <span class="forecast-summary-value" id="forecastMinBalance">—</span>
+                        </div>
+                    </div>
+                    <div class="forecast-chart-container">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Charts: einklappbar, als Tabs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="dashboard-card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-bar-chart"></i> Analysen
+                        </h5>
+                        <button class="btn btn-sm btn-outline-secondary dashboard-toggle-btn" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#analysisCollapse"
+                                aria-expanded="false" aria-controls="analysisCollapse">
+                            <i class="bi bi-chevron-down"></i> Anzeigen
+                        </button>
+                    </div>
+                    <div class="collapse" id="analysisCollapse">
+                        <ul class="nav nav-tabs mt-3" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-expense-btn" data-bs-toggle="tab"
+                                        data-bs-target="#tab-expense" type="button" role="tab"
+                                        aria-controls="tab-expense" aria-selected="true">
+                                    Top 10 Ausgaben (3 Monate)
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-income-btn" data-bs-toggle="tab"
+                                        data-bs-target="#tab-income" type="button" role="tab"
+                                        aria-controls="tab-income" aria-selected="false">
+                                    Top 10 Einnahmen (3 Monate)
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-donut-btn" data-bs-toggle="tab"
+                                        data-bs-target="#tab-donut" type="button" role="tab"
+                                        aria-controls="tab-donut" aria-selected="false">
+                                    Einnahmen vs. Ausgaben (aktueller Monat)
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content pt-3">
+                            <div class="tab-pane fade show active dashboard-analysis-chart-pane" id="tab-expense" role="tabpanel" aria-labelledby="tab-expense-btn">
+                                <canvas id="categoryExpenseChart"></canvas>
+                            </div>
+                            <div class="tab-pane fade dashboard-analysis-chart-pane" id="tab-income" role="tabpanel" aria-labelledby="tab-income-btn">
+                                <canvas id="categoryIncomeChart"></canvas>
+                            </div>
+                            <div class="tab-pane fade dashboard-analysis-chart-pane" id="tab-donut" role="tabpanel" aria-labelledby="tab-donut-btn">
+                                <canvas id="donutChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -404,7 +418,7 @@ function renderCategoryChart(canvasId, chartData, emptyMessage) {
             options: {
                 indexAxis: 'y',
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -433,70 +447,96 @@ function renderCategoryChart(canvasId, chartData, emptyMessage) {
     }
 }
 
-fetch('{% url "dashboard:category_data" %}')
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
-        return response.json();
-    })
-    .then(data => {
-        renderCategoryChart(
-            'categoryExpenseChart',
-            data.expenses,
-            'Keine Ausgabenkategorien verfügbar'
-        );
-        renderCategoryChart(
-            'categoryIncomeChart',
-            data.income,
-            'Keine Einnahmenkategorien verfügbar'
-        );
-    })
-    .catch(error => {
-        console.error('Error loading category chart:', error);
-        ['categoryExpenseChart', 'categoryIncomeChart'].forEach(function(canvasId) {
-            const ctx = document.getElementById(canvasId);
-            if (ctx) {
-                ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Kategoriedaten</p>';
-            }
-        });
-    });
-
-fetch('{% url "dashboard:donut_data" %}')
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
-        return response.json();
-    })
-    .then(data => {
-        const ctx = document.getElementById('donutChart');
-        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-        if (total > 0) {
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: data,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.label + ': ' + formatEuro(context.parsed);
-                                }
+function renderDonutChart(data) {
+    const ctx = document.getElementById('donutChart');
+    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+    if (total > 0) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + formatEuro(context.parsed);
                             }
                         }
                     }
                 }
+            }
+        });
+    } else {
+        ctx.parentElement.innerHTML = '<p class="text-muted mt-3">Keine Daten für den aktuellen Monat</p>';
+    }
+}
+
+// Analyse-Charts werden erst geladen, wenn der Bereich erstmals aufgeklappt wird
+// (vermeidet Chart.js-Rendering in noch verstecktem/nicht-sichtbarem Canvas).
+let analysisChartsLoaded = false;
+const analysisCollapseEl = document.getElementById('analysisCollapse');
+if (analysisCollapseEl) {
+    analysisCollapseEl.addEventListener('shown.bs.collapse', function() {
+        if (analysisChartsLoaded) return;
+        analysisChartsLoaded = true;
+
+        fetch('{% url "dashboard:category_data" %}')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
+                return response.json();
+            })
+            .then(data => {
+                renderCategoryChart(
+                    'categoryExpenseChart',
+                    data.expenses,
+                    'Keine Ausgabenkategorien verfügbar'
+                );
+                renderCategoryChart(
+                    'categoryIncomeChart',
+                    data.income,
+                    'Keine Einnahmenkategorien verfügbar'
+                );
+            })
+            .catch(error => {
+                console.error('Error loading category chart:', error);
+                ['categoryExpenseChart', 'categoryIncomeChart'].forEach(function(canvasId) {
+                    const ctx = document.getElementById(canvasId);
+                    if (ctx) {
+                        ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Kategoriedaten</p>';
+                    }
+                });
             });
-        } else {
-            ctx.parentElement.innerHTML = '<p class="text-muted mt-3">Keine Daten für den aktuellen Monat</p>';
-        }
-    })
-    .catch(error => {
-        console.error('Error loading donut chart:', error);
-        const ctx = document.getElementById('donutChart');
-        if (ctx) {
-            ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Donut-Chart-Daten</p>';
-        }
+
+        fetch('{% url "dashboard:donut_data" %}')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok: ' + response.statusText);
+                return response.json();
+            })
+            .then(data => renderDonutChart(data))
+            .catch(error => {
+                console.error('Error loading donut chart:', error);
+                const ctx = document.getElementById('donutChart');
+                if (ctx) {
+                    ctx.parentElement.innerHTML = '<p class="text-danger mt-3">Fehler beim Laden der Donut-Chart-Daten</p>';
+                }
+            });
     });
+}
+
+// Chart.js zeichnet in noch verstecktem Tab-Pane oft mit Größe 0 — beim
+// Tabwechsel erzwingen wir ein Resize, damit die Balken/Donut korrekt skalieren.
+document.querySelectorAll('#analysisCollapse button[data-bs-toggle="tab"]').forEach(function(tabBtn) {
+    tabBtn.addEventListener('shown.bs.tab', function(event) {
+        const pane = document.querySelector(event.target.getAttribute('data-bs-target'));
+        if (!pane) return;
+        const canvas = pane.querySelector('canvas');
+        if (!canvas) return;
+        const chart = Chart.getChart(canvas);
+        if (chart) chart.resize();
+    });
+});
 </script>
 
 <div class="modal fade" id="overviewModal" tabindex="-1" aria-labelledby="overviewModalLabel" aria-hidden="true">
