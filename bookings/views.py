@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
+from django.utils.http import urlencode
 from django.db.models import Q, Count, Subquery, OuterRef
 from django.contrib.contenttypes.models import ContentType
 from django.contrib import messages
@@ -24,6 +25,8 @@ from .services import (
     get_total_assets,
     get_net_worth,
     get_assets_by_category,
+    get_category_overview,
+    get_category_bookings,
 )
 from .wizard import preview_series_bookings, create_series_bookings
 from .receipt_service import recognize_receipt, ReceiptRecognitionResult
@@ -562,6 +565,121 @@ def receipt_confirm(request):
         return response
 
     return redirect('bookings:list')
+
+
+# Display metadata for the category overview groups (order matters).
+_CATEGORY_OVERVIEW_GROUPS = [
+    ('income', 'Einnahmen', 'bi-arrow-down-circle', 'bg-success', False, None),
+    ('expense', 'Ausgaben', 'bi-arrow-up-circle', 'bg-danger', False, None),
+    ('neutral', 'Neutral', 'bi-arrow-left-right', 'bg-secondary', True,
+     'Durchlaufende Posten und Umbuchungen — nicht in Statistiken enthalten (is_statistical=False).'),
+]
+
+
+def _parse_overview_period(request):
+    """
+    Resolve the requested reporting period and status from request GET params.
+
+    Returns:
+        tuple: (start_date, end_date, include_planned, period, status)
+        where period in {'month', 'year', 'custom'} and status in {'booked', 'all'}.
+    """
+    today = date.today()
+    period = request.GET.get('period', 'month')
+    status = request.GET.get('status', 'booked')
+    include_planned = status == 'all'
+
+    def _parse(value):
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            return None
+
+    if period == 'year':
+        start = date(today.year, 1, 1)
+        end = date(today.year, 12, 31)
+    elif period == 'custom':
+        start = _parse(request.GET.get('start'))
+        end = _parse(request.GET.get('end'))
+        # Fall back to the current month for missing/invalid custom bounds.
+        if start is None:
+            start = date(today.year, today.month, 1)
+        if end is None:
+            end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+        # Guard against a reversed range.
+        if end < start:
+            start, end = end, start
+    else:
+        period = 'month'
+        start = date(today.year, today.month, 1)
+        end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+
+    return start, end, include_planned, period, status
+
+
+@login_required
+def category_overview(request):
+    """
+    Übersicht aller Kategorien mit ihrer Summe im gewählten Zeitraum,
+    gruppiert nach Typ. Drilldown auf einzelne Buchungen per HTMX.
+    """
+    start, end, include_planned, period, status = _parse_overview_period(request)
+    grouped = get_category_overview(start, end, include_planned)
+
+    groups = []
+    for key, label, icon, badge_class, is_neutral, hint in _CATEGORY_OVERVIEW_GROUPS:
+        data = grouped[key]
+        groups.append({
+            'key': key,
+            'label': label,
+            'icon': icon,
+            'badge_class': badge_class,
+            'is_neutral': is_neutral,
+            'hint': hint,
+            'categories': data['categories'],
+            'total': data['total'],
+        })
+
+    income_total = grouped['income']['total']
+    expense_total = grouped['expense']['total']
+
+    # Query string used by the drilldown links so they filter the same period.
+    drilldown_query = urlencode({
+        'start': start.isoformat(),
+        'end': end.isoformat(),
+        'status': status,
+    })
+
+    context = {
+        'groups': groups,
+        'income_total': income_total,
+        'expense_total': expense_total,
+        'net_total': income_total + expense_total,
+        'period': period,
+        'status': status,
+        'start': start,
+        'end': end,
+        'drilldown_query': drilldown_query,
+    }
+
+    if request.htmx:
+        return render(request, 'bookings/_category_overview_content.html', context)
+
+    return render(request, 'bookings/category_overview.html', context)
+
+
+@login_required
+def category_overview_bookings(request, category_id):
+    """Drilldown: Buchungen einer Kategorie im gewählten Zeitraum (HTMX-Partial)."""
+    category = get_object_or_404(Category, pk=category_id)
+    start, end, include_planned, period, status = _parse_overview_period(request)
+    bookings = get_category_bookings(category, start, end, include_planned)
+
+    context = {
+        'category': category,
+        'bookings': bookings,
+    }
+    return render(request, 'bookings/_category_overview_bookings.html', context)
 
 
 @login_required

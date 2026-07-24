@@ -1,0 +1,159 @@
+<!-- Filter form -->
+<form hx-get="{% url 'bookings:category_overview' %}"
+      hx-target="#category-overview-content"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+      hx-trigger="submit, change"
+      class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-4 col-lg-3">
+                <label for="overview-period" class="form-label small text-muted mb-1">Zeitraum</label>
+                <select name="period" id="overview-period" class="form-select">
+                    <option value="month" {% if period == 'month' %}selected{% endif %}>Aktueller Monat</option>
+                    <option value="year" {% if period == 'year' %}selected{% endif %}>Laufendes Jahr</option>
+                    <option value="custom" {% if period == 'custom' %}selected{% endif %}>Frei (von–bis)</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3 col-lg-2 overview-custom-range" {% if period != 'custom' %}style="display:none;"{% endif %}>
+                <label for="overview-start" class="form-label small text-muted mb-1">Von</label>
+                <input type="date" name="start" id="overview-start" class="form-control"
+                       value="{{ start|date:'Y-m-d' }}">
+            </div>
+            <div class="col-6 col-md-3 col-lg-2 overview-custom-range" {% if period != 'custom' %}style="display:none;"{% endif %}>
+                <label for="overview-end" class="form-label small text-muted mb-1">Bis</label>
+                <input type="date" name="end" id="overview-end" class="form-control"
+                       value="{{ end|date:'Y-m-d' }}">
+            </div>
+            <div class="col-12 col-md-4 col-lg-3">
+                <label for="overview-status" class="form-label small text-muted mb-1">Status</label>
+                <select name="status" id="overview-status" class="form-select">
+                    <option value="booked" {% if status == 'booked' %}selected{% endif %}>Nur gebucht</option>
+                    <option value="all" {% if status == 'all' %}selected{% endif %}>Inkl. geplant</option>
+                </select>
+            </div>
+            <div class="col-12 col-lg-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i> Anzeigen
+                </button>
+            </div>
+        </div>
+        <div class="small text-muted mt-2">
+            <i class="bi bi-calendar-range"></i>
+            Zeitraum: {{ start|date:'d.m.Y' }} – {{ end|date:'d.m.Y' }}
+        </div>
+    </div>
+</form>
+
+<!-- Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Einnahmen</div>
+            <div class="h5 mb-0 text-success">{{ income_total|floatformat:2 }} €</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Ausgaben</div>
+            <div class="h5 mb-0 text-danger">{{ expense_total|floatformat:2 }} €</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Ergebnis</div>
+            <div class="h5 mb-0 {% if net_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ net_total|floatformat:2 }} €
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category groups -->
+{% for group in groups %}
+<div class="card mb-4">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="mb-0">
+            <i class="bi {{ group.icon }}"></i> {{ group.label }}
+            <span class="badge {{ group.badge_class }} ms-2">{{ group.categories|length }}</span>
+        </h5>
+        <div class="d-flex align-items-center gap-3">
+            {% if group.hint %}
+            <small class="text-muted d-none d-lg-inline">{{ group.hint }}</small>
+            {% endif %}
+            <span class="fw-semibold {% if group.total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ group.total|floatformat:2 }} €
+            </span>
+        </div>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for category in group.categories %}
+        <div class="list-group-item px-2 px-md-3">
+            <button type="button"
+                    class="btn btn-link text-decoration-none text-reset w-100 p-1 d-flex align-items-center justify-content-between gap-2"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#overview-cat-{{ category.id }}"
+                    aria-expanded="false"
+                    hx-get="{% url 'bookings:category_overview_bookings' category.id %}?{{ drilldown_query }}"
+                    hx-target="#overview-cat-body-{{ category.id }}"
+                    hx-swap="innerHTML"
+                    hx-trigger="click once"
+                    {% if category.booking_count == 0 %}disabled{% endif %}>
+                <span class="d-flex align-items-center gap-2 text-truncate">
+                    <i class="bi bi-chevron-right overview-chevron flex-shrink-0"></i>
+                    <span class="badge rounded-pill flex-shrink-0" style="background-color: {{ category.color }};">
+                        {% if category.icon %}<i class="bi {{ category.icon }}"></i>{% else %}&nbsp;&nbsp;{% endif %}
+                    </span>
+                    <span class="text-truncate">{{ category.name }}</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis flex-shrink-0">
+                        {{ category.booking_count }}
+                    </span>
+                </span>
+                <span class="fw-semibold flex-shrink-0 {% if category.total > 0 %}text-success{% elif category.total < 0 %}text-danger{% else %}text-muted{% endif %}">
+                    {{ category.total|floatformat:2 }} €
+                </span>
+            </button>
+            <div class="collapse" id="overview-cat-{{ category.id }}">
+                <div id="overview-cat-body-{{ category.id }}" class="pt-2">
+                    <div class="text-center text-muted py-2">
+                        <span class="spinner-border spinner-border-sm"></span> Lade Buchungen…
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="list-group-item text-center text-muted">
+            <i class="bi bi-inbox"></i> Keine Kategorien in diesem Bereich
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+<script>
+    (function () {
+        // Toggle the custom date range fields based on the selected period.
+        var periodSelect = document.getElementById('overview-period');
+        if (periodSelect) {
+            periodSelect.addEventListener('change', function () {
+                var show = this.value === 'custom';
+                document.querySelectorAll('.overview-custom-range').forEach(function (el) {
+                    el.style.display = show ? '' : 'none';
+                });
+            });
+        }
+        // Rotate the chevron when a category drilldown is expanded/collapsed.
+        document.querySelectorAll('#category-overview-content .collapse').forEach(function (el) {
+            var chevron = el.previousElementSibling
+                ? el.previousElementSibling.querySelector('.overview-chevron')
+                : null;
+            if (!chevron) { return; }
+            el.addEventListener('show.bs.collapse', function () {
+                chevron.classList.replace('bi-chevron-right', 'bi-chevron-down');
+            });
+            el.addEventListener('hide.bs.collapse', function () {
+                chevron.classList.replace('bi-chevron-down', 'bi-chevron-right');
+            });
+        });
+    })();
+</script>
