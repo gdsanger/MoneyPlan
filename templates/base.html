@@ -46,59 +46,62 @@
             <a class="navbar-brand" href="{% url 'dashboard:index' %}">
                 <i class="bi bi-cash-coin"></i> MoneyPlan
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <!-- Mobile: öffnet das flache Offcanvas-Menü (siehe unten) statt der verschachtelten Desktop-Dropdowns -->
+            <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNav" aria-controls="mobileNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
+
+            <!-- Desktop-Navigation (ab lg unverändert) -->
+            <div class="d-none d-lg-flex flex-grow-1">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:index' %}">
+                        <a class="nav-link {% if nav_active_view == 'dashboard:index' %}active{% endif %}" href="{% url 'dashboard:index' %}">
                             <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle {% if nav_active_section == 'buchungen' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-journal-text"></i> Buchungen
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'bookings:list' %}"><i class="bi bi-list-ul"></i> Alle Buchungen</a></li>
-                            <li><a class="dropdown-item" href="{% url 'bookings:month_view' %}"><i class="bi bi-calendar3"></i> Monatsansicht</a></li>
-                            <li><a class="dropdown-item" href="{% url 'dashboard:year_overview' %}"><i class="bi bi-calendar4-week"></i> Jahresübersicht</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'bookings:list' %}active{% endif %}" href="{% url 'bookings:list' %}"><i class="bi bi-list-ul"></i> Alle Buchungen</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'bookings:month_view' or nav_active_view == 'bookings:month_view_detail' %}active{% endif %}" href="{% url 'bookings:month_view' %}"><i class="bi bi-calendar3"></i> Monatsansicht</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'dashboard:year_overview' or nav_active_view == 'dashboard:year_overview_detail' %}active{% endif %}" href="{% url 'dashboard:year_overview' %}"><i class="bi bi-calendar4-week"></i> Jahresübersicht</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'bookings:categories' %}"><i class="bi bi-tags"></i> Kategorien</a></li>
-                            <li><a class="dropdown-item" href="{% url 'bookings:series_list' %}"><i class="bi bi-arrow-repeat"></i> Serien</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'bookings:categories' %}active{% endif %}" href="{% url 'bookings:categories' %}"><i class="bi bi-tags"></i> Kategorien</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'bookings:series_list' %}active{% endif %}" href="{% url 'bookings:series_list' %}"><i class="bi bi-arrow-repeat"></i> Serien</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle {% if nav_active_section == 'finanzen' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-bank"></i> Finanzen
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'bookings:liability_list' %}"><i class="bi bi-credit-card"></i> Verbindlichkeiten</a></li>
-                            <li><a class="dropdown-item" href="{% url 'bookings:asset_list' %}"><i class="bi bi-piggy-bank"></i> Vermögen</a></li>
-                            <li><a class="dropdown-item" href="{% url 'alerts:list' %}"><i class="bi bi-bell"></i> Fälligkeiten</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'bookings:liability_list' %}active{% endif %}" href="{% url 'bookings:liability_list' %}"><i class="bi bi-credit-card"></i> Verbindlichkeiten</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'bookings:asset_list' %}active{% endif %}" href="{% url 'bookings:asset_list' %}"><i class="bi bi-piggy-bank"></i> Vermögen</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'alerts:list' %}active{% endif %}" href="{% url 'alerts:list' %}"><i class="bi bi-bell"></i> Fälligkeiten</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle {% if nav_active_section == 'sonstiges' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-grid"></i> Sonstiges
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'tasks:list' %}">
+                            <li><a class="dropdown-item {% if nav_active_view == 'tasks:list' %}active{% endif %}" href="{% url 'tasks:list' %}">
                                 <i class="bi bi-check2-square"></i> Aufgaben
                                 {% if task_badge_count > 0 %}
                                 <span class="badge bg-danger ms-1">{{ task_badge_count }}</span>
                                 {% endif %}
                             </a></li>
-                            <li><a class="dropdown-item" href="{% url 'timetracking:list' %}"><i class="bi bi-clock-history"></i> Zeiten</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reimbursements:list' %}"><i class="bi bi-fuel-pump"></i> Auslagen</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'timetracking:list' %}active{% endif %}" href="{% url 'timetracking:list' %}"><i class="bi bi-clock-history"></i> Zeiten</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'reimbursements:list' %}active{% endif %}" href="{% url 'reimbursements:list' %}"><i class="bi bi-fuel-pump"></i> Auslagen</a></li>
                         </ul>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'alerts:list' %}">
+                        <a class="nav-link {% if nav_active_view == 'alerts:list' %}active{% endif %}" href="{% url 'alerts:list' %}">
                             <i class="bi bi-exclamation-triangle"></i> Alerts
                             {% if active_alerts_count > 0 %}
                             <span class="badge bg-danger">{{ active_alerts_count }}</span>
@@ -123,6 +126,81 @@
         </div>
     </nav>
 
+    <!-- Mobile-Navigation: flaches Offcanvas statt dreifach verschachtelter Dropdowns -->
+    <div class="offcanvas offcanvas-start text-bg-dark d-lg-none" tabindex="-1" id="mobileNav" aria-labelledby="mobileNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="mobileNavLabel"><i class="bi bi-cash-coin"></i> MoneyPlan</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav flex-column mb-2">
+                <li class="nav-item">
+                    <a class="nav-link {% if nav_active_view == 'dashboard:index' %}active{% endif %}" href="{% url 'dashboard:index' %}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+            </ul>
+
+            <div class="text-uppercase text-secondary small px-2 mt-3 mb-1">Buchungen</div>
+            <ul class="nav flex-column mb-2">
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:list' %}active{% endif %}" href="{% url 'bookings:list' %}"><i class="bi bi-list-ul"></i> Alle Buchungen</a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:month_view' or nav_active_view == 'bookings:month_view_detail' %}active{% endif %}" href="{% url 'bookings:month_view' %}"><i class="bi bi-calendar3"></i> Monatsansicht</a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'dashboard:year_overview' or nav_active_view == 'dashboard:year_overview_detail' %}active{% endif %}" href="{% url 'dashboard:year_overview' %}"><i class="bi bi-calendar4-week"></i> Jahresübersicht</a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:categories' %}active{% endif %}" href="{% url 'bookings:categories' %}"><i class="bi bi-tags"></i> Kategorien</a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:series_list' %}active{% endif %}" href="{% url 'bookings:series_list' %}"><i class="bi bi-arrow-repeat"></i> Serien</a></li>
+            </ul>
+
+            <div class="text-uppercase text-secondary small px-2 mt-3 mb-1">Finanzen</div>
+            <ul class="nav flex-column mb-2">
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:liability_list' %}active{% endif %}" href="{% url 'bookings:liability_list' %}"><i class="bi bi-credit-card"></i> Verbindlichkeiten</a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:asset_list' %}active{% endif %}" href="{% url 'bookings:asset_list' %}"><i class="bi bi-piggy-bank"></i> Vermögen</a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'alerts:list' %}active{% endif %}" href="{% url 'alerts:list' %}"><i class="bi bi-bell"></i> Fälligkeiten</a></li>
+            </ul>
+
+            <div class="text-uppercase text-secondary small px-2 mt-3 mb-1">Sonstiges</div>
+            <ul class="nav flex-column mb-2">
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'tasks:list' %}active{% endif %}" href="{% url 'tasks:list' %}">
+                    <i class="bi bi-check2-square"></i> Aufgaben
+                    {% if task_badge_count > 0 %}
+                    <span class="badge bg-danger ms-1">{{ task_badge_count }}</span>
+                    {% endif %}
+                </a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'timetracking:list' %}active{% endif %}" href="{% url 'timetracking:list' %}"><i class="bi bi-clock-history"></i> Zeiten</a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'reimbursements:list' %}active{% endif %}" href="{% url 'reimbursements:list' %}"><i class="bi bi-fuel-pump"></i> Auslagen</a></li>
+            </ul>
+
+            {% if user.is_authenticated %}
+            <hr>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {% if nav_active_view == 'alerts:list' %}active{% endif %}" href="{% url 'alerts:list' %}">
+                        <i class="bi bi-exclamation-triangle"></i> Alerts
+                        {% if active_alerts_count > 0 %}
+                        <span class="badge bg-danger">{{ active_alerts_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'ai:settings' %}"><i class="bi bi-robot"></i> KI-Einstellungen</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'alerts:settings' %}"><i class="bi bi-gear"></i> Alert-Einstellungen</a></li>
+                <li class="nav-item"><a class="nav-link" href="/admin/"><i class="bi bi-person-circle"></i> Admin</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> Abmelden ({{ user.username }})</a></li>
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Mobile Schnellzugriff: die zwei häufigsten Aktionen direkt erreichbar, ohne Menü -->
+    {% if user.is_authenticated %}
+    <div class="mobile-quick-actions d-lg-none">
+        <a href="{% url 'bookings:list' %}?quickaction=receipt" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-text"></i> Aus Beleg
+        </a>
+        <a href="{% url 'bookings:list' %}?quickaction=create" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Neue Buchung
+        </a>
+    </div>
+    {% endif %}
+
     <!-- Critical Alert Banner -->
     {% if has_critical_alerts and not request.htmx %}
     <div class="alert alert-warning alert-dismissible fade show m-3" role="alert">
@@ -135,7 +213,7 @@
     {% endif %}
 
     <!-- Main Content -->
-    <main class="{% if not request.htmx %}container-fluid py-4{% endif %}">
+    <main class="{% if not request.htmx %}container-fluid py-4{% if user.is_authenticated %} has-mobile-quick-actions{% endif %}{% endif %}">
         {% if messages %}
             {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
