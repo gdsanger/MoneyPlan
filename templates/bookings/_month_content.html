@@ -143,7 +143,7 @@
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover table-stack">
                 <thead>
                     <tr>
                         <th>Datum</th>
@@ -159,8 +159,8 @@
                     {% for item in bookings_with_balance %}
                         {% with booking=item.booking running_balance=item.running_balance %}
                         <tr id="booking-row-{{ booking.id }}" {% if booking.status == 'planned' and booking.date > today %}class="text-muted fst-italic"{% endif %}>
-                            <td>{{ booking.date|date:"d.m.Y" }}</td>
-                            <td>
+                            <td data-label="Datum">{{ booking.date|date:"d.m.Y" }}</td>
+                            <td class="table-stack-heading">
                                 {{ booking.description }}
                                 {% if booking.attachment_count %}
                                 <a href="{% url 'bookings:edit' booking.id %}" class="text-decoration-none" title="{{ booking.attachment_count }} Anhang{{ booking.attachment_count|pluralize:'e' }}">
@@ -168,17 +168,17 @@
                                 </a>
                                 {% endif %}
                             </td>
-                            <td class="{% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            <td class="{% if booking.amount >= 0 %}text-success{% else %}text-danger{% endif %}" data-label="Betrag">
                                 {{ booking.amount|floatformat:2 }} €
                             </td>
-                            <td {% if running_balance %}class="{% if running_balance >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold"{% endif %}>
+                            <td {% if running_balance %}class="{% if running_balance >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold"{% endif %} data-label="Kumulierter Saldo">
                                 {% if running_balance is not None %}
                                     {{ running_balance|floatformat:2 }} €
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Kategorie">
                                 {% if booking.category %}
                                 <span class="badge" style="background-color: {{ booking.category.color }};">
                                     <i class="bi bi-{{ booking.category.icon }}"></i> {{ booking.category.name }}
@@ -192,7 +192,7 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Status">
                                 {% if booking.status == 'planned' %}
                                 <span class="badge bg-warning">
                                     <i class="bi bi-clock"></i> Geplant
@@ -203,48 +203,50 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <!-- Toggle Status -->
-                                    <button
-                                        class="btn btn-outline-secondary"
-                                        onclick="toggleStatusAndReload({{ booking.id }}, {{ year }}, {{ month }})"
-                                        title="Status ändern">
-                                        <i class="bi bi-arrow-left-right"></i>
+                            <td class="table-stack-actions">
+                                <div class="dropdown">
+                                    <button type="button" class="btn btn-outline-secondary row-actions-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                                        <i class="bi bi-three-dots-vertical"></i>
                                     </button>
-
-                                    <!-- Duplicate -->
-                                    <button
-                                        class="btn btn-outline-info"
-                                        hx-post="{% url 'bookings:duplicate' booking.id %}"
-                                        hx-target="#form-modal-content"
-                                        hx-swap="innerHTML"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#formModal"
-                                        title="Duplizieren — erstellt eine Kopie mit heutigem Datum">
-                                        <i class="bi bi-files"></i>
-                                    </button>
-
-                                    <!-- Edit -->
-                                    <a
-                                        href="{% url 'bookings:edit' booking.id %}"
-                                        class="btn btn-outline-primary"
-                                        hx-get="{% url 'bookings:edit' booking.id %}"
-                                        hx-target="#form-modal-content"
-                                        hx-swap="innerHTML"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#formModal"
-                                        title="Bearbeiten">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-
-                                    <!-- Delete -->
-                                    <button
-                                        class="btn btn-outline-danger"
-                                        onclick="showDeleteModal({{ booking.id }}, '{{ booking.description|escapejs }}', '{% url 'bookings:delete' booking.id %}')"
-                                        title="Löschen">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end row-actions-menu">
+                                        <li>
+                                            <button type="button"
+                                                    class="dropdown-item"
+                                                    onclick="toggleStatusAndReload({{ booking.id }}, {{ year }}, {{ month }})">
+                                                <i class="bi bi-arrow-left-right"></i> Status ändern
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button"
+                                                    class="dropdown-item"
+                                                    hx-post="{% url 'bookings:duplicate' booking.id %}"
+                                                    hx-target="#form-modal-content"
+                                                    hx-swap="innerHTML"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#formModal"
+                                                    title="Erstellt eine Kopie mit heutigem Datum">
+                                                <i class="bi bi-files"></i> Duplizieren
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'bookings:edit' booking.id %}"
+                                               class="dropdown-item"
+                                               hx-get="{% url 'bookings:edit' booking.id %}"
+                                               hx-target="#form-modal-content"
+                                               hx-swap="innerHTML"
+                                               data-bs-toggle="modal"
+                                               data-bs-target="#formModal">
+                                                <i class="bi bi-pencil"></i> Bearbeiten
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <button type="button"
+                                                    class="dropdown-item text-danger"
+                                                    onclick="showDeleteModal({{ booking.id }}, '{{ booking.description|escapejs }}', '{% url 'bookings:delete' booking.id %}')">
+                                                <i class="bi bi-trash"></i> Löschen
+                                            </button>
+                                        </li>
+                                    </ul>
                                 </div>
                             </td>
                         </tr>

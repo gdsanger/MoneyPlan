@@ -1,0 +1,116 @@
+/* ==========================================================================
+   Responsive Listen: Tabelle -> Karten (< md) + Zeilenaktionen-Menü
+   Zentrales, wiederverwendbares Muster für alle Listenansichten.
+   ========================================================================== */
+
+/* --- Zeilenaktionen als ⋮-Dropdown mit ausreichend großem Tap-Ziel --- */
+.row-actions-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    line-height: 1;
+}
+
+/* kein Caret am ⋮-Trigger */
+.row-actions-toggle::after {
+    display: none;
+}
+
+.row-actions-menu .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.row-actions-menu .dropdown-item i {
+    width: 1.25rem;
+    text-align: center;
+}
+
+/* --- Tabelle -> Karten unterhalb von md (Bootstrap-Breakpoint) --- */
+@media (max-width: 767.98px) {
+    .table-stack,
+    .table-stack tbody,
+    .table-stack tr,
+    .table-stack td {
+        display: block;
+        width: 100%;
+    }
+
+    .table-stack thead {
+        display: none;
+    }
+
+    .table-stack tr {
+        position: relative;
+        margin-bottom: 0.75rem;
+        padding: 0.75rem 3.25rem 0.75rem 0.9rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.5rem;
+        background-color: var(--bs-tertiary-bg, rgba(255, 255, 255, 0.03));
+    }
+
+    .table-stack tr:last-child {
+        margin-bottom: 0;
+    }
+
+    /* normale Zelle: Label links, Wert rechts auf einer Zeile */
+    .table-stack td {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.25rem 0;
+        border: none;
+        text-align: right;
+    }
+
+    .table-stack td[data-label]::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        margin-right: auto;
+        padding-right: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        text-align: left;
+    }
+
+    /* Kartenkopf: Titel-/Namensfeld, keine Beschriftung, volle Breite */
+    .table-stack td.table-stack-heading {
+        display: block;
+        text-align: left;
+        font-size: 1.05rem;
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    /* Blockzelle: Label über dem Wert (z.B. Fortschrittsbalken) */
+    .table-stack td.table-stack-block {
+        display: block;
+        text-align: left;
+    }
+
+    .table-stack td.table-stack-block::before {
+        display: block;
+        margin-bottom: 0.35rem;
+    }
+
+    /* Aktionsmenü oben rechts in der Karte verankert */
+    .table-stack td.table-stack-actions {
+        display: block;
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0;
+    }
+}
