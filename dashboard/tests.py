@@ -59,7 +59,7 @@ class DashboardViewTest(TestCase):
 
         response = self.client.get(reverse('dashboard:index'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Verfügbare Mittel (Gesamt)')
+        self.assertContains(response, 'Projektion (Gesamt)')
         self.assertContains(response, 'Ist-Saldo')
         self.assertContains(response, 'Offene Ausgaben')
         self.assertContains(response, 'Offene Einnahmen')
