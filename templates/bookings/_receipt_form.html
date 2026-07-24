@@ -34,11 +34,11 @@
                 <label for="{{ form.date.id_for_label }}" class="form-label">
                     Datum*
                     {% if receipt_result.confidence.date == 'high' %}
-                        <span class="badge bg-success" title="Hoch — sicher erkannt">🟢</span>
+                        <span class="badge text-bg-success" title="Hoch — sicher erkannt">🟢</span>
                     {% elif receipt_result.confidence.date == 'medium' %}
-                        <span class="badge bg-warning" title="Mittel — bitte prüfen">🟡</span>
+                        <span class="badge text-bg-warning" title="Mittel — bitte prüfen">🟡</span>
                     {% else %}
-                        <span class="badge bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
+                        <span class="badge text-bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
                     {% endif %}
                 </label>
                 {{ form.date }}
@@ -51,11 +51,11 @@
                 <label for="{{ form.description.id_for_label }}" class="form-label">
                     Beschreibung*
                     {% if receipt_result.confidence.description == 'high' %}
-                        <span class="badge bg-success" title="Hoch — sicher erkannt">🟢</span>
+                        <span class="badge text-bg-success" title="Hoch — sicher erkannt">🟢</span>
                     {% elif receipt_result.confidence.description == 'medium' %}
-                        <span class="badge bg-warning" title="Mittel — bitte prüfen">🟡</span>
+                        <span class="badge text-bg-warning" title="Mittel — bitte prüfen">🟡</span>
                     {% else %}
-                        <span class="badge bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
+                        <span class="badge text-bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
                     {% endif %}
                 </label>
                 {{ form.description }}
@@ -68,11 +68,11 @@
                 <label for="{{ form.amount.id_for_label }}" class="form-label">
                     Betrag*
                     {% if receipt_result.confidence.amount == 'high' %}
-                        <span class="badge bg-success" title="Hoch — sicher erkannt">🟢</span>
+                        <span class="badge text-bg-success" title="Hoch — sicher erkannt">🟢</span>
                     {% elif receipt_result.confidence.amount == 'medium' %}
-                        <span class="badge bg-warning" title="Mittel — bitte prüfen">🟡</span>
+                        <span class="badge text-bg-warning" title="Mittel — bitte prüfen">🟡</span>
                     {% else %}
-                        <span class="badge bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
+                        <span class="badge text-bg-danger" title="Niedrig — manuelle Eingabe empfohlen">🔴</span>
                     {% endif %}
                 </label>
                 {{ form.amount }}
@@ -85,7 +85,7 @@
             <div class="mb-3">
                 <label for="{{ form.category.id_for_label }}" class="form-label">
                     Kategorie*
-                    <span class="badge bg-info" title="Vorgeschlagen von KI">💡</span>
+                    <span class="badge text-bg-info" title="Vorgeschlagen von KI">💡</span>
                 </label>
                 {{ form.category }}
                 {% if form.category.errors %}
@@ -113,9 +113,9 @@
             <!-- Confidence Legend -->
             <div class="alert alert-light small mb-3">
                 <strong>Konfidenz-Indikatoren:</strong><br>
-                <span class="badge bg-success">🟢</span> Hoch — sicher erkannt<br>
-                <span class="badge bg-warning">🟡</span> Mittel — bitte prüfen<br>
-                <span class="badge bg-danger">🔴</span> Niedrig — manuelle Eingabe empfohlen
+                <span class="badge text-bg-success">🟢</span> Hoch — sicher erkannt<br>
+                <span class="badge text-bg-warning">🟡</span> Mittel — bitte prüfen<br>
+                <span class="badge text-bg-danger">🔴</span> Niedrig — manuelle Eingabe empfohlen
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-3">

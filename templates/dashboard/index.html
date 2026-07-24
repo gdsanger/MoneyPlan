@@ -102,11 +102,11 @@
                                 <tr id="task-row-{{ task.id }}" class="{% if task.is_overdue %}table-danger{% elif task.is_due_soon %}table-warning{% endif %}">
                                     <td data-label="Priorität">
                                         {% if task.priority == 'high' %}
-                                        <span class="badge bg-danger">Hoch</span>
+                                        <span class="badge text-bg-danger">Hoch</span>
                                         {% elif task.priority == 'medium' %}
-                                        <span class="badge bg-warning">Mittel</span>
+                                        <span class="badge text-bg-warning">Mittel</span>
                                         {% else %}
-                                        <span class="badge bg-secondary">Niedrig</span>
+                                        <span class="badge text-bg-secondary">Niedrig</span>
                                         {% endif %}
                                     </td>
                                     <td class="table-stack-heading">{{ task.title }}</td>

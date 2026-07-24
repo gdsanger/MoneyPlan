@@ -1,11 +1,11 @@
 <tr id="task-row-{{ task.id }}" class="{% if task.is_overdue %}table-danger{% elif task.is_due_soon %}table-warning{% endif %}{% if task.status == 'done' %} text-decoration-line-through opacity-50{% endif %}">
     <td data-label="Priorität">
         {% if task.priority == 'high' %}
-        <span class="badge bg-danger">Hoch</span>
+        <span class="badge text-bg-danger">Hoch</span>
         {% elif task.priority == 'medium' %}
-        <span class="badge bg-warning">Mittel</span>
+        <span class="badge text-bg-warning">Mittel</span>
         {% else %}
-        <span class="badge bg-secondary">Niedrig</span>
+        <span class="badge text-bg-secondary">Niedrig</span>
         {% endif %}
     </td>
     <td class="table-stack-heading{% if task.status == 'done' %} text-decoration-line-through opacity-75{% endif %}">
@@ -32,9 +32,9 @@
     </td>
     <td data-label="Status">
         {% if task.status == 'open' %}
-        <span class="badge bg-primary">Offen</span>
+        <span class="badge text-bg-primary">Offen</span>
         {% else %}
-        <span class="badge bg-success">Erledigt</span>
+        <span class="badge text-bg-success">Erledigt</span>
         {% endif %}
     </td>
     <td class="table-stack-actions">
@@ -66,7 +66,10 @@
                 <li>
                     <button type="button"
                             class="dropdown-item text-danger"
-                            onclick="showDeleteModal({{ task.id }}, '{{ task.title|escapejs }}', '{% url 'tasks:delete' task.id %}')">
+                            data-delete-url="{% url 'tasks:delete' task.id %}"
+                            data-delete-title="Aufgabe löschen"
+                            data-delete-message="Aufgabe „{{ task.title }}“ wirklich löschen?"
+                            data-delete-target="#task-row-{{ task.id }}">
                         <i class="bi bi-trash"></i> Löschen
                     </button>
                 </li>

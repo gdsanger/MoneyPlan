@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load badge_extras %}
 
 {% block title %}Wiederkehrende Serien - MoneyPlan{% endblock %}
 
@@ -33,7 +34,7 @@
                     <tbody>
                         {% for item in series_with_counts %}
                         {% with series=item.series booking_count=item.booking_count %}
-                        <tr>
+                        <tr id="series-row-{{ series.id }}">
                             <td class="table-stack-heading">
                                 <strong>{{ series.description }}</strong>
                                 {% if series.notes %}
@@ -55,12 +56,12 @@
                                 {% endif %}
                             </td>
                             <td data-label="Kategorie">
-                                <span class="badge" style="background-color: {{ series.category.color }}">
+                                <span class="badge" style="background-color: {{ series.category.color }}; color: {{ series.category.color|contrast_text_color }};">
                                     <i class="bi bi-{{ series.category.icon }}"></i> {{ series.category.name }}
                                 </span>
                             </td>
                             <td class="text-center" data-label="Anzahl Buchungen">
-                                <span class="badge bg-secondary">{{ booking_count }}</span>
+                                <span class="badge text-bg-secondary">{{ booking_count }}</span>
                             </td>
                             <td class="table-stack-actions">
                                 <div class="dropdown">
@@ -76,7 +77,11 @@
                                         <li>
                                             <button type="button"
                                                     class="dropdown-item text-danger"
-                                                    onclick="showDeleteModal({{ series.id }}, '{{ series.description|escapejs }}', {{ booking_count }})">
+                                                    data-delete-url="{% url 'bookings:series_delete' series.id %}"
+                                                    data-delete-title="Serie löschen"
+                                                    data-delete-message="Serie „{{ series.description }}“ wirklich löschen?"
+                                                    data-delete-warning="Diese Aktion löscht die Serie und alle {{ booking_count }} verknüpften Buchungen."
+                                                    data-delete-target="#series-row-{{ series.id }}">
                                                 <i class="bi bi-trash"></i> Löschen
                                             </button>
                                         </li>
@@ -98,50 +103,5 @@
     </div>
     {% endif %}
 </div>
-
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Serie löschen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p><strong>Sind Sie sicher?</strong></p>
-                <p id="delete-series-description"></p>
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong>Warnung:</strong> Diese Aktion löscht die Serie und alle <span id="delete-booking-count"></span> verknüpften Buchungen.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <form method="post" id="delete-form" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash"></i> Löschen
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function showDeleteModal(seriesId, description, bookingCount) {
-        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        const form = document.getElementById('delete-form');
-
-        // Update modal content
-        document.getElementById('delete-series-description').textContent = 'Serie: "' + description + '"';
-        document.getElementById('delete-booking-count').textContent = bookingCount;
-
-        // Update form action
-        form.action = '{% url "bookings:series_delete" 0 %}'.replace('0', seriesId);
-
-        modal.show();
-    }
-</script>
 {% endblock %}
 

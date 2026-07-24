@@ -45,28 +45,6 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Buchung löschen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Sind Sie sicher, dass Sie diese Buchung löschen möchten?</p>
-                <p id="delete-booking-description" class="text-muted"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
-                    <i class="bi bi-trash"></i> Löschen
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Receipt Upload Modal -->
 <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
@@ -111,29 +89,5 @@
             });
         });
     }
-
-    // Delete modal handling
-    let deleteUrl = '';
-
-    function showDeleteModal(bookingId, description, url) {
-        deleteUrl = url;
-        document.getElementById('delete-booking-description').textContent = description;
-        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        deleteModal.show();
-    }
-
-    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
-        if (deleteUrl) {
-            const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-            deleteModal.hide();
-            // swap: 'none' prevents the empty DELETE response from wiping the page body
-            htmx.ajax('POST', deleteUrl, { swap: 'none' }).then(function() {
-                htmx.ajax('GET', window.location.pathname, {
-                    target: '#month-content',
-                    swap: 'innerHTML'
-                });
-            });
-        }
-    });
 </script>
 {% endblock %}

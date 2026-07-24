@@ -1,3 +1,4 @@
+{% load badge_extras %}
 <!-- Month Navigation Header -->
 <div class="card mb-4">
     <div class="card-body">
@@ -180,25 +181,25 @@
                             </td>
                             <td data-label="Kategorie">
                                 {% if booking.category %}
-                                <span class="badge" style="background-color: {{ booking.category.color }};">
+                                <span class="badge" style="background-color: {{ booking.category.color }}; color: {{ booking.category.color|contrast_text_color }};">
                                     <i class="bi bi-{{ booking.category.icon }}"></i> {{ booking.category.name }}
                                 </span>
                                 {% else %}
                                 <span class="text-muted">-</span>
                                 {% endif %}
                                 {% if booking.liability %}
-                                <span class="badge bg-secondary ms-1" title="Verbindlichkeit">
+                                <span class="badge text-bg-secondary ms-1" title="Verbindlichkeit">
                                     <i class="bi bi-credit-card"></i> {{ booking.liability.name }}
                                 </span>
                                 {% endif %}
                             </td>
                             <td data-label="Status">
                                 {% if booking.status == 'planned' %}
-                                <span class="badge bg-warning">
+                                <span class="badge text-bg-warning">
                                     <i class="bi bi-clock"></i> Geplant
                                 </span>
                                 {% else %}
-                                <span class="badge bg-success">
+                                <span class="badge text-bg-success">
                                     <i class="bi bi-check-circle-fill"></i> Gebucht
                                 </span>
                                 {% endif %}
@@ -242,7 +243,10 @@
                                         <li>
                                             <button type="button"
                                                     class="dropdown-item text-danger"
-                                                    onclick="showDeleteModal({{ booking.id }}, '{{ booking.description|escapejs }}', '{% url 'bookings:delete' booking.id %}')">
+                                                    data-delete-url="{% url 'bookings:delete' booking.id %}"
+                                                    data-delete-title="Buchung löschen"
+                                                    data-delete-message="Buchung „{{ booking.description }}“ wirklich löschen?"
+                                                    data-delete-reload-target="#month-content">
                                                 <i class="bi bi-trash"></i> Löschen
                                             </button>
                                         </li>

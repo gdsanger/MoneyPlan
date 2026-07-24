@@ -1,6 +1,7 @@
+{% load badge_extras %}
 {% for item in liabilities_overview %}
 {% with liability=item.liability %}
-<tr class="{% if item.is_closed %}opacity-50 text-decoration-line-through{% endif %}">
+<tr id="liability-row-{{ liability.id }}" class="{% if item.is_closed %}opacity-50 text-decoration-line-through{% endif %}">
     <td class="table-stack-heading">
         <a href="{% url 'bookings:liability_detail' liability.id %}" class="text-decoration-none">
             <strong>{{ liability.name }}</strong>
@@ -10,7 +11,7 @@
         {% endif %}
     </td>
     <td data-label="Kategorie">
-        <span class="badge" style="background-color: {{ liability.category.color }}">
+        <span class="badge" style="background-color: {{ liability.category.color }}; color: {{ liability.category.color|contrast_text_color }};">
             <i class="{{ liability.category.icon }}"></i> {{ liability.category.name }}
         </span>
     </td>
@@ -40,9 +41,9 @@
     </td>
     <td data-label="Status">
         {% if item.is_closed %}
-        <span class="badge bg-success">Abgeschlossen</span>
+        <span class="badge text-bg-success">Abgeschlossen</span>
         {% else %}
-        <span class="badge bg-danger">Offen</span>
+        <span class="badge text-bg-danger">Offen</span>
         {% endif %}
     </td>
     <td class="table-stack-actions">
@@ -70,7 +71,11 @@
                 <li>
                     <button type="button"
                             class="dropdown-item text-danger"
-                            onclick="showDeleteModal({{ liability.id }}, '{{ liability.name|escapejs }}')">
+                            data-delete-url="{% url 'bookings:liability_delete' liability.id %}"
+                            data-delete-title="Verbindlichkeit löschen"
+                            data-delete-message="Verbindlichkeit „{{ liability.name }}“ wirklich löschen?"
+                            data-delete-warning="Die Verbindlichkeit wird gelöscht, aber verknüpfte Buchungen bleiben erhalten (ohne Zuordnung)."
+                            data-delete-target="#liability-row-{{ liability.id }}">
                         <i class="bi bi-trash"></i> Löschen
                     </button>
                 </li>

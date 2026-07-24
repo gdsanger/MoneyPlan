@@ -79,7 +79,7 @@ class AlertViewsTestCase(TestCase):
         )
 
         response = self.client.get(reverse('alerts:list'))
-        self.assertContains(response, 'badge bg-warning')
+        self.assertContains(response, 'badge text-bg-warning')
 
     def test_alert_list_color_coding_overdue(self):
         """Test that overdue alerts have danger badge"""
@@ -92,7 +92,7 @@ class AlertViewsTestCase(TestCase):
         )
 
         response = self.client.get(reverse('alerts:list'))
-        self.assertContains(response, 'badge bg-danger')
+        self.assertContains(response, 'badge text-bg-danger')
 
     def test_alert_list_color_coding_liquidity(self):
         """Test that liquidity alerts have danger badge"""
@@ -105,7 +105,7 @@ class AlertViewsTestCase(TestCase):
         )
 
         response = self.client.get(reverse('alerts:list'))
-        self.assertContains(response, 'badge bg-danger')
+        self.assertContains(response, 'badge text-bg-danger')
 
     def test_alert_list_htmx_auto_refresh(self):
         """Test that alert list has HTMX auto-refresh configured"""
@@ -404,7 +404,7 @@ class AlertContextProcessorTestCase(TestCase):
 
         response = self.client.get(reverse('dashboard:index'))
 
-        self.assertContains(response, 'badge bg-danger')
+        self.assertContains(response, 'badge text-bg-danger')
         self.assertContains(response, '1')  # Badge count
 
     def test_critical_alert_banner(self):
