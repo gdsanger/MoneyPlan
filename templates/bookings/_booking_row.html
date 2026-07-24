@@ -13,7 +13,7 @@
     </td>
     <td data-label="Kategorie">
         {% if booking.category %}
-        <span class="badge" style="background-color: {{ booking.category.color }};">
+        <span class="badge" style="background-color: {{ booking.category.color }}; color: {{ booking.category.text_color }};">
             <i class="bi {{ booking.category.icon }}"></i> {{ booking.category.name }}
         </span>
         {% else %}
@@ -27,7 +27,7 @@
     </td>
     <td data-label="Status">
         {% if booking.status == 'planned' %}
-        <span class="badge bg-warning">
+        <span class="badge text-bg-warning">
             <i class="bi bi-clock"></i> Geplant
         </span>
         {% else %}
@@ -38,7 +38,7 @@
     </td>
     <td data-label="Serie">
         {% if booking.series %}
-        <span class="badge bg-info">
+        <span class="badge text-bg-info">
             <i class="bi bi-arrow-repeat"></i> {{ booking.series.description }}
         </span>
         {% else %}
@@ -86,7 +86,10 @@
                 <li>
                     <button type="button"
                             class="dropdown-item text-danger"
-                            onclick="showDeleteModal({{ booking.id }}, '{{ booking.description|escapejs }}', '{% url 'bookings:delete' booking.id %}')">
+                            data-delete-confirm
+                            data-delete-url="{% url 'bookings:delete' booking.id %}"
+                            data-delete-title="Buchung löschen"
+                            data-delete-message='Sind Sie sicher, dass Sie die Buchung "{{ booking.description }}" löschen möchten?'>
                         <i class="bi bi-trash"></i> Löschen
                     </button>
                 </li>

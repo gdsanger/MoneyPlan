@@ -75,28 +75,6 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Buchung löschen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Sind Sie sicher, dass Sie diese Buchung löschen möchten?</p>
-                <p id="delete-booking-description" class="text-muted"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
-                    <i class="bi bi-trash"></i> Löschen
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
     // Update filter form HTMX attributes with correct URL
     document.addEventListener('DOMContentLoaded', function() {
@@ -112,28 +90,6 @@
         // Re-initialize HTMX after DOM updates
         if (window.htmx) {
             htmx.process(document.body);
-        }
-    });
-
-    // Delete modal handling
-    let deleteUrl = '';
-
-    function showDeleteModal(bookingId, description, url) {
-        deleteUrl = url;
-        document.getElementById('delete-booking-description').textContent = description;
-        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        deleteModal.show();
-    }
-
-    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
-        if (deleteUrl) {
-            // Use HTMX to delete and remove the row
-            htmx.ajax('POST', deleteUrl, {
-                target: 'closest tr',
-                swap: 'outerHTML'
-            });
-            const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-            deleteModal.hide();
         }
     });
 </script>

@@ -14,9 +14,6 @@
         </a>
     </div>
 
-    <!-- Error message container for delete errors -->
-    <div id="error-message-container"></div>
-
     {% include 'bookings/_category_section.html' with section_title='Einnahmen' section_icon='bi-arrow-down-circle' section_categories=income_categories section_badge_class='bg-success' %}
 
     {% include 'bookings/_category_section.html' with section_title='Ausgaben' section_icon='bi-arrow-up-circle' section_categories=expense_categories section_badge_class='bg-danger' %}
@@ -43,82 +40,4 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Kategorie löschen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Sind Sie sicher, dass Sie diese Kategorie löschen möchten?</p>
-                <p id="delete-category-name" class="text-muted"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
-                    <i class="bi bi-trash"></i> Löschen
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Delete modal handling
-    let deleteUrl = '';
-
-    function showDeleteModal(categoryId, categoryName, url) {
-        deleteUrl = url;
-        document.getElementById('delete-category-name').textContent = categoryName;
-        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-        deleteModal.show();
-    }
-
-    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
-        if (deleteUrl) {
-            // Clear previous error messages
-            document.getElementById('error-message-container').innerHTML = '';
-
-            // Use HTMX to delete and remove the row
-            fetch(deleteUrl, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
-                                   document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1],
-                    'HX-Request': 'true'
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    // Success - remove row
-                    const categoryId = deleteUrl.split('/').filter(x => x).slice(-2)[0];
-                    const row = document.getElementById('category-row-' + categoryId);
-                    if (row) {
-                        row.remove();
-                    }
-                    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-                    deleteModal.hide();
-                } else {
-                    // Error - show error message
-                    return response.text().then(text => {
-                        document.getElementById('error-message-container').innerHTML = text;
-                        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-                        deleteModal.hide();
-                        // Scroll to error message
-                        document.getElementById('error-message-container').scrollIntoView({ behavior: 'smooth' });
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('error-message-container').innerHTML =
-                    '<div class="alert alert-danger">Ein Fehler ist aufgetreten.</div>';
-                const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-                deleteModal.hide();
-            });
-        }
-    });
-</script>
 {% endblock %}

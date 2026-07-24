@@ -145,10 +145,38 @@
             {% endfor %}
         {% endif %}
 
+        <!-- Zielcontainer für Fehlermeldungen des zentralen Löschen-Musters (siehe app.js) -->
+        <div id="global-alert-container"></div>
+
         {% block content %}{% endblock %}
     </main>
 
     {% if not request.htmx %}
+    <!-- Zentrales Bestätigen-und-Löschen-Modal, gesteuert über data-delete-* Attribute (siehe app.js) -->
+    <div class="modal fade" id="globalDeleteModal" tabindex="-1" aria-labelledby="globalDeleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="globalDeleteModalLabel">Eintrag löschen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="globalDeleteModalMessage">Sind Sie sicher, dass Sie diesen Eintrag löschen möchten?</p>
+                    <div id="globalDeleteModalWarning" class="alert alert-warning d-none">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span id="globalDeleteModalWarningText"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-danger" id="globalDeleteConfirmBtn">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 

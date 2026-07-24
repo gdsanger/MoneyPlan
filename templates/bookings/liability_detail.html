@@ -38,7 +38,7 @@
                         <tr>
                             <th>Kategorie:</th>
                             <td>
-                                <span class="badge" style="background-color: {{ liability.category.color }}">
+                                <span class="badge" style="background-color: {{ liability.category.color }}; color: {{ liability.category.text_color }};">
                                     <i class="{{ liability.category.icon }}"></i> {{ liability.category.name }}
                                 </span>
                             </td>
@@ -151,7 +151,7 @@
                                 {% endif %}
                             </td>
                             <td data-label="Kategorie">
-                                <span class="badge" style="background-color: {{ booking.category.color }}">
+                                <span class="badge" style="background-color: {{ booking.category.color }}; color: {{ booking.category.text_color }};">
                                     <i class="{{ booking.category.icon }}"></i> {{ booking.category.name }}
                                 </span>
                             </td>
@@ -160,7 +160,7 @@
                                 {% if booking.status == 'booked' %}
                                 <span class="badge bg-success">Gebucht</span>
                                 {% else %}
-                                <span class="badge bg-warning">Geplant</span>
+                                <span class="badge text-bg-warning">Geplant</span>
                                 {% endif %}
                             </td>
                         </tr>

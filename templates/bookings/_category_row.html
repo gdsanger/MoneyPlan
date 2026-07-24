@@ -42,7 +42,10 @@
                 <li>
                     <button type="button"
                             class="dropdown-item text-danger"
-                            onclick="showDeleteModal({{ category.id }}, '{{ category.name|escapejs }}', '{% url 'category_delete' category.id %}')">
+                            data-delete-confirm
+                            data-delete-url="{% url 'category_delete' category.id %}"
+                            data-delete-title="Kategorie löschen"
+                            data-delete-message='Sind Sie sicher, dass Sie die Kategorie "{{ category.name }}" löschen möchten?'>
                         <i class="bi bi-trash"></i> Löschen
                     </button>
                 </li>

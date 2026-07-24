@@ -39,6 +39,19 @@ class Category(models.Model):
     def is_statistical(self):
         return self.category_type != 'neutral'
 
+    @property
+    def text_color(self):
+        """Kontrastfarbe für Badge-Text auf der frei gewählten `color` (YIQ-Helligkeitsformel)."""
+        hex_color = (self.color or '').lstrip('#')
+        if len(hex_color) != 6:
+            return '#ffffff'
+        try:
+            r, g, b = (int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+        except ValueError:
+            return '#ffffff'
+        yiq = (r * 299 + g * 587 + b * 114) / 1000
+        return '#000000' if yiq >= 128 else '#ffffff'
+
 
 class RecurringSeries(models.Model):
     """Wiederkehrende Buchungen (Serie)"""

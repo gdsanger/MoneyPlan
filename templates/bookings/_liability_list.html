@@ -10,7 +10,7 @@
         {% endif %}
     </td>
     <td data-label="Kategorie">
-        <span class="badge" style="background-color: {{ liability.category.color }}">
+        <span class="badge" style="background-color: {{ liability.category.color }}; color: {{ liability.category.text_color }};">
             <i class="{{ liability.category.icon }}"></i> {{ liability.category.name }}
         </span>
     </td>
@@ -70,7 +70,12 @@
                 <li>
                     <button type="button"
                             class="dropdown-item text-danger"
-                            onclick="showDeleteModal({{ liability.id }}, '{{ liability.name|escapejs }}')">
+                            data-delete-confirm
+                            data-delete-url="{% url 'bookings:liability_delete' liability.id %}"
+                            data-delete-title="Verbindlichkeit löschen"
+                            data-delete-message='Verbindlichkeit "{{ liability.name }}" wirklich löschen?'
+                            data-delete-warning="Verknüpfte Buchungen bleiben erhalten (ohne Zuordnung)."
+                            data-delete-reload-full="true">
                         <i class="bi bi-trash"></i> Löschen
                     </button>
                 </li>
