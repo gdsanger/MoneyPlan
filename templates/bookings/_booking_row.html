@@ -1,3 +1,4 @@
+{% load badge_extras %}
 <tr id="booking-row-{{ booking.id }}">
     <td data-label="Datum">{{ booking.date|date:"d.m.Y" }}</td>
     <td class="table-stack-heading">
@@ -13,32 +14,32 @@
     </td>
     <td data-label="Kategorie">
         {% if booking.category %}
-        <span class="badge" style="background-color: {{ booking.category.color }};">
+        <span class="badge" style="background-color: {{ booking.category.color }}; color: {{ booking.category.color|contrast_text_color }};">
             <i class="bi {{ booking.category.icon }}"></i> {{ booking.category.name }}
         </span>
         {% else %}
         <span class="text-muted">-</span>
         {% endif %}
         {% if booking.liability %}
-        <span class="badge bg-secondary ms-1" title="Verbindlichkeit">
+        <span class="badge text-bg-secondary ms-1" title="Verbindlichkeit">
             <i class="bi bi-credit-card"></i> {{ booking.liability.name }}
         </span>
         {% endif %}
     </td>
     <td data-label="Status">
         {% if booking.status == 'planned' %}
-        <span class="badge bg-warning">
+        <span class="badge text-bg-warning">
             <i class="bi bi-clock"></i> Geplant
         </span>
         {% else %}
-        <span class="badge bg-success">
+        <span class="badge text-bg-success">
             <i class="bi bi-check-circle-fill"></i> Gebucht
         </span>
         {% endif %}
     </td>
     <td data-label="Serie">
         {% if booking.series %}
-        <span class="badge bg-info">
+        <span class="badge text-bg-info">
             <i class="bi bi-arrow-repeat"></i> {{ booking.series.description }}
         </span>
         {% else %}
@@ -86,7 +87,10 @@
                 <li>
                     <button type="button"
                             class="dropdown-item text-danger"
-                            onclick="showDeleteModal({{ booking.id }}, '{{ booking.description|escapejs }}', '{% url 'bookings:delete' booking.id %}')">
+                            data-delete-url="{% url 'bookings:delete' booking.id %}"
+                            data-delete-title="Buchung löschen"
+                            data-delete-message="Buchung „{{ booking.description }}“ wirklich löschen?"
+                            data-delete-target="#booking-row-{{ booking.id }}">
                         <i class="bi bi-trash"></i> Löschen
                     </button>
                 </li>

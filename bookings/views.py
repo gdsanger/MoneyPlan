@@ -842,6 +842,9 @@ def series_delete(request, series_id):
     series.bookings.all().delete()
     series.delete()
 
+    if request.htmx:
+        return HttpResponse('')
+
     # Add success message
     messages.success(
         request,

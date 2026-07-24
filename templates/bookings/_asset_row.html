@@ -69,7 +69,10 @@
                 <li>
                     <button type="button"
                             class="dropdown-item text-danger"
-                            onclick="showDeleteModal({{ asset.id }}, '{{ asset.name|escapejs }}')">
+                            data-delete-url="{% url 'bookings:asset_delete' asset.id %}"
+                            data-delete-title="Vermögensgegenstand löschen"
+                            data-delete-message="Vermögensgegenstand „{{ asset.name }}“ wirklich löschen?"
+                            data-delete-target="#asset-row-{{ asset.id }}">
                         <i class="bi bi-trash"></i> Löschen
                     </button>
                 </li>

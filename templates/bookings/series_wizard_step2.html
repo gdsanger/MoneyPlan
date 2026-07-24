@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load badge_extras %}
 
 {% block title %}Neue Serie - Schritt 2 - MoneyPlan{% endblock %}
 
@@ -80,7 +81,7 @@
                             <tr>
                                 <th>Kategorie:</th>
                                 <td>
-                                    <span class="badge" style="background-color: {{ category.color }}">
+                                    <span class="badge" style="background-color: {{ category.color }}; color: {{ category.color|contrast_text_color }};">
                                         <i class="bi bi-{{ category.icon }}"></i> {{ category.name }}
                                     </span>
                                 </td>
@@ -139,7 +140,7 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <span class="badge" style="background-color: {{ category.color }}">
+                                        <span class="badge" style="background-color: {{ category.color }}; color: {{ category.color|contrast_text_color }};">
                                             <i class="bi bi-{{ category.icon }}"></i> {{ category.name }}
                                         </span>
                                     </td>

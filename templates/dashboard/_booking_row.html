@@ -1,3 +1,4 @@
+{% load badge_extras %}
 <tr id="booking-row-{{ booking.id }}" class="{% if booking.date < today %}table-danger{% endif %}">
     <td data-label="Datum">{{ booking.date|date:"d.m.Y" }}</td>
     <td class="table-stack-heading">{{ booking.description }}</td>
@@ -6,7 +7,7 @@
     </td>
     <td data-label="Kategorie">
         {% if booking.category %}
-        <span class="badge" style="background-color: {{ booking.category.color }};">
+        <span class="badge" style="background-color: {{ booking.category.color }}; color: {{ booking.category.color|contrast_text_color }};">
             <i class="bi bi-{{ booking.category.icon }}"></i> {{ booking.category.name }}
         </span>
         {% else %}
@@ -24,7 +25,7 @@
             <i class="bi bi-check-circle"></i> Als gebucht markieren
         </button>
         {% else %}
-        <span class="badge bg-success">
+        <span class="badge text-bg-success">
             <i class="bi bi-check-circle-fill"></i> Gebucht
         </span>
         {% endif %}

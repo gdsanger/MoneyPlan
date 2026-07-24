@@ -34,15 +34,15 @@
                     <tr>
                         <td class="table-stack-heading">
                             {% if alert.alert_type == 'due_soon' %}
-                            <span class="badge bg-warning">
+                            <span class="badge text-bg-warning">
                                 <i class="bi bi-clock"></i> {{ alert.get_alert_type_display }}
                             </span>
                             {% elif alert.alert_type == 'overdue' %}
-                            <span class="badge bg-danger">
+                            <span class="badge text-bg-danger">
                                 <i class="bi bi-exclamation-triangle"></i> {{ alert.get_alert_type_display }}
                             </span>
                             {% elif alert.alert_type == 'liquidity' %}
-                            <span class="badge bg-danger">
+                            <span class="badge text-bg-danger">
                                 <i class="bi bi-cash-stack"></i> {{ alert.get_alert_type_display }}
                             </span>
                             {% endif %}
