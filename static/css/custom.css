@@ -18,6 +18,21 @@
     justify-content: center;
 }
 
+/* --- Navigation: aktiver Bereich ---------------------------------------- */
+/* Bootstraps Standard-Aktiv-Farbe (nur Weiß statt gedimmtes Weiß) ist im
+   Dark Theme zu subtil, um auf einen Blick zu erkennen, wo man sich befindet. */
+.navbar .nav-link.active,
+.navbar .dropdown-toggle.active {
+    color: var(--bs-info) !important;
+    font-weight: 600;
+}
+
+#mobileNav .nav-link.active {
+    background-color: rgba(var(--bs-primary-rgb), 0.15);
+    color: var(--bs-info) !important;
+    border-radius: 0.375rem;
+}
+
 /* --- Utilities: Tabelle → Karten (mobile) ----------------------------- */
 /* Platzhalter für das "Tabelle→Karten"-Muster auf schmalen Viewports.
    Konkrete Umsetzung erfolgt in den jeweiligen Kind-Issues; hier nur die
@@ -33,6 +48,41 @@
 @media (min-width: 768px) {
     .table-cards {
         /* ab md: normale Tabellendarstellung */
+    }
+}
+
+/* --- Mobile Schnellzugriff (Bottom-Bar) -------------------------------- */
+/* Feste Leiste für die 1-2 wichtigsten Aktionen (Neue Buchung / Aus Beleg),
+   damit sie am Handy ohne Umweg über das Menü erreichbar sind. Nur < lg,
+   Bootstraps Breakpoint für den Umschlag der Navbar auf ein Hamburger-Menü. */
+.mobile-quick-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    background-color: var(--bs-dark);
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.mobile-quick-actions .btn {
+    flex: 1;
+}
+
+@media (min-width: 992px) {
+    .mobile-quick-actions {
+        display: none;
+    }
+}
+
+/* Platz für die Bottom-Bar reservieren, damit sie den Seiteninhalt nicht verdeckt. */
+@media (max-width: 991.98px) {
+    main.has-mobile-quick-actions {
+        padding-bottom: 4.5rem;
     }
 }
 

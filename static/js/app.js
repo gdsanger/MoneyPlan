@@ -24,9 +24,50 @@
         });
     }
 
+    // Schließt das mobile Offcanvas-Menü, sobald ein Link darin angeklickt wird
+    // (Bootstrap tut das nicht von selbst, anders als beim klassischen Collapse-Menü).
+    function initMobileNavAutoClose() {
+        var offcanvasEl = document.getElementById('mobileNav');
+        if (!offcanvasEl) {
+            return;
+        }
+        offcanvasEl.querySelectorAll('.nav-link').forEach(function (link) {
+            link.addEventListener('click', function () {
+                var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) {
+                    instance.hide();
+                }
+            });
+        });
+    }
+
+    // Der mobile Schnellzugriff (FAB/Bottom-Bar) verlinkt auf die Buchungsliste
+    // mit ?quickaction=..., damit von jeder Seite aus direkt das passende Modal
+    // aufgeht, statt eine eigene Zielseite pro Aktion pflegen zu müssen.
+    function openQuickAction() {
+        var params = new URLSearchParams(window.location.search);
+        var action = params.get('quickaction');
+        if (!action) {
+            return;
+        }
+
+        var triggerId = action === 'receipt' ? 'quickReceiptBtn' : action === 'create' ? 'quickNewBookingBtn' : null;
+        var trigger = triggerId ? document.getElementById(triggerId) : null;
+        if (trigger) {
+            trigger.click();
+        }
+
+        params.delete('quickaction');
+        var query = params.toString();
+        var cleanUrl = window.location.pathname + (query ? '?' + query : '') + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initTooltips(document);
         initPopovers(document);
+        initMobileNavAutoClose();
+        openQuickAction();
     });
 
     // HTMX tauscht Teile des DOM aus – Bootstrap-Komponenten in neu
