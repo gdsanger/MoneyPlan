@@ -115,6 +115,60 @@ class AlertViewsTestCase(TestCase):
         self.assertContains(response, 'hx-get')
         self.assertContains(response, 'hx-trigger="every 60s"')
 
+    def test_run_checks_requires_login(self):
+        """Test that the manual check endpoint requires login"""
+        response = self.client.post(reverse('alerts:run'))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith('/accounts/login/'))
+
+    def test_run_checks_get_not_allowed(self):
+        """Test that the manual check endpoint only accepts POST"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.get(reverse('alerts:run'))
+
+        self.assertEqual(response.status_code, 405)
+
+    def test_run_checks_creates_and_cleans_up_alerts(self):
+        """Test that the manual check endpoint runs checks and cleanup"""
+        self.client.login(username='testuser', password='testpass123')
+
+        # Booking due soon: should trigger a new alert
+        due_booking = Booking.objects.create(
+            date=date.today() + timedelta(days=1),
+            description='Due Soon Payment',
+            amount=Decimal('-50.00'),
+            status='planned',
+            category=self.category
+        )
+
+        # Resolved alert for an already-booked booking: should be cleaned up
+        booked_booking = Booking.objects.create(
+            date=date.today() - timedelta(days=1),
+            description='Already Booked',
+            amount=Decimal('-20.00'),
+            status='booked',
+            category=self.category
+        )
+        Alert.objects.create(
+            alert_type='overdue',
+            booking=booked_booking,
+            message='Stale alert',
+            dedup_key='stale_alert'
+        )
+
+        response = self.client.post(reverse('alerts:run'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'alerts/_run_result.html')
+        self.assertContains(response, 'Prüfung abgeschlossen')
+
+        # New alert for the due-soon booking was created
+        self.assertTrue(Alert.objects.filter(booking=due_booking).exists())
+        # Resolved alert for the booked booking was removed
+        self.assertFalse(Alert.objects.filter(dedup_key='stale_alert').exists())
+        self.assertContains(response, 'Due Soon Payment')
+        self.assertNotContains(response, 'Already Booked')
+
     def test_alert_settings_requires_login(self):
         """Test that alert settings requires login"""
         response = self.client.get(reverse('alerts:settings'))

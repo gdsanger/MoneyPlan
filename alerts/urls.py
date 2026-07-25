@@ -5,6 +5,7 @@ app_name = 'alerts'
 
 urlpatterns = [
     path('', views.alert_list, name='list'),
+    path('run/', views.run_checks, name='run'),
     path('einstellungen/', views.alert_settings, name='settings'),
     path('test-mail/', views.test_mail, name='test_mail'),
 ]

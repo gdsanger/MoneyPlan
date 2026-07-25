@@ -8,77 +8,27 @@
         <h1>
             <i class="bi bi-bell"></i> Alerts & Fälligkeiten
         </h1>
-        <a href="{% url 'alerts:settings' %}" class="btn btn-primary">
-            <i class="bi bi-gear"></i> Einstellungen
-        </a>
+        <div>
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    hx-post="{% url 'alerts:run' %}"
+                    hx-target="#alert-list-container"
+                    hx-swap="innerHTML"
+                    hx-indicator="#run-check-indicator">
+                <i class="bi bi-arrow-repeat"></i> Jetzt prüfen
+                <span id="run-check-indicator" class="htmx-indicator spinner-border spinner-border-sm ms-1" role="status"></span>
+            </button>
+            <a href="{% url 'alerts:settings' %}" class="btn btn-primary">
+                <i class="bi bi-gear"></i> Einstellungen
+            </a>
+        </div>
     </div>
 
     <div id="alert-list-container"
          hx-get="{% url 'alerts:list' %}"
          hx-trigger="every 60s"
          hx-swap="innerHTML">
-        {% if alerts %}
-        <div class="table-responsive">
-            <table class="table table-hover table-stack">
-                <thead>
-                    <tr>
-                        <th>Typ</th>
-                        <th>Meldung</th>
-                        <th>Buchung</th>
-                        <th>Datum</th>
-                        <th class="text-center">Mail gesendet</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for alert in alerts %}
-                    <tr>
-                        <td class="table-stack-heading">
-                            {% if alert.alert_type == 'due_soon' %}
-                            <span class="badge text-bg-warning">
-                                <i class="bi bi-clock"></i> {{ alert.get_alert_type_display }}
-                            </span>
-                            {% elif alert.alert_type == 'overdue' %}
-                            <span class="badge text-bg-danger">
-                                <i class="bi bi-exclamation-triangle"></i> {{ alert.get_alert_type_display }}
-                            </span>
-                            {% elif alert.alert_type == 'liquidity' %}
-                            <span class="badge text-bg-danger">
-                                <i class="bi bi-cash-stack"></i> {{ alert.get_alert_type_display }}
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Meldung">{{ alert.message }}</td>
-                        <td data-label="Buchung">
-                            {% if alert.booking %}
-                            <a href="{% url 'bookings:list' %}?id={{ alert.booking.id }}" class="text-decoration-none">
-                                {{ alert.booking.description }}
-                            </a>
-                            {% else %}
-                            <span class="text-muted">—</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Datum">{{ alert.created_at|date:"d.m.Y H:i" }}</td>
-                        <td class="text-center" data-label="Mail gesendet">
-                            {% if alert.mail_sent %}
-                            <i class="bi bi-check-circle text-success"></i>
-                            {% else %}
-                            <i class="bi bi-x-circle text-muted"></i>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="card">
-            <div class="card-body text-center py-5">
-                <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
-                <h4 class="mt-3">Keine aktiven Alerts — alles im grünen Bereich ✓</h4>
-                <p class="text-muted">Es gibt derzeit keine Warnungen oder anstehenden Fälligkeiten.</p>
-            </div>
-        </div>
-        {% endif %}
+        {% include "alerts/_alert_table.html" %}
     </div>
 </div>
 {% endblock %}
