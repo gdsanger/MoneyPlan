@@ -1,0 +1,39 @@
+# Reference nginx snippet for the MoneyPlan MCP server.
+#
+# The MCP server is a separate long-running process (started via
+# `manage.py mcp_serve`, see mcp_server/README.md), listening on
+# 127.0.0.1:8800 by default. It is NOT part of the Gunicorn/WSGI Django
+# process, since Streamable HTTP needs a persistent ASGI event loop that a
+# synchronous WSGI worker can't provide.
+#
+# Include this inside the existing `server { listen 443 ssl; ... }` block for
+# mp.angerlabs.de, alongside the location that proxies to Gunicorn.
+#
+# Hardening applied here (see epic acceptance criteria):
+# - dedicated log_format that omits the query string (the access token lives
+#   in ?token=..., which must never land in a plaintext log file)
+# - Cache-Control: no-store, so the token is never cached by nginx or a
+#   downstream cache
+# - this location only makes sense under the TLS-terminating server block;
+#   do not add an equivalent location to a plain :80 server block
+
+log_format mcp_no_query '$remote_addr - [$time_local] "$request_method $uri $server_protocol" '
+                        '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
+
+location /mcp/ {
+    proxy_pass http://127.0.0.1:8800/mcp/;
+
+    # Streamable HTTP / SSE: keep the connection open, disable buffering.
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_buffering off;
+    proxy_read_timeout 3600s;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    access_log /var/log/nginx/mcp_access.log mcp_no_query;
+    add_header Cache-Control "no-store" always;
+}
