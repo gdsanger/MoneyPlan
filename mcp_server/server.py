@@ -10,6 +10,8 @@ plumbing.
 """
 from asgiref.sync import sync_to_async
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from . import logic
 
@@ -21,9 +23,18 @@ mcp = FastMCP(
         "Kategorien und Kunden werden per eindeutigem Namen referenziert - bei Bedarf "
         "list_categories/list_clients aufrufen, um gueltige Namen zu ermitteln."
     ),
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[
+            "mpmcp.angerlabs.de",      # der Weg über NPM (produktiv)
+            "127.0.0.1:8888",
+            "localhost:8888",
+            "178.105.124.17:8888",     # nur für deinen direkten IP-Test
+        ],
+        allowed_origins=["https://mpmcp.angerlabs.de"],
+    ),
     stateless_http=True,
 )
-
 
 @mcp.tool()
 async def create_booking(

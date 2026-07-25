@@ -12,10 +12,14 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
+import environ
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+# Environment variables
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / '.env')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -26,11 +30,14 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-key-change-this-i
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['mp.angerlabs.de', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['mp.angerlabs.de', 'localhost', '127.0.0.1', 'mpmcp.angerlabs.de','127.0.0.1:8888','178.105.124.17:8888']
 # Wichtig: ab Django 4.x MIT Schema!
 CSRF_TRUSTED_ORIGINS = [
     "https://mp.angerlabs.de",
+    "https://mpmcp.angerlabs.de",
     "http://localhost",
+    "http://127.0.0.1:8888",
+    "http://178.105.124.17:8888",
     # optional Wildcard, falls mehrere Subdomains:
     # "https://*.angermeier.net",
 ]
