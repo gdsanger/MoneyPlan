@@ -21,7 +21,9 @@ mcp = FastMCP(
         "Werkzeuge fuer die MoneyPlan-Haushaltsplanung: Buchungen anlegen und lesen, "
         "faellige/ueberfaellige Buchungen pruefen, Zeiterfassung sowie Serienbuchungen. "
         "Kategorien und Kunden werden per eindeutigem Namen referenziert - bei Bedarf "
-        "list_categories/list_clients aufrufen, um gueltige Namen zu ermitteln."
+        "list_categories/list_clients aufrufen, um gueltige Namen zu ermitteln. "
+        "Belege/Rechnungen koennen per add_booking_attachment (Base64) an eine "
+        "Buchung angehaengt werden."
     ),
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
@@ -70,7 +72,8 @@ async def list_planned_bookings(
     """Listet ausschliesslich geplante Buchungen (status='planned'), optional gefiltert
     nach Datumsbereich (YYYY-MM-DD), Kategorie (Name oder ID) und/oder begrenzt auf die
     ersten `limit` Treffer (sortiert nach Datum aufsteigend). Gebuchte Buchungen werden
-    nie zurueckgegeben."""
+    nie zurueckgegeben. Jeder Eintrag enthaelt 'attachment_count' - Anzahl bereits
+    angehaengter Belege (siehe add_booking_attachment/list_booking_attachments)."""
     return await sync_to_async(logic.list_planned_bookings, thread_sensitive=True)(
         date_from, date_to, category, limit
     )
@@ -90,6 +93,7 @@ async def list_due_bookings(
     days_before_due: Vorlauf in Tagen fuer 'faellig'; Default aus AlertConfig (Singleton).
     include_overdue / include_due_soon: je Default True, um eine der beiden Gruppen auszublenden.
     limit: optionale Begrenzung der Trefferanzahl (sortiert nach Datum aufsteigend).
+    Jeder Eintrag enthaelt 'attachment_count' - Anzahl bereits angehaengter Belege.
     """
     return await sync_to_async(logic.list_due_bookings, thread_sensitive=True)(
         days_before_due, include_overdue, include_due_soon, limit
@@ -101,6 +105,47 @@ async def list_categories() -> list[dict]:
     """Listet alle Kategorien mit Name und Typ - zur Aufloesung von Kategorie-Namen
     fuer create_booking/create_recurring_series."""
     return await sync_to_async(logic.list_categories, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def add_booking_attachment(
+    booking_id: int,
+    filename: str,
+    content_base64: str,
+) -> dict:
+    """Haengt einen Beleg/eine Rechnung (Base64-kodiert) als echten Datei-Anhang an
+    eine bestehende Buchung an - ueber dieselbe attachments-App wie das Web-UI.
+
+    booking_id: ID einer bestehenden Buchung.
+    filename: Dateiname inkl. Endung (z.B. 'rechnung_2026-08.pdf').
+    content_base64: Dateiinhalt Base64-kodiert. Gedacht fuer Belege < 100 KB;
+    MCP-seitig auf 2 MB (dekodiert) begrenzt, unabhaengig vom serverseitigen
+    Limit. Der tatsaechliche Dateityp wird serverseitig per Inhaltspruefung
+    (nicht anhand des Dateinamens) validiert - erlaubt sind u.a. PDF, gaengige
+    Bildformate, Office-Dokumente, CSV und Text; zu große oder nicht erlaubte
+    Dateien fuehren zu einem Fehler statt einem stillen Bypass.
+    """
+    return await sync_to_async(logic.add_booking_attachment, thread_sensitive=True)(
+        booking_id, filename, content_base64
+    )
+
+
+@mcp.tool()
+async def list_booking_attachments(booking_id: int) -> list[dict]:
+    """Listet alle Anhaenge (Belege/Rechnungen) einer Buchung, neueste zuerst,
+    inkl. relativer Download-URL ('url')."""
+    return await sync_to_async(logic.list_booking_attachments, thread_sensitive=True)(
+        booking_id
+    )
+
+
+@mcp.tool()
+async def delete_booking_attachment(attachment_id: int) -> dict:
+    """Loescht einen Anhang (Datei + Datensatz) anhand seiner attachment_id
+    (siehe list_booking_attachments)."""
+    return await sync_to_async(logic.delete_booking_attachment, thread_sensitive=True)(
+        attachment_id
+    )
 
 
 @mcp.tool()

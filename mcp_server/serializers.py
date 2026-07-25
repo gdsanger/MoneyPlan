@@ -34,6 +34,20 @@ def serialize_time_entry(entry):
     }
 
 
+def serialize_attachment(attachment, include_url=False):
+    data = {
+        'attachment_id': attachment.id,
+        'filename': attachment.filename,
+        'file_size': attachment.file_size,
+        'file_size_display': attachment.file_size_display,
+        'mime_type': attachment.mime_type,
+        'uploaded_at': attachment.uploaded_at.isoformat(),
+    }
+    if include_url:
+        data['url'] = attachment.file.url
+    return data
+
+
 def serialize_series(series):
     return {
         'id': series.id,
