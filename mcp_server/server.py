@@ -105,11 +105,14 @@ async def list_time_entries(
     date_to: str | None = None,
     client: str | None = None,
     billed: bool | None = None,
+    limit: int | None = None,
 ) -> list[dict]:
-    """Listet Zeiterfassungseintraege, optional gefiltert nach Datumsbereich
-    (YYYY-MM-DD), Kunden-Name und Abrechnungsstatus."""
+    """Listet Zeiterfassungseintraege, neueste zuerst, optional gefiltert nach
+    Datumsbereich (YYYY-MM-DD), Kunde (Name oder ID), Abrechnungsstatus und/oder
+    begrenzt auf die ersten `limit` Treffer. Jeder Eintrag enthaelt 'amount'
+    (= duration x hourly_rate, berechnet)."""
     return await sync_to_async(logic.list_time_entries, thread_sensitive=True)(
-        date_from, date_to, client, billed
+        date_from, date_to, client, billed, limit
     )
 
 
@@ -125,7 +128,7 @@ async def create_time_entry(
 ) -> dict:
     """Erfasst einen neuen Zeiteintrag.
 
-    client: Name eines bestehenden Kunden (siehe list_clients).
+    client: Name oder ID eines bestehenden Kunden (siehe list_clients).
     date: Datum im Format YYYY-MM-DD.
     duration: Dauer in Stunden (z.B. 1.5 = 1h 30min), muss > 0 sein.
     hourly_rate: Stundensatz, darf nicht negativ sein.
@@ -146,7 +149,8 @@ async def update_time_entry(
     notes: str | None = None,
     billed: bool | None = None,
 ) -> dict:
-    """Aendert einen bestehenden Zeiteintrag. Nur uebergebene Felder werden geaendert."""
+    """Aendert einen bestehenden Zeiteintrag. Nur uebergebene Felder werden
+    geaendert. client kann Name oder ID sein."""
     return await sync_to_async(logic.update_time_entry, thread_sensitive=True)(
         entry_id, client, date, duration, hourly_rate, description, notes, billed
     )

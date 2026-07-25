@@ -261,6 +261,14 @@ class ResolverTestCase(McpTestDataMixin, TestCase):
     def test_resolve_client_by_name(self):
         self.assertEqual(resolve_client("Acme GmbH").pk, self.client_obj.pk)
 
+    def test_resolve_client_by_id(self):
+        self.assertEqual(resolve_client(self.client_obj.pk).pk, self.client_obj.pk)
+        self.assertEqual(resolve_client(str(self.client_obj.pk)).pk, self.client_obj.pk)
+
+    def test_resolve_client_unknown_id_raises(self):
+        with self.assertRaises(ValueError):
+            resolve_client(999999)
+
     def test_resolve_client_not_found(self):
         with self.assertRaises(ValueError):
             resolve_client("Ghost Inc")
@@ -299,6 +307,12 @@ class TimeEntryTestCase(McpTestDataMixin, TestCase):
         with self.assertRaises(ValueError):
             logic.create_time_entry(client="Ghost", date="2026-07-01", duration=1, hourly_rate=10, description="x")
 
+    def test_create_resolves_client_by_id(self):
+        result = logic.create_time_entry(
+            client=self.client_obj.pk, date="2026-07-01", duration=1, hourly_rate=10, description="x",
+        )
+        self.assertEqual(result['client'], "Acme GmbH")
+
     def test_empty_description_rejected(self):
         with self.assertRaises(ValueError):
             logic.create_time_entry(client="Acme GmbH", date="2026-07-01", duration=1, hourly_rate=10, description=" ")
@@ -325,6 +339,15 @@ class TimeEntryTestCase(McpTestDataMixin, TestCase):
         result = logic.update_time_entry(entry.id, client="Beta AG")
         self.assertEqual(result['client'], "Beta AG")
 
+    def test_update_resolves_client_by_id(self):
+        other_client = Client.objects.create(name="Beta AG")
+        entry = TimeEntry.objects.create(
+            client=self.client_obj, date=date(2026, 7, 1), duration=Decimal('1.00'),
+            hourly_rate=Decimal('50.00'), description="Original",
+        )
+        result = logic.update_time_entry(entry.id, client=other_client.pk)
+        self.assertEqual(result['client'], "Beta AG")
+
     def test_list_time_entries_filters(self):
         TimeEntry.objects.create(
             client=self.client_obj, date=date(2026, 7, 1), duration=Decimal('1.00'),
@@ -337,6 +360,54 @@ class TimeEntryTestCase(McpTestDataMixin, TestCase):
         self.assertEqual(len(logic.list_time_entries(billed=True)), 1)
         self.assertEqual(len(logic.list_time_entries(billed=False)), 1)
         self.assertEqual(len(logic.list_time_entries(client="Acme GmbH")), 2)
+        self.assertEqual(len(logic.list_time_entries(client=self.client_obj.pk)), 2)
+
+    def test_list_time_entries_result_fields_and_amount(self):
+        TimeEntry.objects.create(
+            client=self.client_obj, date=date(2026, 7, 1), duration=Decimal('1.50'),
+            hourly_rate=Decimal('100.00'), description="A",
+        )
+        result = logic.list_time_entries()
+        self.assertEqual(len(result), 1)
+        entry = result[0]
+        self.assertEqual(
+            set(entry),
+            {'id', 'client', 'date', 'duration', 'hourly_rate', 'amount', 'description', 'notes', 'billed'},
+        )
+        self.assertEqual(entry['amount'], '150.00')
+
+    def test_list_time_entries_sorted_newest_first(self):
+        older = TimeEntry.objects.create(
+            client=self.client_obj, date=date(2026, 7, 1), duration=Decimal('1.00'),
+            hourly_rate=Decimal('50.00'), description="Older",
+        )
+        newer = TimeEntry.objects.create(
+            client=self.client_obj, date=date(2026, 7, 2), duration=Decimal('1.00'),
+            hourly_rate=Decimal('50.00'), description="Newer",
+        )
+        result = logic.list_time_entries()
+        self.assertEqual([e['id'] for e in result], [newer.id, older.id])
+
+    def test_list_time_entries_limit_restricts_result_count(self):
+        for i in range(3):
+            TimeEntry.objects.create(
+                client=self.client_obj, date=date(2026, 7, 1 + i), duration=Decimal('1.00'),
+                hourly_rate=Decimal('50.00'), description=f"Entry {i}",
+            )
+        result = logic.list_time_entries(limit=2)
+        self.assertEqual(len(result), 2)
+
+    def test_list_time_entries_zero_limit_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_time_entries(limit=0)
+
+    def test_list_time_entries_invalid_limit_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_time_entries(limit="abc")
+
+    def test_list_time_entries_unknown_client_filter_raises(self):
+        with self.assertRaises(ValueError):
+            logic.list_time_entries(client="Nichtvorhanden")
 
 
 class RecurringSeriesTestCase(McpTestDataMixin, TestCase):

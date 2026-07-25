@@ -41,10 +41,29 @@ def resolve_category(name) -> Category:
         )
 
 
-def resolve_client(name: str) -> Client:
+def resolve_client(name) -> Client:
+    """Resolve a Client by name (case-insensitive) or numeric id.
+
+    Mirrors resolve_category: accepts both, since some tools surface a
+    client id in prior results (e.g. list_time_entries) that callers may
+    want to pass straight back in.
+    """
+    if isinstance(name, int):
+        try:
+            return Client.objects.get(pk=name)
+        except Client.DoesNotExist:
+            raise ValueError(f"Kunde mit ID {name} nicht gefunden.")
+
     name = (name or '').strip()
     if not name:
         raise ValueError("Kunde darf nicht leer sein.")
+
+    if name.isdigit():
+        try:
+            return Client.objects.get(pk=int(name))
+        except Client.DoesNotExist:
+            pass
+
     try:
         return Client.objects.get(name__iexact=name)
     except Client.DoesNotExist:

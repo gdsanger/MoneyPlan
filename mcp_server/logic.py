@@ -181,7 +181,7 @@ def list_clients():
     return [{'name': client.name, 'notes': client.notes} for client in Client.objects.order_by('name')]
 
 
-def list_time_entries(date_from=None, date_to=None, client=None, billed=None):
+def list_time_entries(date_from=None, date_to=None, client=None, billed=None, limit=None):
     qs = TimeEntry.objects.all()
     if date_from is not None:
         qs = qs.filter(date__gte=_parse_date(date_from, 'date_from'))
@@ -191,7 +191,15 @@ def list_time_entries(date_from=None, date_to=None, client=None, billed=None):
         qs = qs.filter(client=resolve_client(client))
     if billed is not None:
         qs = qs.filter(billed=bool(billed))
-    qs = qs.select_related('client').order_by('-date', '-id')
+    qs = qs.select_related('client').order_by('-date', '-created_at')
+    if limit is not None:
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            raise ValueError(f"Ungültiges Limit: {limit!r}")
+        if limit <= 0:
+            raise ValueError("Limit muss größer als 0 sein.")
+        qs = qs[:limit]
     return [serialize_time_entry(entry) for entry in qs]
 
 
