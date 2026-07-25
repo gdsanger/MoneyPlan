@@ -346,6 +346,23 @@ class SeriesViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Betrag anpassen')
 
+    def test_series_amount_change_modal_has_no_nested_form(self):
+        """Regression: crispy must not render its own <form>, or the outer hx-post form breaks"""
+        series = RecurringSeries.objects.create(
+            description='Test Series',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            category=self.category
+        )
+
+        response = self.client.get(
+            reverse('bookings:series_amount_change', args=[series.id]),
+            HTTP_HX_REQUEST='true'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode().count('<form'), 1)
+
     def test_series_amount_change_updates_only_future_planned_bookings(self):
         """Test that only planned bookings on/after the cutoff date are updated"""
         series = RecurringSeries.objects.create(
