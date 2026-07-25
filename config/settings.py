@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'ai',
     'timetracking',
     'reimbursements',
+    'mcp_server',
 ]
 
 MIDDLEWARE = [
@@ -188,3 +189,13 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Dashboard forecast horizon (future months; current month is added separately)
 FORECAST_MONTHS = 6
+
+# MCP server (mcp_server app) — static access token for the Streamable HTTP endpoint.
+# Accepted via query string (?token=...) or "Authorization: Bearer ..." header.
+# Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+MCP_ACCESS_TOKEN = os.environ.get('MCP_ACCESS_TOKEN', '')
+MCP_SERVER_HOST = os.environ.get('MCP_SERVER_HOST', '127.0.0.1')
+MCP_SERVER_PORT = int(os.environ.get('MCP_SERVER_PORT', '8800'))
+# Reject requests that don't arrive over HTTPS (checked via X-Forwarded-Proto,
+# set by the reverse proxy). Disabled automatically in DEBUG for local testing.
+MCP_REQUIRE_HTTPS = os.environ.get('MCP_REQUIRE_HTTPS', str(not DEBUG)) == 'True'
