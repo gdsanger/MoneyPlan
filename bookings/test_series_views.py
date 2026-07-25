@@ -219,6 +219,119 @@ class SeriesViewsTestCase(TestCase):
         # Series should still exist
         self.assertEqual(RecurringSeries.objects.count(), 1)
 
+    def test_series_archive_deletes_only_planned_bookings(self):
+        """Archiving a series removes planned bookings but keeps booked ones and the series itself"""
+        series = RecurringSeries.objects.create(
+            description='Miete',
+            amount=Decimal('-100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            category=self.category
+        )
+        booked = Booking.objects.create(
+            date=date(2024, 1, 1),
+            description='Miete',
+            amount=Decimal('-100.00'),
+            category=self.category,
+            series=series,
+            status='booked'
+        )
+        planned = Booking.objects.create(
+            date=date(2024, 2, 1),
+            description='Miete',
+            amount=Decimal('-100.00'),
+            category=self.category,
+            series=series,
+            status='planned'
+        )
+
+        response = self.client.post(reverse('bookings:series_archive', args=[series.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('bookings:series_list'))
+
+        series.refresh_from_db()
+        self.assertTrue(series.archived)
+        self.assertTrue(Booking.objects.filter(pk=booked.pk).exists())
+        self.assertFalse(Booking.objects.filter(pk=planned.pk).exists())
+
+    def test_series_archive_requires_post(self):
+        """Archiving requires POST"""
+        series = RecurringSeries.objects.create(
+            description='Test Series',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            category=self.category
+        )
+
+        response = self.client.get(reverse('bookings:series_archive', args=[series.id]))
+        self.assertEqual(response.status_code, 405)
+        series.refresh_from_db()
+        self.assertFalse(series.archived)
+
+    def test_series_restore(self):
+        """Restoring an archived series clears the flag without creating bookings"""
+        series = RecurringSeries.objects.create(
+            description='Test Series',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            category=self.category,
+            archived=True,
+        )
+
+        response = self.client.post(reverse('bookings:series_restore', args=[series.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('bookings:series_list'))
+
+        series.refresh_from_db()
+        self.assertFalse(series.archived)
+        self.assertEqual(Booking.objects.filter(series=series).count(), 0)
+
+    def test_series_list_hides_archived_by_default(self):
+        """Archived series are excluded from the default list but visible via the filter"""
+        active = RecurringSeries.objects.create(
+            description='Active Series',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            category=self.category
+        )
+        archived = RecurringSeries.objects.create(
+            description='Archived Series',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            category=self.category,
+            archived=True,
+        )
+
+        response = self.client.get(reverse('bookings:series_list'))
+        self.assertContains(response, 'Active Series')
+        self.assertNotContains(response, 'Archived Series')
+
+        response = self.client.get(reverse('bookings:series_list') + '?archived=1')
+        self.assertContains(response, 'Archived Series')
+        self.assertNotContains(response, 'Active Series')
+
+    def test_archived_series_creates_no_bookings(self):
+        """create_series_bookings is a no-op for archived series"""
+        from .wizard import create_series_bookings
+
+        series = RecurringSeries.objects.create(
+            description='Archived Series',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 6, 1),
+            category=self.category,
+            archived=True,
+        )
+
+        created = create_series_bookings(series)
+        self.assertEqual(created, [])
+        self.assertEqual(Booking.objects.filter(series=series).count(), 0)
+
     def test_series_amount_change_get(self):
         """Test GET request renders the amount change form with current amount as default"""
         series = RecurringSeries.objects.create(

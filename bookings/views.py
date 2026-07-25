@@ -800,19 +800,23 @@ def category_delete(request, category_id):
 @login_required
 def series_list(request):
     """Liste aller wiederkehrenden Serien"""
-    series = RecurringSeries.objects.select_related('category').all().order_by('-created_at')
+    show_archived = request.GET.get('archived') == '1'
+    series = RecurringSeries.objects.select_related('category').filter(
+        archived=show_archived
+    ).order_by('-created_at')
 
-    # Annotate with booking count
+    # Annotate with booking count and planned (not yet booked) count
     series_with_counts = []
     for s in series:
-        booking_count = s.bookings.count()
         series_with_counts.append({
             'series': s,
-            'booking_count': booking_count,
+            'booking_count': s.bookings.count(),
+            'planned_count': s.bookings.filter(status='planned').count(),
         })
 
     context = {
         'series_with_counts': series_with_counts,
+        'show_archived': show_archived,
     }
 
     return render(request, 'bookings/series_list.html', context)
@@ -970,6 +974,48 @@ def series_delete(request, series_id):
         f'Serie "{series_description}" und {booking_count} verknüpfte Buchungen wurden gelöscht.'
     )
 
+    return redirect('bookings:series_list')
+
+
+@login_required
+def series_archive(request, series_id):
+    """Archiviere eine Serie: keine neuen Buchungen mehr, geplante (nicht gebuchte)
+    Buchungen werden entfernt, gebuchte Buchungen bleiben als Historie erhalten."""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    series = get_object_or_404(RecurringSeries, pk=series_id)
+
+    deleted_count, _ = series.bookings.filter(status='planned').delete()
+    series.archived = True
+    series.save(update_fields=['archived'])
+
+    if request.htmx:
+        return HttpResponse('')
+
+    messages.success(
+        request,
+        f'Serie "{series.description}" wurde archiviert. '
+        f'{deleted_count} geplante Buchung(en) wurden entfernt, gebuchte Buchungen bleiben erhalten.'
+    )
+    return redirect('bookings:series_list')
+
+
+@login_required
+def series_restore(request, series_id):
+    """Hole eine archivierte Serie zurück in die Standardliste (ohne neue Buchungen zu erzeugen)."""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    series = get_object_or_404(RecurringSeries, pk=series_id)
+
+    series.archived = False
+    series.save(update_fields=['archived'])
+
+    if request.htmx:
+        return HttpResponse('')
+
+    messages.success(request, f'Serie "{series.description}" wurde wiederhergestellt.')
     return redirect('bookings:series_list')
 
 

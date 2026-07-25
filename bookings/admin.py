@@ -11,8 +11,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(RecurringSeries)
 class RecurringSeriesAdmin(admin.ModelAdmin):
-    list_display = ['description', 'amount', 'interval', 'start_date', 'end_date', 'category']
-    list_filter = ['interval', 'category']
+    list_display = ['description', 'amount', 'interval', 'start_date', 'end_date', 'category', 'archived']
+    list_filter = ['interval', 'category', 'archived']
     search_fields = ['description']
     date_hierarchy = 'start_date'
 

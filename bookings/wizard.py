@@ -50,6 +50,9 @@ def create_series_bookings(series: RecurringSeries) -> List[Booking]:
     Returns:
         List[Booking]: List of created Booking instances
     """
+    if series.archived:
+        return []
+
     dates = preview_series_bookings(series)
 
     # Get existing bookings for this series to avoid duplicates
