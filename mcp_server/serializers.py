@@ -44,4 +44,5 @@ def serialize_series(series):
         'end_date': series.end_date.isoformat() if series.end_date else None,
         'category': series.category.name,
         'notes': series.notes,
+        'booking_count': series.bookings.count(),
     }

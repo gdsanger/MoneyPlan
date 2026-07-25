@@ -346,6 +346,7 @@ class RecurringSeriesTestCase(McpTestDataMixin, TestCase):
             category="Miete", end_date="2026-03-01",
         )
         self.assertEqual(result['generated_bookings'], 3)
+        self.assertEqual(result['booking_count'], 3)
         self.assertEqual(Booking.objects.filter(series_id=result['id']).count(), 3)
 
     def test_create_without_generation(self):
@@ -375,12 +376,71 @@ class RecurringSeriesTestCase(McpTestDataMixin, TestCase):
                 description="x", amount=0, interval="monthly", start_date="2026-01-01", category="Miete",
             )
 
+    def test_unknown_category_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.create_recurring_series(
+                description="x", amount=10, interval="monthly", start_date="2026-01-01", category="Unbekannt",
+            )
+
     def test_list_recurring_series(self):
         RecurringSeries.objects.create(
             description="Serie1", amount=Decimal('-10'), interval='monthly',
             start_date=date(2026, 1, 1), category=self.expense_category,
         )
         self.assertEqual(len(logic.list_recurring_series()), 1)
+
+    def test_list_recurring_series_includes_booking_count(self):
+        series = RecurringSeries.objects.create(
+            description="Serie1", amount=Decimal('-10'), interval='monthly',
+            start_date=date(2026, 1, 1), category=self.expense_category,
+        )
+        Booking.objects.create(
+            date=date(2026, 1, 1), description="Serie1", amount=Decimal('-10'),
+            category=self.expense_category, series=series,
+        )
+        result = logic.list_recurring_series()
+        self.assertEqual(result[0]['booking_count'], 1)
+
+    def test_list_recurring_series_filters_by_category(self):
+        RecurringSeries.objects.create(
+            description="Miete", amount=Decimal('-10'), interval='monthly',
+            start_date=date(2026, 1, 1), category=self.expense_category,
+        )
+        RecurringSeries.objects.create(
+            description="Gehalt", amount=Decimal('10'), interval='monthly',
+            start_date=date(2026, 1, 1), category=self.income_category,
+        )
+        result = logic.list_recurring_series(category="Gehalt")
+        self.assertEqual([r['description'] for r in result], ["Gehalt"])
+
+    def test_list_recurring_series_filters_by_interval(self):
+        RecurringSeries.objects.create(
+            description="Miete", amount=Decimal('-10'), interval='monthly',
+            start_date=date(2026, 1, 1), category=self.expense_category,
+        )
+        RecurringSeries.objects.create(
+            description="Versicherung", amount=Decimal('-100'), interval='yearly',
+            start_date=date(2026, 1, 1), category=self.expense_category,
+        )
+        result = logic.list_recurring_series(interval="yearly")
+        self.assertEqual([r['description'] for r in result], ["Versicherung"])
+
+    def test_list_recurring_series_invalid_interval_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_recurring_series(interval="daily")
+
+    def test_list_recurring_series_respects_limit_and_order(self):
+        RecurringSeries.objects.create(
+            description="Aelter", amount=Decimal('-10'), interval='monthly',
+            start_date=date(2026, 1, 1), category=self.expense_category,
+        )
+        RecurringSeries.objects.create(
+            description="Neuer", amount=Decimal('-10'), interval='monthly',
+            start_date=date(2026, 1, 1), category=self.expense_category,
+        )
+        result = logic.list_recurring_series(limit=1)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['description'], "Neuer")
 
 
 class ServerToolRegistrationTestCase(SimpleTestCase):

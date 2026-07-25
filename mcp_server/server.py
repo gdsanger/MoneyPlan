@@ -153,9 +153,18 @@ async def update_time_entry(
 
 
 @mcp.tool()
-async def list_recurring_series() -> list[dict]:
-    """Listet alle Serienbuchungen (RecurringSeries)."""
-    return await sync_to_async(logic.list_recurring_series, thread_sensitive=True)()
+async def list_recurring_series(
+    category: str | None = None,
+    interval: str | None = None,
+    limit: int | None = None,
+) -> list[dict]:
+    """Listet Serienbuchungen (RecurringSeries), neueste zuerst, optional gefiltert
+    nach Kategorie (Name oder ID), Intervall und/oder begrenzt auf die ersten
+    `limit` Treffer. Jeder Eintrag enthaelt 'booking_count' - die Anzahl bereits
+    erzeugter Buchungen dieser Serie."""
+    return await sync_to_async(logic.list_recurring_series, thread_sensitive=True)(
+        category, interval, limit
+    )
 
 
 @mcp.tool()
