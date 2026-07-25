@@ -8,7 +8,7 @@ from pathlib import Path
 
 from django.test import TestCase, Client, override_settings
 from django.contrib.auth.models import User
-from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.core.files.uploadedfile import InMemoryUploadedFile, SimpleUploadedFile
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 
@@ -338,3 +338,104 @@ class AttachmentViewsTestCase(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 405)
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
+@override_settings(MAX_UPLOAD_SIZE_MB=10)
+@override_settings(ALLOWED_UPLOAD_MIME_TYPES=['text/plain', 'application/pdf'])
+@override_settings(MCP_ACCESS_TOKEN='secret-token')
+class BookingAttachmentUploadApiTestCase(TestCase):
+    """Test suite for the token-authenticated multipart upload API (agent workflow)"""
+
+    def setUp(self):
+        self.client = Client()
+        self.category = Category.objects.create(
+            name="Test Category", icon="wallet", color="#007bff"
+        )
+        self.booking = Booking.objects.create(
+            date="2026-05-01",
+            description="Test Booking",
+            amount=100.00,
+            status='booked',
+            category=self.category
+        )
+        self.url = reverse('api_booking_attachment_upload', kwargs={'booking_id': self.booking.pk})
+
+    def tearDown(self):
+        for attachment in Attachment.objects.all():
+            if attachment.file and os.path.isfile(attachment.file.path):
+                os.remove(attachment.file.path)
+        Attachment.objects.all().delete()
+
+    def _upload(self, **extra):
+        test_file = SimpleUploadedFile('rechnung.txt', b'Beleg-Inhalt', content_type='text/plain')
+        return self.client.post(self.url, {'file': test_file}, **extra)
+
+    def test_missing_token_rejected(self):
+        response = self._upload()
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(Attachment.objects.count(), 0)
+
+    def test_wrong_token_rejected(self):
+        response = self._upload(HTTP_AUTHORIZATION='Bearer wrong-token')
+        self.assertEqual(response.status_code, 401)
+
+    def test_valid_bearer_token_uploads_file(self):
+        response = self._upload(HTTP_AUTHORIZATION='Bearer secret-token')
+        self.assertEqual(response.status_code, 201)
+
+        data = response.json()
+        self.assertEqual(Attachment.objects.count(), 1)
+        attachment = Attachment.objects.first()
+        self.assertEqual(data['attachment_id'], attachment.id)
+        self.assertEqual(data['filename'], 'rechnung.txt')
+        self.assertEqual(data['file_size'], attachment.file_size)
+        self.assertEqual(data['mime_type'], 'text/plain')
+        self.assertIn('uploaded_at', data)
+        self.assertIn('url', data)
+        self.assertEqual(attachment.object_id, self.booking.pk)
+
+    def test_valid_query_token_uploads_file(self):
+        response = self.client.post(f'{self.url}?token=secret-token', {
+            'file': SimpleUploadedFile('rechnung.txt', b'Beleg-Inhalt', content_type='text/plain'),
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Attachment.objects.count(), 1)
+
+    def test_unknown_booking_returns_404(self):
+        url = reverse('api_booking_attachment_upload', kwargs={'booking_id': 999999})
+        test_file = SimpleUploadedFile('rechnung.txt', b'Beleg-Inhalt', content_type='text/plain')
+        response = self.client.post(url, {'file': test_file}, HTTP_AUTHORIZATION='Bearer secret-token')
+        self.assertEqual(response.status_code, 404)
+
+    def test_missing_file_field_returns_400(self):
+        response = self.client.post(self.url, {}, HTTP_AUTHORIZATION='Bearer secret-token')
+        self.assertEqual(response.status_code, 400)
+
+    def test_oversized_file_returns_413(self):
+        large_content = b'x' * (11 * 1024 * 1024)  # 11 MB, limit is 10 MB
+        test_file = SimpleUploadedFile('gross.txt', large_content, content_type='text/plain')
+        response = self.client.post(self.url, {'file': test_file}, HTTP_AUTHORIZATION='Bearer secret-token')
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(Attachment.objects.count(), 0)
+
+    def test_disallowed_mime_type_returns_400(self):
+        test_file = SimpleUploadedFile('archiv.zip', b'PK\x03\x04' + b'\x00' * 20, content_type='application/zip')
+        response = self.client.post(self.url, {'file': test_file}, HTTP_AUTHORIZATION='Bearer secret-token')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Attachment.objects.count(), 0)
+
+    def test_get_not_allowed(self):
+        response = self.client.get(self.url, HTTP_AUTHORIZATION='Bearer secret-token')
+        self.assertEqual(response.status_code, 405)
+
+    def test_web_upload_still_requires_login_unaffected(self):
+        """The existing login_required web-upload endpoint must be untouched."""
+        url = reverse('attachments:upload', kwargs={
+            'app_label': 'bookings',
+            'model_name': 'booking',
+            'object_id': self.booking.pk
+        })
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith('/accounts/login/'))
