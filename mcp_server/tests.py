@@ -290,6 +290,16 @@ class ListCategoriesAndClientsTestCase(McpTestDataMixin, TestCase):
         names = {c['name'] for c in logic.list_categories()}
         self.assertTrue({"Miete", "Gehalt"}.issubset(names))
 
+    def test_list_categories_includes_description(self):
+        Category.objects.filter(name="Miete").update(
+            description="Miete fuer die Bueroraeume, geschaeftlich"
+        )
+        by_name = {c['name']: c for c in logic.list_categories()}
+        self.assertEqual(
+            by_name["Miete"]['description'], "Miete fuer die Bueroraeume, geschaeftlich"
+        )
+        self.assertEqual(by_name["Gehalt"]['description'], "")
+
     def test_list_clients(self):
         names = {c['name'] for c in logic.list_clients()}
         self.assertEqual(names, {"Acme GmbH"})

@@ -202,6 +202,7 @@ def list_categories():
             'category_type': category.category_type,
             'icon': category.icon,
             'color': category.color,
+            'description': category.description,
         }
         for category in Category.objects.order_by('name')
     ]

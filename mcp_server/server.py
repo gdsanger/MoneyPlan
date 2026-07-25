@@ -103,7 +103,9 @@ async def list_due_bookings(
 @mcp.tool()
 async def list_categories() -> list[dict]:
     """Listet alle Kategorien mit Name und Typ - zur Aufloesung von Kategorie-Namen
-    fuer create_booking/create_recurring_series."""
+    fuer create_booking/create_recurring_series.
+    Jeder Eintrag enthaelt 'description' - kurze Erklaerung zur Kategorie, die
+    bei der Auswahl der richtigen Kategorie (z.B. privat vs. geschaeftlich) helfen soll."""
     return await sync_to_async(logic.list_categories, thread_sensitive=True)()
 
 
