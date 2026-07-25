@@ -383,6 +383,34 @@ class RecurringSeriesForm(forms.ModelForm):
         self.fields['notes'].required = False
 
 
+class SeriesAmountChangeForm(forms.Form):
+    """Form for changing a series' amount from a given cutoff date onward"""
+
+    new_amount = forms.DecimalField(
+        label='Neuer Betrag',
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        help_text='Positiv = Einnahme, Negativ = Ausgabe',
+    )
+    valid_from = forms.DateField(
+        label='Gültig ab',
+        widget=forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
+        help_text='Ändert nur geplante, noch nicht gebuchte Buchungen ab diesem Datum',
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            Row(
+                Column('new_amount', css_class='col-md-6'),
+                Column('valid_from', css_class='col-md-6'),
+            ),
+        )
+
+
 class LiabilityForm(forms.ModelForm):
     """Form for creating and editing liabilities"""
 

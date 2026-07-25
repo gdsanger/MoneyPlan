@@ -13,7 +13,7 @@ from calendar import monthrange
 from decimal import Decimal, InvalidOperation
 import magic
 from .models import Booking, Category, RecurringSeries, Liability, Asset, ReconciliationLog
-from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm, ReconciliationForm
+from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, SeriesAmountChangeForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm, ReconciliationForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
@@ -971,6 +971,54 @@ def series_delete(request, series_id):
     )
 
     return redirect('bookings:series_list')
+
+
+@login_required
+def series_amount_change(request, series_id):
+    """Ändere den Betrag einer Serie ab einem Stichtag (nur künftige, ungebuchte Buchungen)"""
+    series = get_object_or_404(RecurringSeries, pk=series_id)
+
+    if request.method == 'POST':
+        form = SeriesAmountChangeForm(request.POST)
+        if form.is_valid():
+            new_amount = form.cleaned_data['new_amount']
+            valid_from = form.cleaned_data['valid_from']
+
+            updated_count = Booking.objects.filter(
+                series=series,
+                status='planned',
+                date__gte=valid_from,
+            ).update(amount=new_amount)
+
+            series.amount = new_amount
+            series.save(update_fields=['amount'])
+
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:series_list')
+                return response
+
+            messages.success(
+                request,
+                f'Betrag der Serie "{series.description}" wurde angepasst. '
+                f'{updated_count} geplante Buchung(en) ab {valid_from.strftime("%d.%m.%Y")} wurden aktualisiert.'
+            )
+            return redirect('bookings:series_list')
+    else:
+        form = SeriesAmountChangeForm(initial={
+            'new_amount': series.amount,
+            'valid_from': date.today(),
+        })
+
+    context = {
+        'form': form,
+        'series': series,
+    }
+
+    if request.htmx:
+        return render(request, 'bookings/_series_amount_form.html', context)
+
+    return render(request, 'bookings/series_amount_form.html', context)
 
 
 
