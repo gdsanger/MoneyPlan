@@ -271,8 +271,24 @@ def update_time_entry(entry_id, client=None, date=None, duration=None, hourly_ra
 # Recurring series
 # ---------------------------------------------------------------------------
 
-def list_recurring_series():
-    return [serialize_series(series) for series in RecurringSeries.objects.select_related('category').order_by('description')]
+def list_recurring_series(category=None, interval=None, limit=None):
+    qs = RecurringSeries.objects.select_related('category').order_by('-created_at')
+    if category is not None:
+        qs = qs.filter(category=resolve_category(category))
+    if interval is not None:
+        valid_intervals = dict(RecurringSeries.INTERVAL_CHOICES)
+        if interval not in valid_intervals:
+            raise ValueError(f"Ungültiges Intervall '{interval}'. Erlaubt: {', '.join(valid_intervals)}.")
+        qs = qs.filter(interval=interval)
+    if limit is not None:
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            raise ValueError(f"Ungültiges Limit: {limit!r}")
+        if limit <= 0:
+            raise ValueError("Limit muss größer als 0 sein.")
+        qs = qs[:limit]
+    return [serialize_series(series) for series in qs]
 
 
 def create_recurring_series(description, amount, interval, start_date, category,
@@ -306,8 +322,11 @@ def create_recurring_series(description, amount, interval, start_date, category,
         notes=notes or '',
     )
 
-    result = serialize_series(series)
+    generated_bookings = None
     if generate_bookings:
-        created = create_series_bookings(series)
-        result['generated_bookings'] = len(created)
+        generated_bookings = len(create_series_bookings(series))
+
+    result = serialize_series(series)
+    if generated_bookings is not None:
+        result['generated_bookings'] = generated_bookings
     return result
