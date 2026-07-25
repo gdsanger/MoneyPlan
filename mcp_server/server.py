@@ -66,11 +66,23 @@ async def list_planned_bookings(
 
 
 @mcp.tool()
-async def list_due_bookings() -> list[dict]:
+async def list_due_bookings(
+    days_before_due: int | None = None,
+    include_overdue: bool = True,
+    include_due_soon: bool = True,
+    limit: int | None = None,
+) -> list[dict]:
     """Listet faellige (due_soon) und ueberfaellige (overdue) geplante Buchungen,
     analog zur Alert-Logik der App - rein lesend, es werden keine Alert-Datensaetze
-    angelegt oder E-Mails versendet."""
-    return await sync_to_async(logic.list_due_bookings, thread_sensitive=True)()
+    angelegt oder E-Mails versendet.
+
+    days_before_due: Vorlauf in Tagen fuer 'faellig'; Default aus AlertConfig (Singleton).
+    include_overdue / include_due_soon: je Default True, um eine der beiden Gruppen auszublenden.
+    limit: optionale Begrenzung der Trefferanzahl (sortiert nach Datum aufsteigend).
+    """
+    return await sync_to_async(logic.list_due_bookings, thread_sensitive=True)(
+        days_before_due, include_overdue, include_due_soon, limit
+    )
 
 
 @mcp.tool()

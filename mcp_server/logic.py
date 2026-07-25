@@ -110,32 +110,54 @@ def list_planned_bookings(date_from=None, date_to=None, category=None, limit=Non
     return [serialize_booking(b) for b in qs]
 
 
-def list_due_bookings():
+def list_due_bookings(days_before_due=None, include_overdue=True, include_due_soon=True, limit=None):
     """Read-only equivalent of alerts.checks: due_soon + overdue planned bookings.
 
     Deliberately does not call alerts.checks.check_due_soon/check_overdue, since
     those persist Alert rows and send mail as a side effect — this tool only reads.
     """
-    config = AlertConfig.get()
-    today = date_type.today()
-    due_date = today + timedelta(days=config.days_before_due)
+    if days_before_due is None:
+        days_before_due = AlertConfig.get().days_before_due
+    else:
+        try:
+            days_before_due = int(days_before_due)
+        except (TypeError, ValueError):
+            raise ValueError(f"Ungültiges days_before_due: {days_before_due!r}")
 
-    overdue = Booking.objects.filter(status='planned', date__lt=today).select_related('category').order_by('date', 'id')
-    due_soon = Booking.objects.filter(
-        status='planned', date__gte=today, date__lte=due_date
-    ).select_related('category').order_by('date', 'id')
+    if limit is not None:
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            raise ValueError(f"Ungültiges Limit: {limit!r}")
+        if limit <= 0:
+            raise ValueError("Limit muss größer als 0 sein.")
+
+    today = date_type.today()
+    due_date = today + timedelta(days=days_before_due)
 
     result = []
-    for booking in overdue:
-        item = serialize_booking(booking)
-        item['alert_type'] = 'overdue'
-        item['days_overdue'] = (today - booking.date).days
-        result.append(item)
-    for booking in due_soon:
-        item = serialize_booking(booking)
-        item['alert_type'] = 'due_soon'
-        item['days_until_due'] = (booking.date - today).days
-        result.append(item)
+    if include_overdue:
+        overdue = Booking.objects.filter(
+            status='planned', date__lt=today
+        ).select_related('category').order_by('date', 'id')
+        for booking in overdue:
+            item = serialize_booking(booking)
+            item['due_state'] = 'overdue'
+            item['days_until_due'] = (booking.date - today).days
+            result.append(item)
+    if include_due_soon:
+        due_soon = Booking.objects.filter(
+            status='planned', date__gte=today, date__lte=due_date
+        ).select_related('category').order_by('date', 'id')
+        for booking in due_soon:
+            item = serialize_booking(booking)
+            item['due_state'] = 'due_soon'
+            item['days_until_due'] = (booking.date - today).days
+            result.append(item)
+
+    result.sort(key=lambda item: (item['date'], item['id']))
+    if limit is not None:
+        result = result[:limit]
     return result
 
 
