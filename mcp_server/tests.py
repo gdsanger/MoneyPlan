@@ -143,25 +143,82 @@ class ListDueBookingsTestCase(McpTestDataMixin, TestCase):
         config.save()
         self.today = date.today()
 
-    def test_overdue_and_due_soon_classified(self):
-        overdue = Booking.objects.create(
-            date=self.today - timedelta(days=2), description="Overdue", amount=Decimal('-10'),
-            status='planned', category=self.expense_category,
-        )
-        due_soon = Booking.objects.create(
-            date=self.today + timedelta(days=1), description="DueSoon", amount=Decimal('-10'),
-            status='planned', category=self.expense_category,
-        )
-        future = Booking.objects.create(
-            date=self.today + timedelta(days=30), description="Future", amount=Decimal('-10'),
+    def _make(self, offset_days, description):
+        return Booking.objects.create(
+            date=self.today + timedelta(days=offset_days), description=description, amount=Decimal('-10'),
             status='planned', category=self.expense_category,
         )
 
+    def test_overdue_and_due_soon_classified(self):
+        overdue = self._make(-2, "Overdue")
+        due_soon = self._make(1, "DueSoon")
+        future = self._make(30, "Future")
+
         result = logic.list_due_bookings()
-        types_by_id = {item['id']: item['alert_type'] for item in result}
-        self.assertEqual(types_by_id.get(overdue.id), 'overdue')
-        self.assertEqual(types_by_id.get(due_soon.id), 'due_soon')
-        self.assertNotIn(future.id, types_by_id)
+        states_by_id = {item['id']: item['due_state'] for item in result}
+        self.assertEqual(states_by_id.get(overdue.id), 'overdue')
+        self.assertEqual(states_by_id.get(due_soon.id), 'due_soon')
+        self.assertNotIn(future.id, states_by_id)
+
+    def test_boundary_today_is_due_soon_not_overdue(self):
+        today_booking = self._make(0, "Today")
+        result = logic.list_due_bookings()
+        item = next(i for i in result if i['id'] == today_booking.id)
+        self.assertEqual(item['due_state'], 'due_soon')
+        self.assertEqual(item['days_until_due'], 0)
+
+    def test_boundary_yesterday_is_overdue(self):
+        yesterday_booking = self._make(-1, "Yesterday")
+        result = logic.list_due_bookings()
+        item = next(i for i in result if i['id'] == yesterday_booking.id)
+        self.assertEqual(item['due_state'], 'overdue')
+        self.assertEqual(item['days_until_due'], -1)
+
+    def test_boundary_today_plus_n_is_due_soon(self):
+        booking = self._make(3, "TodayPlusN")
+        result = logic.list_due_bookings()
+        ids = {i['id']: i for i in result}
+        self.assertEqual(ids[booking.id]['due_state'], 'due_soon')
+        self.assertEqual(ids[booking.id]['days_until_due'], 3)
+
+    def test_boundary_today_plus_n_plus_1_excluded(self):
+        self._make(4, "TodayPlusNPlus1")
+        result = logic.list_due_bookings()
+        self.assertEqual(result, [])
+
+    def test_days_before_due_param_overrides_config(self):
+        booking = self._make(4, "TodayPlusNPlus1")
+        result = logic.list_due_bookings(days_before_due=4)
+        ids = {i['id']: i for i in result}
+        self.assertEqual(ids[booking.id]['due_state'], 'due_soon')
+
+    def test_include_overdue_false_excludes_overdue(self):
+        self._make(-2, "Overdue")
+        due_soon = self._make(1, "DueSoon")
+        result = logic.list_due_bookings(include_overdue=False)
+        self.assertEqual([i['id'] for i in result], [due_soon.id])
+
+    def test_include_due_soon_false_excludes_due_soon(self):
+        overdue = self._make(-2, "Overdue")
+        self._make(1, "DueSoon")
+        result = logic.list_due_bookings(include_due_soon=False)
+        self.assertEqual([i['id'] for i in result], [overdue.id])
+
+    def test_limit_restricts_result_count(self):
+        self._make(-2, "Overdue")
+        self._make(1, "DueSoon")
+        result = logic.list_due_bookings(limit=1)
+        self.assertEqual(len(result), 1)
+
+    def test_zero_limit_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_due_bookings(limit=0)
+
+    def test_sorted_ascending_by_date(self):
+        self._make(1, "DueSoon")
+        self._make(-2, "Overdue")
+        result = logic.list_due_bookings()
+        self.assertEqual([i['date'] for i in result], sorted(i['date'] for i in result))
 
     def test_read_only_does_not_create_alert_rows(self):
         Booking.objects.create(
