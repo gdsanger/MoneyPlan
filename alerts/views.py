@@ -2,7 +2,9 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
+from django.views.decorators.http import require_POST
 from .models import Alert, AlertConfig
+from .checks import run_all_checks, cleanup_resolved_alerts
 from .forms import AlertConfigForm
 import smtplib
 from email.mime.text import MIMEText
@@ -13,6 +15,21 @@ def alert_list(request):
     """Liste aller Alerts"""
     alerts = Alert.objects.all()
     return render(request, 'alerts/alert_list.html', {'alerts': alerts})
+
+
+@login_required
+@require_POST
+def run_checks(request):
+    """Alert-Prüfung (run_all_checks + cleanup_resolved_alerts) manuell auslösen"""
+    summary = run_all_checks()
+    cleaned = cleanup_resolved_alerts()
+
+    alerts = Alert.objects.all()
+    return render(request, 'alerts/_run_result.html', {
+        'alerts': alerts,
+        'summary': summary,
+        'cleaned': cleaned,
+    })
 
 
 @login_required

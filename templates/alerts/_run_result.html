@@ -1,0 +1,4 @@
+<div class="alert alert-info">
+    Prüfung abgeschlossen: {{ summary.created }} neu erstellt, {{ summary.mail_sent }} Mail(s) gesendet, {{ cleaned }} erledigte Fälligkeit(en) bereinigt{% if summary.errors %}, {{ summary.errors }} Fehler{% endif %}.
+</div>
+{% include "alerts/_alert_table.html" %}
