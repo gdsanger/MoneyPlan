@@ -9,10 +9,29 @@ from bookings.models import Category
 from timetracking.models import Client
 
 
-def resolve_category(name: str) -> Category:
+def resolve_category(name) -> Category:
+    """Resolve a Category by name (case-insensitive) or numeric id.
+
+    MCP clients mostly know categories by name, but some tools accept the id
+    surfaced in prior results (e.g. list_categories) - accept both rather than
+    forcing an extra lookup round-trip.
+    """
+    if isinstance(name, int):
+        try:
+            return Category.objects.get(pk=name)
+        except Category.DoesNotExist:
+            raise ValueError(f"Kategorie mit ID {name} nicht gefunden.")
+
     name = (name or '').strip()
     if not name:
         raise ValueError("Kategorie darf nicht leer sein.")
+
+    if name.isdigit():
+        try:
+            return Category.objects.get(pk=int(name))
+        except Category.DoesNotExist:
+            pass
+
     try:
         return Category.objects.get(name__iexact=name)
     except Category.DoesNotExist:

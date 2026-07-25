@@ -90,7 +90,7 @@ def create_booking(date, description, amount, category, status='planned',
     return serialize_booking(booking)
 
 
-def list_planned_bookings(date_from=None, date_to=None, category=None):
+def list_planned_bookings(date_from=None, date_to=None, category=None, limit=None):
     qs = Booking.objects.filter(status='planned')
     if date_from is not None:
         qs = qs.filter(date__gte=_parse_date(date_from, 'date_from'))
@@ -99,6 +99,14 @@ def list_planned_bookings(date_from=None, date_to=None, category=None):
     if category is not None:
         qs = qs.filter(category=resolve_category(category))
     qs = qs.select_related('category').order_by('date', 'id')
+    if limit is not None:
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            raise ValueError(f"Ungültiges Limit: {limit!r}")
+        if limit <= 0:
+            raise ValueError("Limit muss größer als 0 sein.")
+        qs = qs[:limit]
     return [serialize_booking(b) for b in qs]
 
 

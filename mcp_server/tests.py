@@ -83,25 +83,56 @@ class ListPlannedBookingsTestCase(McpTestDataMixin, TestCase):
             status='planned', category=self.expense_category,
         )
         Booking.objects.create(
+            date=date(2026, 8, 10), description="Planned 2", amount=Decimal('-200'),
+            status='planned', category=self.expense_category,
+        )
+        Booking.objects.create(
             date=date(2026, 8, 5), description="Booked 1", amount=Decimal('-50'),
             status='booked', category=self.expense_category,
         )
 
     def test_only_planned_returned(self):
         result = logic.list_planned_bookings()
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['description'], "Planned 1")
+        self.assertEqual(len(result), 2)
+        self.assertTrue(all(b['status'] == 'planned' for b in result))
 
-    def test_filter_by_category(self):
-        self.assertEqual(len(logic.list_planned_bookings(category="Miete")), 1)
+    def test_result_fields_and_order(self):
+        result = logic.list_planned_bookings()
+        self.assertEqual([b['description'] for b in result], ["Planned 1", "Planned 2"])
+        first = result[0]
+        self.assertEqual(
+            set(first),
+            {'id', 'date', 'description', 'amount', 'status', 'category', 'series_id', 'liability_id', 'notes'},
+        )
+
+    def test_filter_by_category_name(self):
+        self.assertEqual(len(logic.list_planned_bookings(category="Miete")), 2)
         self.assertEqual(logic.list_planned_bookings(category="Gehalt"), [])
 
+    def test_filter_by_category_id(self):
+        result = logic.list_planned_bookings(category=self.expense_category.pk)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(logic.list_planned_bookings(category=self.income_category.pk), [])
+
     def test_filter_by_date_range_excludes_out_of_range(self):
-        self.assertEqual(logic.list_planned_bookings(date_from="2026-08-02"), [])
+        self.assertEqual(logic.list_planned_bookings(date_from="2026-08-02", date_to="2026-08-09"), [])
 
     def test_unknown_category_filter_raises(self):
         with self.assertRaises(ValueError):
             logic.list_planned_bookings(category="Nichtvorhanden")
+
+    def test_limit_restricts_result_count(self):
+        result = logic.list_planned_bookings(limit=1)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['description'], "Planned 1")
+
+    def test_zero_limit_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_planned_bookings(limit=0)
+
+    def test_invalid_limit_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_planned_bookings(limit="abc")
 
 
 class ListDueBookingsTestCase(McpTestDataMixin, TestCase):
@@ -151,6 +182,14 @@ class ListDueBookingsTestCase(McpTestDataMixin, TestCase):
 class ResolverTestCase(McpTestDataMixin, TestCase):
     def test_resolve_category_by_name_case_insensitive(self):
         self.assertEqual(resolve_category("miete").pk, self.expense_category.pk)
+
+    def test_resolve_category_by_id(self):
+        self.assertEqual(resolve_category(self.expense_category.pk).pk, self.expense_category.pk)
+        self.assertEqual(resolve_category(str(self.expense_category.pk)).pk, self.expense_category.pk)
+
+    def test_resolve_category_unknown_id_raises(self):
+        with self.assertRaises(ValueError):
+            resolve_category(999999)
 
     def test_resolve_category_not_found_lists_available(self):
         with self.assertRaises(ValueError) as ctx:
