@@ -57,6 +57,7 @@ class RecurringSeries(models.Model):
     end_date = models.DateField(null=True, blank=True, verbose_name="Enddatum")
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='series', verbose_name="Kategorie")
     notes = models.TextField(blank=True, verbose_name="Notizen")
+    archived = models.BooleanField(default=False, verbose_name="Archiviert")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
 
     class Meta:
