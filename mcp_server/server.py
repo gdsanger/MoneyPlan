@@ -54,12 +54,14 @@ async def list_planned_bookings(
     date_from: str | None = None,
     date_to: str | None = None,
     category: str | None = None,
+    limit: int | None = None,
 ) -> list[dict]:
     """Listet ausschliesslich geplante Buchungen (status='planned'), optional gefiltert
-    nach Datumsbereich (YYYY-MM-DD) und/oder Kategorie-Name. Gebuchte Buchungen werden
+    nach Datumsbereich (YYYY-MM-DD), Kategorie (Name oder ID) und/oder begrenzt auf die
+    ersten `limit` Treffer (sortiert nach Datum aufsteigend). Gebuchte Buchungen werden
     nie zurueckgegeben."""
     return await sync_to_async(logic.list_planned_bookings, thread_sensitive=True)(
-        date_from, date_to, category
+        date_from, date_to, category, limit
     )
 
 
