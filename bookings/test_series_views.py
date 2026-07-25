@@ -219,6 +219,93 @@ class SeriesViewsTestCase(TestCase):
         # Series should still exist
         self.assertEqual(RecurringSeries.objects.count(), 1)
 
+    def test_series_amount_change_get(self):
+        """Test GET request renders the amount change form with current amount as default"""
+        series = RecurringSeries.objects.create(
+            description='Test Series',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            category=self.category
+        )
+
+        response = self.client.get(reverse('bookings:series_amount_change', args=[series.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Betrag anpassen')
+
+    def test_series_amount_change_updates_only_future_planned_bookings(self):
+        """Test that only planned bookings on/after the cutoff date are updated"""
+        series = RecurringSeries.objects.create(
+            description='Miete',
+            amount=Decimal('-100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            category=self.category
+        )
+
+        booked_past = Booking.objects.create(
+            date=date(2024, 1, 1),
+            description='Miete',
+            amount=Decimal('-100.00'),
+            category=self.category,
+            series=series,
+            status='booked'
+        )
+        planned_before_cutoff = Booking.objects.create(
+            date=date(2024, 2, 1),
+            description='Miete',
+            amount=Decimal('-100.00'),
+            category=self.category,
+            series=series,
+            status='planned'
+        )
+        planned_on_cutoff = Booking.objects.create(
+            date=date(2024, 3, 1),
+            description='Miete',
+            amount=Decimal('-100.00'),
+            category=self.category,
+            series=series,
+            status='planned'
+        )
+        planned_after_cutoff = Booking.objects.create(
+            date=date(2024, 4, 1),
+            description='Miete',
+            amount=Decimal('-100.00'),
+            category=self.category,
+            series=series,
+            status='planned'
+        )
+        booked_after_cutoff = Booking.objects.create(
+            date=date(2024, 5, 1),
+            description='Miete',
+            amount=Decimal('-100.00'),
+            category=self.category,
+            series=series,
+            status='booked'
+        )
+
+        response = self.client.post(
+            reverse('bookings:series_amount_change', args=[series.id]),
+            {'new_amount': '-150.00', 'valid_from': '2024-03-01'}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('bookings:series_list'))
+
+        series.refresh_from_db()
+        self.assertEqual(series.amount, Decimal('-150.00'))
+
+        booked_past.refresh_from_db()
+        planned_before_cutoff.refresh_from_db()
+        planned_on_cutoff.refresh_from_db()
+        planned_after_cutoff.refresh_from_db()
+        booked_after_cutoff.refresh_from_db()
+
+        self.assertEqual(booked_past.amount, Decimal('-100.00'))
+        self.assertEqual(planned_before_cutoff.amount, Decimal('-100.00'))
+        self.assertEqual(planned_on_cutoff.amount, Decimal('-150.00'))
+        self.assertEqual(planned_after_cutoff.amount, Decimal('-150.00'))
+        self.assertEqual(booked_after_cutoff.amount, Decimal('-100.00'))
+
     def test_booking_list_series_filter(self):
         """Test filtering bookings by series"""
         series1 = RecurringSeries.objects.create(

@@ -76,6 +76,17 @@
                                         </li>
                                         <li>
                                             <button type="button"
+                                                    class="dropdown-item"
+                                                    hx-get="{% url 'bookings:series_amount_change' series.id %}"
+                                                    hx-target="#series-amount-modal-content"
+                                                    hx-swap="innerHTML"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#seriesAmountModal">
+                                                <i class="bi bi-cash-coin"></i> Betrag anpassen
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button"
                                                     class="dropdown-item text-danger"
                                                     data-delete-url="{% url 'bookings:series_delete' series.id %}"
                                                     data-delete-title="Serie löschen"
@@ -102,6 +113,21 @@
         Noch keine wiederkehrenden Serien vorhanden. Erstellen Sie Ihre erste Serie über den Button oben.
     </div>
     {% endif %}
+</div>
+
+<!-- Betrag anpassen Modal -->
+<div class="modal fade" id="seriesAmountModal" tabindex="-1" aria-labelledby="seriesAmountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="seriesAmountModalLabel">Betrag anpassen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="series-amount-modal-content">
+                <!-- Form loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

@@ -23,6 +23,7 @@ urlpatterns = [
     path('serien/neu/vorschau/', views.series_preview, name='series_preview'),
     path('serien/neu/bestaetigen/', views.series_confirm, name='series_confirm'),
     path('serien/<int:series_id>/loeschen/', views.series_delete, name='series_delete'),
+    path('serien/<int:series_id>/betrag-anpassen/', views.series_amount_change, name='series_amount_change'),
     path('monate/', views.month_view, name='month_view'),
     path('monate/<int:year>/<int:month>/', views.month_view, name='month_view_detail'),
     # Liability URLs
