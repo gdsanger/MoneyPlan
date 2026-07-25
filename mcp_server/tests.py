@@ -1,4 +1,7 @@
 import asyncio
+import base64
+import os
+import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -9,6 +12,7 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from alerts.models import Alert, AlertConfig
+from attachments.models import Attachment
 from bookings.models import Booking, Category, RecurringSeries
 from timetracking.models import Client, TimeEntry
 
@@ -16,6 +20,8 @@ from mcp_server import logic
 from mcp_server.auth import TokenAuthMiddleware
 from mcp_server.resolvers import resolve_category, resolve_client
 from mcp_server.server import mcp
+
+TEMP_MEDIA_ROOT = tempfile.mkdtemp()
 
 
 class McpTestDataMixin:
@@ -102,7 +108,10 @@ class ListPlannedBookingsTestCase(McpTestDataMixin, TestCase):
         first = result[0]
         self.assertEqual(
             set(first),
-            {'id', 'date', 'description', 'amount', 'status', 'category', 'series_id', 'liability_id', 'notes'},
+            {
+                'id', 'date', 'description', 'amount', 'status', 'category', 'series_id',
+                'liability_id', 'notes', 'attachment_count',
+            },
         )
 
     def test_filter_by_category_name(self):
@@ -514,6 +523,99 @@ class RecurringSeriesTestCase(McpTestDataMixin, TestCase):
         self.assertEqual(result[0]['description'], "Neuer")
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
+class BookingAttachmentTestCase(McpTestDataMixin, TestCase):
+    # Minimal but valid PDF header/trailer, so python-magic detects it as
+    # application/pdf without needing a real invoice file on disk.
+    PDF_BYTES = (
+        b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog >>\nendobj\n'
+        b'trailer\n<< /Root 1 0 R >>\n%%EOF'
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.booking = Booking.objects.create(
+            date=date(2026, 8, 1), description="Miete August", amount=Decimal('-950'),
+            status='planned', category=self.expense_category,
+        )
+
+    def tearDown(self):
+        for attachment in Attachment.objects.all():
+            if attachment.file and os.path.isfile(attachment.file.path):
+                os.remove(attachment.file.path)
+        Attachment.objects.all().delete()
+
+    @staticmethod
+    def _b64(data):
+        return base64.b64encode(data).decode('ascii')
+
+    def test_add_attachment_happy_path(self):
+        result = logic.add_booking_attachment(
+            self.booking.id, "rechnung.pdf", self._b64(self.PDF_BYTES)
+        )
+        self.assertEqual(result['filename'], "rechnung.pdf")
+        self.assertEqual(result['mime_type'], "application/pdf")
+        self.assertIn('attachment_id', result)
+        self.assertIn('file_size_display', result)
+        self.assertTrue(Attachment.objects.filter(pk=result['attachment_id']).exists())
+
+    def test_add_attachment_invalid_base64_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.add_booking_attachment(self.booking.id, "rechnung.pdf", "not-valid-base64!!")
+
+    def test_add_attachment_unknown_booking_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.add_booking_attachment(999999, "rechnung.pdf", self._b64(self.PDF_BYTES))
+
+    def test_add_attachment_too_large_rejected(self):
+        # Exceeds MCP_MAX_ATTACHMENT_SIZE_MB (2 MB) though well under the
+        # server-wide MAX_UPLOAD_SIZE_MB (10 MB) - the MCP-specific cap must
+        # reject it before handle_upload even runs.
+        big = b'%PDF-1.4\n' + b'x' * (3 * 1024 * 1024)
+        with self.assertRaises(ValueError) as ctx:
+            logic.add_booking_attachment(self.booking.id, "big.pdf", self._b64(big))
+        self.assertIn("groß", str(ctx.exception))
+
+    def test_add_attachment_disallowed_type_rejected(self):
+        exe_bytes = b'MZ' + b'\x00' * 98  # PE header -> application/x-dosexec
+        with self.assertRaises(ValueError):
+            logic.add_booking_attachment(self.booking.id, "virus.exe", self._b64(exe_bytes))
+
+    def test_list_booking_attachments(self):
+        logic.add_booking_attachment(self.booking.id, "rechnung.pdf", self._b64(self.PDF_BYTES))
+        result = logic.list_booking_attachments(self.booking.id)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['filename'], "rechnung.pdf")
+        self.assertIn('url', result[0])
+
+    def test_list_booking_attachments_unknown_booking_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_booking_attachments(999999)
+
+    def test_delete_booking_attachment(self):
+        result = logic.add_booking_attachment(
+            self.booking.id, "rechnung.pdf", self._b64(self.PDF_BYTES)
+        )
+        delete_result = logic.delete_booking_attachment(result['attachment_id'])
+        self.assertTrue(delete_result['success'])
+        self.assertFalse(Attachment.objects.filter(pk=result['attachment_id']).exists())
+
+    def test_delete_booking_attachment_not_found_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.delete_booking_attachment(999999)
+
+    def test_attachment_count_surfaced_in_list_planned_bookings(self):
+        logic.add_booking_attachment(self.booking.id, "rechnung.pdf", self._b64(self.PDF_BYTES))
+        result = logic.list_planned_bookings()
+        item = next(b for b in result if b['id'] == self.booking.id)
+        self.assertEqual(item['attachment_count'], 1)
+
+    def test_attachment_count_zero_when_no_attachment(self):
+        result = logic.list_planned_bookings()
+        item = next(b for b in result if b['id'] == self.booking.id)
+        self.assertEqual(item['attachment_count'], 0)
+
+
 class ServerToolRegistrationTestCase(SimpleTestCase):
     def test_all_tools_registered(self):
         tools = asyncio.run(mcp.list_tools())
@@ -522,6 +624,7 @@ class ServerToolRegistrationTestCase(SimpleTestCase):
             'create_booking', 'list_planned_bookings', 'list_due_bookings', 'list_categories',
             'list_clients', 'list_time_entries', 'create_time_entry', 'update_time_entry',
             'list_recurring_series', 'create_recurring_series',
+            'add_booking_attachment', 'list_booking_attachments', 'delete_booking_attachment',
         }
         self.assertEqual(names, expected)
 

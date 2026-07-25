@@ -7,18 +7,33 @@ be unit-tested directly and reused by the thin async tool wrappers in
 `mcp_server.server`. Validation errors are raised as `ValueError` with a
 message written for an AI agent to read and act on.
 """
+import base64
+import binascii
 from datetime import date as date_type, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db.models import Count
+
 from alerts.models import AlertConfig
+from attachments.models import Attachment
+from attachments.services import delete_attachment as delete_attachment_service
+from attachments.services import get_attachments_for, handle_upload
 from bookings.models import Booking, Category, Liability, RecurringSeries
 from bookings.wizard import create_series_bookings
 from timetracking.models import Client, TimeEntry
 
 from .resolvers import resolve_category, resolve_client
-from .serializers import serialize_booking, serialize_series, serialize_time_entry
+from .serializers import serialize_attachment, serialize_booking, serialize_series, serialize_time_entry
 
 TWO_PLACES = Decimal('0.01')
+
+# Independent from settings.MAX_UPLOAD_SIZE_MB (10 MB): rejects oversized Base64
+# payloads before they reach handle_upload's own size/MIME validation, since
+# invoice/receipt attachments are expected to be well under 100 KB.
+MCP_MAX_ATTACHMENT_SIZE_MB = 2
 
 
 def _parse_date(value, field_name='date'):
@@ -90,6 +105,25 @@ def create_booking(date, description, amount, category, status='planned',
     return serialize_booking(booking)
 
 
+def _with_attachment_counts(items):
+    """Adds 'attachment_count' to each serialized booking dict via a single
+    grouped query, so callers can see whether a receipt is already attached
+    without an extra list_booking_attachments round-trip per booking."""
+    if not items:
+        return items
+    booking_ct = ContentType.objects.get_for_model(Booking)
+    ids = [item['id'] for item in items]
+    counts = {
+        row['object_id']: row['count']
+        for row in Attachment.objects.filter(content_type=booking_ct, object_id__in=ids)
+        .values('object_id')
+        .annotate(count=Count('id'))
+    }
+    for item in items:
+        item['attachment_count'] = counts.get(item['id'], 0)
+    return items
+
+
 def list_planned_bookings(date_from=None, date_to=None, category=None, limit=None):
     qs = Booking.objects.filter(status='planned')
     if date_from is not None:
@@ -107,7 +141,7 @@ def list_planned_bookings(date_from=None, date_to=None, category=None, limit=Non
         if limit <= 0:
             raise ValueError("Limit muss größer als 0 sein.")
         qs = qs[:limit]
-    return [serialize_booking(b) for b in qs]
+    return _with_attachment_counts([serialize_booking(b) for b in qs])
 
 
 def list_due_bookings(days_before_due=None, include_overdue=True, include_due_soon=True, limit=None):
@@ -158,7 +192,7 @@ def list_due_bookings(days_before_due=None, include_overdue=True, include_due_so
     result.sort(key=lambda item: (item['date'], item['id']))
     if limit is not None:
         result = result[:limit]
-    return result
+    return _with_attachment_counts(result)
 
 
 def list_categories():
@@ -171,6 +205,55 @@ def list_categories():
         }
         for category in Category.objects.order_by('name')
     ]
+
+
+def _get_booking_or_raise(booking_id):
+    try:
+        return Booking.objects.get(pk=booking_id)
+    except Booking.DoesNotExist:
+        raise ValueError(f"Buchung mit ID {booking_id} nicht gefunden.")
+
+
+def add_booking_attachment(booking_id, filename, content_base64):
+    booking = _get_booking_or_raise(booking_id)
+
+    filename = (filename or '').strip()
+    if not filename:
+        raise ValueError("Dateiname darf nicht leer sein.")
+
+    if not content_base64:
+        raise ValueError("content_base64 darf nicht leer sein.")
+    try:
+        data = base64.b64decode(content_base64, validate=True)
+    except (binascii.Error, TypeError, ValueError):
+        raise ValueError("content_base64 ist kein gültiges Base64.")
+
+    max_size = MCP_MAX_ATTACHMENT_SIZE_MB * 1024 * 1024
+    if len(data) > max_size:
+        raise ValueError(
+            f"Datei zu groß für den MCP-Upload. Maximale (dekodierte) Größe: "
+            f"{MCP_MAX_ATTACHMENT_SIZE_MB} MB."
+        )
+
+    upload = SimpleUploadedFile(filename, data)
+    try:
+        attachment = handle_upload(upload, booking)
+    except ValidationError as exc:
+        raise ValueError('; '.join(exc.messages))
+
+    return serialize_attachment(attachment)
+
+
+def list_booking_attachments(booking_id):
+    booking = _get_booking_or_raise(booking_id)
+    attachments = get_attachments_for(booking)
+    return [serialize_attachment(a, include_url=True) for a in attachments]
+
+
+def delete_booking_attachment(attachment_id):
+    if not delete_attachment_service(attachment_id):
+        raise ValueError(f"Anhang mit ID {attachment_id} nicht gefunden.")
+    return {'success': True, 'attachment_id': attachment_id}
 
 
 # ---------------------------------------------------------------------------
