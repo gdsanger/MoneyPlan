@@ -118,6 +118,16 @@ async def add_booking_attachment(
     """Haengt einen Beleg/eine Rechnung (Base64-kodiert) als echten Datei-Anhang an
     eine bestehende Buchung an - ueber dieselbe attachments-App wie das Web-UI.
 
+    NUR fuer Mini-Dateien geeignet (siehe Limit unten): Base64 laeuft durch den
+    Agenten-Kontext und ein Tool-Output-Cap von grob 30K Zeichen entspricht nur
+    ~20 KB Datei - bei groesseren Dateien wird die Base64-Ausgabe vom Agenten
+    gechunkt und laeuft Gefahr, beim Wiederzusammensetzen zu korrumpieren.
+    Fuer echte Belege/Rechnungen stattdessen den Token-authentifizierten
+    HTTP-Upload verwenden (multipart, Bytes gehen direkt an den Server, nicht
+    durch den Agenten-Kontext):
+    curl -H "Authorization: Bearer <token>" -F "file=@beleg.pdf" \\
+        https://mpmcp.angerlabs.de/api/bookings/<booking_id>/attachment/
+
     booking_id: ID einer bestehenden Buchung.
     filename: Dateiname inkl. Endung (z.B. 'rechnung_2026-08.pdf').
     content_base64: Dateiinhalt Base64-kodiert. Gedacht fuer Belege < 100 KB;

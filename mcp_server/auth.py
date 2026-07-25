@@ -43,11 +43,28 @@ def _is_https(scope):
     return forwarded_proto == 'https'
 
 
-def _token_is_valid(token):
+def token_is_valid(token):
+    """Constant-time check against settings.MCP_ACCESS_TOKEN.
+
+    Shared by the MCP ASGI middleware and any WSGI view that wants the same
+    token-auth scheme (e.g. the token-authenticated attachment upload API).
+    """
     expected = settings.MCP_ACCESS_TOKEN
     if not expected or not token:
         return False
     return hmac.compare_digest(token, expected)
+
+
+def extract_token_from_django_request(request):
+    """Same accepted forms as `_extract_token`, for regular (WSGI) Django views.
+
+    Bearer header takes precedence over the `?token=` query parameter.
+    """
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    if auth_header.lower().startswith('bearer '):
+        return auth_header[len('bearer '):].strip()
+
+    return request.GET.get('token')
 
 
 async def _send_json_error(send, status, message):
@@ -76,7 +93,7 @@ class TokenAuthMiddleware:
             await _send_json_error(send, 403, 'HTTPS required')
             return
 
-        if not _token_is_valid(_extract_token(scope)):
+        if not token_is_valid(_extract_token(scope)):
             await _send_json_error(send, 401, 'Invalid or missing token')
             return
 

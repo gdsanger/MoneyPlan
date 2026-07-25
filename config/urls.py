@@ -20,6 +20,8 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
+from attachments.api_views import upload_booking_attachment
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
@@ -33,6 +35,9 @@ urlpatterns = [
     path('ki/', include('ai.urls')),
     path('zeiten/', include('timetracking.urls')),
     path('auslagen/', include('reimbursements.urls')),
+    # Token-authentifizierte API fuer Agenten (curl -F statt Base64-durch-den-Kontext).
+    path('api/bookings/<int:booking_id>/attachment/', upload_booking_attachment,
+         name='api_booking_attachment_upload'),
 ]
 
 if settings.DEBUG:
