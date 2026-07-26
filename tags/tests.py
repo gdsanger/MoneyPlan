@@ -158,3 +158,39 @@ class TagViewsTestCase(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Tag.objects.filter(id=self.tag.id).exists())
+
+
+class TagGroupedChoicesTestCase(TestCase):
+    """Tests for Tag.grouped_choices(), used to build dimension-grouped Multi-Select widgets."""
+
+    def test_groups_tags_by_kind_ordered(self):
+        Tag.objects.create(name='Zebra Projekt', kind='projekt')
+        Tag.objects.create(name='Alpha Projekt', kind='projekt')
+        Tag.objects.create(name='Kunde XY', kind='kunde')
+
+        groups = Tag.grouped_choices()
+        group_labels = [label for label, _options in groups]
+        self.assertEqual(group_labels, ['Kunde', 'Projekt'])
+
+        projekt_options = dict(groups[group_labels.index('Projekt')][1])
+        names = list(projekt_options.values())
+        self.assertEqual(names, ['Alpha Projekt', 'Zebra Projekt'])
+
+    def test_excludes_archived_by_default(self):
+        Tag.objects.create(name='Aktiv', kind='sonstiges')
+        Tag.objects.create(name='Archiviert', kind='sonstiges', archived=True)
+
+        groups = Tag.grouped_choices()
+        all_names = [name for _label, options in groups for _pk, name in options]
+        self.assertIn('Aktiv', all_names)
+        self.assertNotIn('Archiviert', all_names)
+
+    def test_custom_queryset_overrides_default_filter(self):
+        archived = Tag.objects.create(name='Archiviert', kind='sonstiges', archived=True)
+
+        groups = Tag.grouped_choices(Tag.objects.filter(pk=archived.pk))
+        all_names = [name for _label, options in groups for _pk, name in options]
+        self.assertEqual(all_names, ['Archiviert'])
+
+    def test_empty_queryset_returns_empty_list(self):
+        self.assertEqual(Tag.grouped_choices(Tag.objects.none()), [])

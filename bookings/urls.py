@@ -13,6 +13,7 @@ urlpatterns = [
     path('<int:booking_id>/loeschen/', views.booking_delete, name='delete'),
     path('<int:booking_id>/status/', views.booking_toggle_status, name='toggle_status'),
     path('<int:booking_id>/duplizieren/', views.booking_duplicate, name='duplicate'),
+    path('bulk-tag/', views.booking_bulk_tag, name='bulk_tag'),
     path('series/', views.series_list, name='series'),
     path('categories/', views.category_list, name='categories'),
     path('kategorien-uebersicht/', views.category_overview, name='category_overview'),

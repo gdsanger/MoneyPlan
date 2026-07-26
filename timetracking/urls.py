@@ -11,6 +11,7 @@ urlpatterns = [
     path('<int:entry_id>/bearbeiten/', views.time_entry_edit, name='edit'),
     path('<int:entry_id>/loeschen/', views.time_entry_delete, name='delete'),
     path('<int:entry_id>/abgerechnet/', views.time_entry_toggle_billed, name='toggle_billed'),
+    path('bulk-tag/', views.time_entry_bulk_tag, name='bulk_tag'),
 
     # Client URLs
     path('kunden/', views.client_list, name='client_list'),

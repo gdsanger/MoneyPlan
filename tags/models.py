@@ -33,3 +33,17 @@ class Tag(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_kind_display()})"
+
+    @classmethod
+    def grouped_choices(cls, queryset=None):
+        """Choices für Select-Felder, gruppiert nach Dimension (kind) als optgroups."""
+        qs = cls.objects.filter(archived=False) if queryset is None else queryset
+        kind_labels = dict(cls.KIND_CHOICES)
+        groups = []
+        current_kind = object()
+        for tag in qs.order_by('kind', 'name'):
+            if tag.kind != current_kind:
+                current_kind = tag.kind
+                groups.append((kind_labels.get(tag.kind, tag.kind), []))
+            groups[-1][1].append((tag.pk, tag.name))
+        return groups
