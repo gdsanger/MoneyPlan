@@ -1,0 +1,271 @@
+<!-- Filter form -->
+<form hx-get="{% url 'tags:overview' %}"
+      hx-target="#tag-overview-content"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+      hx-trigger="submit, change"
+      class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-4 col-lg-3">
+                <label for="tag-overview-period" class="form-label small text-muted mb-1">Zeitraum</label>
+                <select name="period" id="tag-overview-period" class="form-select">
+                    <option value="month" {% if period == 'month' %}selected{% endif %}>Aktueller Monat</option>
+                    <option value="year" {% if period == 'year' %}selected{% endif %}>Laufendes Jahr</option>
+                    <option value="custom" {% if period == 'custom' %}selected{% endif %}>Frei (von–bis)</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3 col-lg-2 tag-overview-custom-range" {% if period != 'custom' %}style="display:none;"{% endif %}>
+                <label for="tag-overview-start" class="form-label small text-muted mb-1">Von</label>
+                <input type="date" name="start" id="tag-overview-start" class="form-control"
+                       value="{{ start|date:'Y-m-d' }}">
+            </div>
+            <div class="col-6 col-md-3 col-lg-2 tag-overview-custom-range" {% if period != 'custom' %}style="display:none;"{% endif %}>
+                <label for="tag-overview-end" class="form-label small text-muted mb-1">Bis</label>
+                <input type="date" name="end" id="tag-overview-end" class="form-control"
+                       value="{{ end|date:'Y-m-d' }}">
+            </div>
+            <div class="col-12 col-lg-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i> Anzeigen
+                </button>
+            </div>
+        </div>
+        <div class="small text-muted mt-2">
+            <i class="bi bi-calendar-range"></i>
+            Zeitraum: {{ start|date:'d.m.Y' }} – {{ end|date:'d.m.Y' }}
+        </div>
+    </div>
+</form>
+
+<!-- Summary (tatsächlich = gebucht, geplant separat, Zeit separat ausgewiesen) -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Einnahmen (Ist)</div>
+            <div class="h6 mb-0 text-success">{{ grand_totals.income_booked|floatformat:2 }} €</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Ausgaben (Ist)</div>
+            <div class="h6 mb-0 text-danger">{{ grand_totals.expenses_booked|floatformat:2 }} €</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Ergebnis (Ist)</div>
+            <div class="h6 mb-0 {% if grand_totals.result_booked >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ grand_totals.result_booked|floatformat:2 }} €
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Ergebnis (geplant)</div>
+            <div class="h6 mb-0 {% if grand_totals.result_planned >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ grand_totals.result_planned|floatformat:2 }} €
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Stunden erfasst</div>
+            <div class="h6 mb-0">{{ grand_totals.hours|floatformat:2 }} h</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="p-3 border rounded text-center">
+            <div class="text-muted small">Zeitwert</div>
+            <div class="h6 mb-0">{{ grand_totals.time_value|floatformat:2 }} €</div>
+        </div>
+    </div>
+</div>
+<div class="small text-muted mb-4">
+    <i class="bi bi-info-circle"></i>
+    Zeitwert (Stunden × Stundensatz) ist eine separate Kennzahl und bereits in den obigen
+    Einnahmen enthaltene, abgerechnete Zeit wird hier nicht zusätzlich addiert.
+</div>
+
+<!-- Chart: Ergebnis (Ist) je Tag -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Ergebnis je Tag (Ist)</h5>
+    </div>
+    <div class="card-body">
+        {% if chart_labels %}
+        <div style="height: 320px;">
+            <canvas id="tagOverviewChart"></canvas>
+        </div>
+        {{ chart_labels|json_script:"tag-overview-chart-labels" }}
+        {{ chart_results|json_script:"tag-overview-chart-results" }}
+        <script>
+            (function () {
+                var canvas = document.getElementById('tagOverviewChart');
+                if (!canvas || typeof Chart === 'undefined') { return; }
+                var labels = JSON.parse(document.getElementById('tag-overview-chart-labels').textContent);
+                var results = JSON.parse(document.getElementById('tag-overview-chart-results').textContent);
+                new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Ergebnis (Ist)',
+                            data: results,
+                            backgroundColor: results.map(function (v) {
+                                return v >= 0 ? 'rgba(40, 167, 69, 0.8)' : 'rgba(220, 53, 69, 0.8)';
+                            }),
+                            borderColor: results.map(function (v) {
+                                return v >= 0 ? 'rgba(40, 167, 69, 1)' : 'rgba(220, 53, 69, 1)';
+                            }),
+                            borderWidth: 1,
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return context.parsed.y.toFixed(2) + ' €';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                                ticks: {
+                                    callback: function (value) { return value + ' €'; }
+                                }
+                            },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            })();
+        </script>
+        {% else %}
+        <p class="text-muted mb-0">Keine getaggten Buchungen oder Zeiteinträge im gewählten Zeitraum.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Dimension groups -->
+{% for kind, group in groups.items %}
+<div class="card mb-4">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="mb-0">
+            <i class="bi bi-tag"></i> {{ group.label }}
+            <span class="badge bg-secondary ms-2">{{ group.rows|length }}</span>
+        </h5>
+        <span class="fw-semibold {% if group.totals.result_booked >= 0 %}text-success{% else %}text-danger{% endif %}">
+            Ergebnis (Ist): {{ group.totals.result_booked|floatformat:2 }} €
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 table-stack">
+            <thead>
+                <tr>
+                    <th>Tag</th>
+                    <th class="text-end">Einnahmen (Ist)</th>
+                    <th class="text-end">Ausgaben (Ist)</th>
+                    <th class="text-end">Ergebnis (Ist)</th>
+                    <th class="text-end">Ergebnis (geplant)</th>
+                    <th class="text-end">Ergebnis (gesamt)</th>
+                    <th class="text-end">Stunden</th>
+                    <th class="text-end">Zeitwert</th>
+                    <th class="text-end">Ergebnis/Std.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in group.rows %}
+                <tr>
+                    <td>
+                        <span class="badge rounded-pill" style="background-color: {{ row.tag.color }};">&nbsp;&nbsp;</span>
+                        {{ row.tag.name }}
+                    </td>
+                    <td class="text-end text-success">{{ row.income_booked|floatformat:2 }} €</td>
+                    <td class="text-end text-danger">{{ row.expenses_booked|floatformat:2 }} €</td>
+                    <td class="text-end fw-semibold {% if row.result_booked >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ row.result_booked|floatformat:2 }} €
+                    </td>
+                    <td class="text-end {% if row.result_planned >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ row.result_planned|floatformat:2 }} €
+                    </td>
+                    <td class="text-end fw-semibold {% if row.result_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ row.result_total|floatformat:2 }} €
+                    </td>
+                    <td class="text-end">{{ row.hours|floatformat:2 }} h</td>
+                    <td class="text-end">{{ row.time_value|floatformat:2 }} €</td>
+                    <td class="text-end">
+                        {% if row.result_per_hour is not None %}{{ row.result_per_hour|floatformat:2 }} €{% else %}–{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% empty %}
+<div class="text-center text-muted py-4">
+    <i class="bi bi-inbox"></i> Keine getaggten Buchungen oder Zeiteinträge im gewählten Zeitraum.
+</div>
+{% endfor %}
+
+<!-- Untagged -->
+{% if untagged %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-tag-fill"></i> Ohne Tag</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table mb-0 table-stack">
+            <thead>
+                <tr>
+                    <th class="text-end">Einnahmen (Ist)</th>
+                    <th class="text-end">Ausgaben (Ist)</th>
+                    <th class="text-end">Ergebnis (Ist)</th>
+                    <th class="text-end">Ergebnis (geplant)</th>
+                    <th class="text-end">Ergebnis (gesamt)</th>
+                    <th class="text-end">Stunden</th>
+                    <th class="text-end">Zeitwert</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-end text-success">{{ untagged.income_booked|floatformat:2 }} €</td>
+                    <td class="text-end text-danger">{{ untagged.expenses_booked|floatformat:2 }} €</td>
+                    <td class="text-end fw-semibold {% if untagged.result_booked >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ untagged.result_booked|floatformat:2 }} €
+                    </td>
+                    <td class="text-end {% if untagged.result_planned >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ untagged.result_planned|floatformat:2 }} €
+                    </td>
+                    <td class="text-end fw-semibold {% if untagged.result_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ untagged.result_total|floatformat:2 }} €
+                    </td>
+                    <td class="text-end">{{ untagged.hours|floatformat:2 }} h</td>
+                    <td class="text-end">{{ untagged.time_value|floatformat:2 }} €</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    (function () {
+        var periodSelect = document.getElementById('tag-overview-period');
+        if (periodSelect) {
+            periodSelect.addEventListener('change', function () {
+                var show = this.value === 'custom';
+                document.querySelectorAll('.tag-overview-custom-range').forEach(function (el) {
+                    el.style.display = show ? '' : 'none';
+                });
+            });
+        }
+    })();
+</script>

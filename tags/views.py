@@ -1,3 +1,6 @@
+from calendar import monthrange
+from datetime import date, datetime
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -6,6 +9,7 @@ from django.db.models import Count
 
 from .models import Tag
 from .forms import TagForm
+from .services import get_tag_overview
 
 
 @login_required
@@ -131,3 +135,72 @@ def tag_toggle_archived(request, tag_id):
     else:
         messages.success(request, f'Tag "{tag.name}" wurde wiederhergestellt.')
     return redirect('tags:list')
+
+
+def _parse_overview_period(request):
+    """
+    Resolve the requested reporting period from GET params.
+
+    Returns:
+        tuple: (start_date, end_date, period) where period in {'month', 'year', 'custom'}.
+    """
+    today = date.today()
+    period = request.GET.get('period', 'month')
+
+    def _parse(value):
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            return None
+
+    if period == 'year':
+        start = date(today.year, 1, 1)
+        end = date(today.year, 12, 31)
+    elif period == 'custom':
+        start = _parse(request.GET.get('start'))
+        end = _parse(request.GET.get('end'))
+        if start is None:
+            start = date(today.year, today.month, 1)
+        if end is None:
+            end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+        if end < start:
+            start, end = end, start
+    else:
+        period = 'month'
+        start = date(today.year, today.month, 1)
+        end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+
+    return start, end, period
+
+
+@login_required
+def tag_overview(request):
+    """
+    Rentabilität je Tag und aggregiert je Dimension: Einnahmen/Ausgaben/Ergebnis (Brutto),
+    geplant vs. tatsächlich getrennt, sowie Stunden/Zeitwert separat (keine Doppelzählung).
+    """
+    start, end, period = _parse_overview_period(request)
+    overview = get_tag_overview(start, end)
+
+    chart_labels = []
+    chart_results = []
+    for group in overview['groups'].values():
+        for row in group['rows']:
+            chart_labels.append(row['tag'].name)
+            chart_results.append(float(row['result_booked']))
+
+    context = {
+        'groups': overview['groups'],
+        'untagged': overview['untagged'],
+        'grand_totals': overview['grand_totals'],
+        'period': period,
+        'start': start,
+        'end': end,
+        'chart_labels': chart_labels,
+        'chart_results': chart_results,
+    }
+
+    if request.htmx:
+        return render(request, 'tags/_tag_overview_content.html', context)
+
+    return render(request, 'tags/tag_overview.html', context)

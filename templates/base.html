@@ -98,6 +98,7 @@
                             <li><a class="dropdown-item {% if nav_active_view == 'timetracking:list' %}active{% endif %}" href="{% url 'timetracking:list' %}"><i class="bi bi-clock-history"></i> Zeiten</a></li>
                             <li><a class="dropdown-item {% if nav_active_view == 'reimbursements:list' %}active{% endif %}" href="{% url 'reimbursements:list' %}"><i class="bi bi-fuel-pump"></i> Auslagen</a></li>
                             <li><a class="dropdown-item {% if nav_active_view == 'tags:list' %}active{% endif %}" href="{% url 'tags:list' %}"><i class="bi bi-tag"></i> Tags</a></li>
+                            <li><a class="dropdown-item {% if nav_active_view == 'tags:overview' %}active{% endif %}" href="{% url 'tags:overview' %}"><i class="bi bi-bar-chart"></i> Tags-Auswertung</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -172,6 +173,7 @@
                 <li class="nav-item"><a class="nav-link {% if nav_active_view == 'timetracking:list' %}active{% endif %}" href="{% url 'timetracking:list' %}"><i class="bi bi-clock-history"></i> Zeiten</a></li>
                 <li class="nav-item"><a class="nav-link {% if nav_active_view == 'reimbursements:list' %}active{% endif %}" href="{% url 'reimbursements:list' %}"><i class="bi bi-fuel-pump"></i> Auslagen</a></li>
                 <li class="nav-item"><a class="nav-link {% if nav_active_view == 'tags:list' %}active{% endif %}" href="{% url 'tags:list' %}"><i class="bi bi-tag"></i> Tags</a></li>
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'tags:overview' %}active{% endif %}" href="{% url 'tags:overview' %}"><i class="bi bi-bar-chart"></i> Tags-Auswertung</a></li>
             </ul>
 
             {% if user.is_authenticated %}
