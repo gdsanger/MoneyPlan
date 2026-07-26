@@ -35,6 +35,7 @@ urlpatterns = [
     path('ki/', include('ai.urls')),
     path('zeiten/', include('timetracking.urls')),
     path('auslagen/', include('reimbursements.urls')),
+    path('tags/', include('tags.urls')),
     # Token-authentifizierte API fuer Agenten (curl -F statt Base64-durch-den-Kontext).
     path('api/bookings/<int:booking_id>/attachment/', upload_booking_attachment,
          name='api_booking_attachment_upload'),

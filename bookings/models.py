@@ -91,6 +91,12 @@ class Booking(models.Model):
         related_name='bookings',
         verbose_name="Verbindlichkeit"
     )
+    tags = models.ManyToManyField(
+        'tags.Tag',
+        blank=True,
+        related_name='bookings',
+        verbose_name="Tags",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Aktualisiert am")
 
