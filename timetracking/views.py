@@ -1,12 +1,14 @@
 """Views for time tracking."""
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import HttpResponse
 from django.urls import reverse
 from datetime import date
 from .models import TimeEntry, Client
 from .forms import TimeEntryForm, ClientForm
 from .services import get_unbilled_total, get_forecast_entry
+from tags.models import Tag
 
 
 @login_required
@@ -16,9 +18,11 @@ def time_entry_list(request):
     status_filter = request.GET.get('status', 'all')
     client_filter = request.GET.get('client', 'all')
     month_filter = request.GET.get('month', 'all')
+    tag_filter = request.GET.get('tag', 'all')
+    tag_kind_filter = request.GET.get('tag_kind', 'all')
 
     # Start with all entries
-    entries = TimeEntry.objects.select_related('client').all()
+    entries = TimeEntry.objects.select_related('client').prefetch_related('tags').all()
 
     # Apply filters
     if status_filter == 'unbilled':
@@ -37,6 +41,15 @@ def time_entry_list(request):
         except (ValueError, AttributeError):
             pass
 
+    if tag_filter != 'all':
+        try:
+            entries = entries.filter(tags__id=int(tag_filter))
+        except (ValueError, TypeError):
+            pass
+
+    if tag_kind_filter != 'all':
+        entries = entries.filter(tags__kind=tag_kind_filter).distinct()
+
     # Calculate summary
     unbilled_total = get_unbilled_total()
     forecast_entry = get_forecast_entry()
@@ -47,16 +60,22 @@ def time_entry_list(request):
 
     # Get all clients for filter dropdown
     clients = Client.objects.all()
+    tag_choices = Tag.grouped_choices()
 
     context = {
         'entries': entries,
         'status_filter': status_filter,
         'client_filter': client_filter,
         'month_filter': month_filter,
+        'tag_filter': tag_filter,
+        'tag_kind_filter': tag_kind_filter,
         'clients': clients,
         'unbilled_total': unbilled_total,
         'unbilled_hours': unbilled_hours,
         'forecast_entry': forecast_entry,
+        'tag_kind_choices': Tag.KIND_CHOICES,
+        'tag_choices': tag_choices,
+        'bulk_tag_choices': tag_choices,
     }
 
     # If HTMX request, return only the list partial
@@ -165,6 +184,35 @@ def time_entry_toggle_billed(request, entry_id):
         return render(request, 'timetracking/_row.html', context)
 
     return HttpResponse(status=400)
+
+
+@login_required
+def time_entry_bulk_tag(request):
+    """Weist einer Auswahl von Zeiteinträgen einen Tag zu oder entfernt ihn."""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    entry_ids = request.POST.getlist('selected_entries')
+    tag_id = request.POST.get('tag')
+    action = request.POST.get('bulk_action')
+
+    if not entry_ids:
+        messages.warning(request, 'Bitte mindestens einen Zeiteintrag auswählen.')
+    elif not tag_id:
+        messages.warning(request, 'Bitte einen Tag auswählen.')
+    else:
+        tag = get_object_or_404(Tag, pk=tag_id)
+        selected_entries = TimeEntry.objects.filter(pk__in=entry_ids)
+        count = selected_entries.count()
+
+        if action == 'remove':
+            tag.time_entries.remove(*selected_entries)
+            messages.success(request, f'Tag "{tag.name}" wurde von {count} Zeiteintrag/-einträgen entfernt.')
+        else:
+            tag.time_entries.add(*selected_entries)
+            messages.success(request, f'Tag "{tag.name}" wurde {count} Zeiteintrag/-einträgen zugewiesen.')
+
+    return redirect(request.META.get('HTTP_REFERER', reverse('timetracking:list')))
 
 
 @login_required

@@ -1,31 +1,69 @@
 <div class="card">
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover table-stack">
-                <thead>
-                    <tr>
-                        <th>Datum</th>
-                        <th>Beschreibung</th>
-                        <th>Betrag</th>
-                        <th>Kategorie</th>
-                        <th>Status</th>
-                        <th>Serie</th>
-                        <th>Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for booking in page_obj %}
-                        {% include 'bookings/_booking_row.html' %}
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-center text-muted">
-                            <i class="bi bi-inbox"></i> Keine Buchungen gefunden
-                        </td>
-                    </tr>
+        <form id="bulk-tag-form" method="post" action="{% url 'bookings:bulk_tag' %}">
+            {% csrf_token %}
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <span class="text-muted"><i class="bi bi-tags"></i> Massen-Zuordnung:</span>
+                <select name="tag" class="form-select form-select-sm w-auto" required>
+                    <option value="">Tag wählen...</option>
+                    {% for group_label, options in bulk_tag_choices %}
+                    <optgroup label="{{ group_label }}">
+                        {% for value, label in options %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </optgroup>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                </select>
+                <button type="submit" name="bulk_action" value="add" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-tag"></i> Zuweisen
+                </button>
+                <button type="submit" name="bulk_action" value="remove" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-tag"></i> Entfernen
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-stack">
+                    <thead>
+                        <tr>
+                            <th style="width: 2rem;">
+                                <input type="checkbox" class="form-check-input" id="select-all-bookings" title="Alle auswählen">
+                            </th>
+                            <th>Datum</th>
+                            <th>Beschreibung</th>
+                            <th>Betrag</th>
+                            <th>Kategorie</th>
+                            <th>Tags</th>
+                            <th>Status</th>
+                            <th>Serie</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for booking in page_obj %}
+                            {% include 'bookings/_booking_row.html' %}
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted">
+                                <i class="bi bi-inbox"></i> Keine Buchungen gefunden
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+        <script>
+            (function () {
+                var selectAll = document.getElementById('select-all-bookings');
+                if (selectAll) {
+                    selectAll.addEventListener('change', function (e) {
+                        document.querySelectorAll('.booking-row-checkbox').forEach(function (cb) {
+                            cb.checked = e.target.checked;
+                        });
+                    });
+                }
+            })();
+        </script>
 
         <!-- Pagination -->
         {% if page_obj.has_other_pages %}

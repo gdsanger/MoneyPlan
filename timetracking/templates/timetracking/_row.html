@@ -1,4 +1,8 @@
+{% load badge_extras %}
 <tr id="entry-row-{{ entry.id }}" class="{% if not entry.billed %}table-warning bg-opacity-10{% else %}opacity-75{% endif %}">
+    <td>
+        <input type="checkbox" class="form-check-input entry-row-checkbox" name="selected_entries" value="{{ entry.id }}">
+    </td>
     <td>{{ entry.date|date:"d.m.Y" }}</td>
     <td>{{ entry.client.name }}</td>
     <td>
@@ -6,6 +10,15 @@
         {% if entry.notes %}
         <br><small class="text-muted">{{ entry.notes|truncatewords:8 }}</small>
         {% endif %}
+    </td>
+    <td>
+        {% for tag in entry.tags.all %}
+        <span class="badge me-1" style="background-color: {{ tag.color }}; color: {{ tag.color|contrast_text_color }};" title="{{ tag.get_kind_display }}">
+            {{ tag.name }}
+        </span>
+        {% empty %}
+        <span class="text-muted">-</span>
+        {% endfor %}
     </td>
     <td>{{ entry.duration_display }}</td>
     <td>{{ entry.hourly_rate|floatformat:2 }} €</td>

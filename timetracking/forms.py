@@ -1,9 +1,11 @@
 """Forms for time tracking."""
 from django import forms
+from django.db.models import Q
 from datetime import date
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, HTML
 from .models import TimeEntry, Client
+from tags.models import Tag
 
 
 class TimeEntryForm(forms.ModelForm):
@@ -11,7 +13,7 @@ class TimeEntryForm(forms.ModelForm):
 
     class Meta:
         model = TimeEntry
-        fields = ['client', 'date', 'duration', 'hourly_rate', 'description', 'notes']
+        fields = ['client', 'date', 'duration', 'hourly_rate', 'description', 'tags', 'notes']
         widgets = {
             'client': forms.Select(attrs={'class': 'form-select'}),
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -26,10 +28,12 @@ class TimeEntryForm(forms.ModelForm):
             'duration': 'Dauer (h)',
             'hourly_rate': 'Stundensatz',
             'description': 'Beschreibung',
+            'tags': 'Tags',
             'notes': 'Notizen',
         }
         help_texts = {
             'duration': 'z.B. 1.5 für 1h 30min',
+            'tags': 'Mehrfachauswahl möglich (Strg/Cmd gedrückt halten), gruppiert nach Dimension',
             'notes': 'Optional',
         }
 
@@ -46,6 +50,7 @@ class TimeEntryForm(forms.ModelForm):
                 Column('hourly_rate', css_class='col-md-6'),
             ),
             'description',
+            'tags',
             'notes',
         )
 
@@ -55,11 +60,20 @@ class TimeEntryForm(forms.ModelForm):
         self.fields['duration'].required = True
         self.fields['hourly_rate'].required = True
         self.fields['description'].required = True
+        self.fields['tags'].required = False
         self.fields['notes'].required = False
 
         # Set default date to today if creating new entry
         if not self.instance.pk:
             self.initial['date'] = date.today()
+
+        # Tags: nicht-archivierte Tags + bereits zugeordnete (auch wenn archiviert),
+        # als Multi-Select mit optgroups nach Dimension
+        assigned_tag_ids = list(self.instance.tags.values_list('pk', flat=True)) if self.instance.pk else []
+        tag_queryset = Tag.objects.filter(Q(archived=False) | Q(pk__in=assigned_tag_ids))
+        self.fields['tags'].queryset = tag_queryset
+        self.fields['tags'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
+        self.fields['tags'].widget.choices = Tag.grouped_choices(tag_queryset)
 
 
 class ClientForm(forms.ModelForm):

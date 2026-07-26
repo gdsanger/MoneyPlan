@@ -98,6 +98,38 @@
                                hx-swap="innerHTML"
                                hx-include="#filter-form">
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Tag</label>
+                        <select name="tag" class="form-select"
+                                hx-get="{% url 'timetracking:list' %}"
+                                hx-trigger="change"
+                                hx-target="#entry-list-container"
+                                hx-swap="innerHTML"
+                                hx-include="#filter-form">
+                            <option value="all" {% if tag_filter == 'all' %}selected{% endif %}>Alle</option>
+                            {% for group_label, options in tag_choices %}
+                            <optgroup label="{{ group_label }}">
+                                {% for value, label in options %}
+                                <option value="{{ value }}" {% if tag_filter == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Dimension</label>
+                        <select name="tag_kind" class="form-select"
+                                hx-get="{% url 'timetracking:list' %}"
+                                hx-trigger="change"
+                                hx-target="#entry-list-container"
+                                hx-swap="innerHTML"
+                                hx-include="#filter-form">
+                            <option value="all" {% if tag_kind_filter == 'all' %}selected{% endif %}>Alle</option>
+                            {% for value, label in tag_kind_choices %}
+                            <option value="{{ value }}" {% if tag_kind_filter == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </form>
             </div>
         </div>

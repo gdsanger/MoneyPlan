@@ -1,7 +1,9 @@
 from django import forms
+from django.db.models import Q
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, Submit, HTML, Div
 from .models import Booking, Category, RecurringSeries, Liability, Asset
+from tags.models import Tag
 from datetime import date
 
 
@@ -67,7 +69,7 @@ class BookingForm(forms.ModelForm):
 
     class Meta:
         model = Booking
-        fields = ['date', 'description', 'amount', 'category', 'status', 'liability', 'notes']
+        fields = ['date', 'description', 'amount', 'category', 'status', 'liability', 'tags', 'notes']
         widgets = {
             'date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
             'description': forms.TextInput(attrs={'class': 'form-control'}),
@@ -84,11 +86,13 @@ class BookingForm(forms.ModelForm):
             'category': 'Kategorie',
             'status': 'Status',
             'liability': 'Verbindlichkeit',
+            'tags': 'Tags',
             'notes': 'Notizen',
         }
         help_texts = {
             'amount': 'Positiv = Einnahme, Negativ = Ausgabe',
             'liability': 'Ordne diese Ausgabe einer Verbindlichkeit zu (nur für Ausgaben)',
+            'tags': 'Mehrfachauswahl möglich (Strg/Cmd gedrückt halten), gruppiert nach Dimension',
             'notes': 'Optionale Notizen zur Buchung',
         }
 
@@ -107,6 +111,7 @@ class BookingForm(forms.ModelForm):
                 Column('category', css_class='col-md-6'),
             ),
             'liability',
+            'tags',
             'notes',
         )
 
@@ -117,11 +122,20 @@ class BookingForm(forms.ModelForm):
         self.fields['category'].required = True
         self.fields['status'].required = True
         self.fields['liability'].required = False
+        self.fields['tags'].required = False
         self.fields['notes'].required = False
 
         # Filter liability to only show open liabilities
         self.fields['liability'].queryset = Liability.objects.all()
         self.fields['liability'].empty_label = "Keine Zuordnung"
+
+        # Tags: nicht-archivierte Tags + bereits zugeordnete (auch wenn archiviert),
+        # als Multi-Select mit optgroups nach Dimension
+        assigned_tag_ids = list(self.instance.tags.values_list('pk', flat=True)) if self.instance.pk else []
+        tag_queryset = Tag.objects.filter(Q(archived=False) | Q(pk__in=assigned_tag_ids))
+        self.fields['tags'].queryset = tag_queryset
+        self.fields['tags'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
+        self.fields['tags'].widget.choices = Tag.grouped_choices(tag_queryset)
 
 
 class BookingFilterForm(forms.Form):
@@ -167,13 +181,24 @@ class BookingFilterForm(forms.Form):
         widget=forms.DateInput(attrs={'type': 'month', 'class': 'form-control', 'hx-get': '', 'hx-trigger': 'change', 'hx-target': '#booking-list-container', 'hx-swap': 'innerHTML'})
     )
 
+    tag = forms.ModelChoiceField(
+        queryset=Tag.objects.filter(archived=False),
+        required=False,
+        label='Tag',
+        empty_label='Alle',
+        widget=forms.Select(attrs={'class': 'form-select', 'hx-get': '', 'hx-trigger': 'change', 'hx-target': '#booking-list-container', 'hx-swap': 'innerHTML'})
+    )
+
+    tag_kind = forms.ChoiceField(
+        choices=[('', 'Alle')] + Tag.KIND_CHOICES,
+        required=False,
+        label='Dimension',
+        widget=forms.Select(attrs={'class': 'form-select', 'hx-get': '', 'hx-trigger': 'change', 'hx-target': '#booking-list-container', 'hx-swap': 'innerHTML'})
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Set the hx-get attribute to the current URL
-        for field_name in ['status', 'type', 'category', 'month']:
-            if field_name in self.fields:
-                # The actual URL will be set in the template
-                pass
+        self.fields['tag'].widget.choices = [('', 'Alle')] + Tag.grouped_choices()
 
 
 class MonthFilterForm(forms.Form):

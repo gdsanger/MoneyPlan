@@ -1,25 +1,63 @@
 {% if entries %}
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th style="width: 100px;">Datum</th>
-                <th>Kunde</th>
-                <th>Beschreibung</th>
-                <th style="width: 100px;">Dauer</th>
-                <th style="width: 120px;">Stundensatz</th>
-                <th style="width: 120px;">Betrag</th>
-                <th style="width: 120px;">Status</th>
-                <th style="width: 180px;">Aktionen</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in entries %}
-                {% include 'timetracking/_row.html' %}
+<form id="bulk-tag-form" method="post" action="{% url 'timetracking:bulk_tag' %}">
+    {% csrf_token %}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <span class="text-muted"><i class="bi bi-tags"></i> Massen-Zuordnung:</span>
+        <select name="tag" class="form-select form-select-sm w-auto" required>
+            <option value="">Tag wählen...</option>
+            {% for group_label, options in bulk_tag_choices %}
+            <optgroup label="{{ group_label }}">
+                {% for value, label in options %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </optgroup>
             {% endfor %}
-        </tbody>
-    </table>
-</div>
+        </select>
+        <button type="submit" name="bulk_action" value="add" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-tag"></i> Zuweisen
+        </button>
+        <button type="submit" name="bulk_action" value="remove" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-tag"></i> Entfernen
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th style="width: 2rem;">
+                        <input type="checkbox" class="form-check-input" id="select-all-entries" title="Alle auswählen">
+                    </th>
+                    <th style="width: 100px;">Datum</th>
+                    <th>Kunde</th>
+                    <th>Beschreibung</th>
+                    <th>Tags</th>
+                    <th style="width: 100px;">Dauer</th>
+                    <th style="width: 120px;">Stundensatz</th>
+                    <th style="width: 120px;">Betrag</th>
+                    <th style="width: 120px;">Status</th>
+                    <th style="width: 180px;">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                    {% include 'timetracking/_row.html' %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</form>
+<script>
+    (function () {
+        var selectAll = document.getElementById('select-all-entries');
+        if (selectAll) {
+            selectAll.addEventListener('change', function (e) {
+                document.querySelectorAll('.entry-row-checkbox').forEach(function (cb) {
+                    cb.checked = e.target.checked;
+                });
+            });
+        }
+    })();
+</script>
 {% else %}
 <div class="alert alert-info text-center">
     <i class="bi bi-clock-history"></i>

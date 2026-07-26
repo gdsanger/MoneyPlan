@@ -13,6 +13,7 @@ from calendar import monthrange
 from decimal import Decimal, InvalidOperation
 import magic
 from .models import Booking, Category, RecurringSeries, Liability, Asset, ReconciliationLog
+from tags.models import Tag
 from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, SeriesAmountChangeForm, SeriesExtendForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm, ReconciliationForm
 from .services import (
     get_monthly_carry_forward,
@@ -54,7 +55,7 @@ def booking_list(request):
         object_id=OuterRef('pk')
     ).values('object_id').annotate(count=Count('id')).values('count')
 
-    bookings = Booking.objects.select_related('category', 'series').annotate(
+    bookings = Booking.objects.select_related('category', 'series').prefetch_related('tags').annotate(
         attachment_count=Subquery(attachment_count_subquery)
     )
 
@@ -65,6 +66,8 @@ def booking_list(request):
         booking_type = filter_form.cleaned_data.get('type')
         category = filter_form.cleaned_data.get('category')
         month = filter_form.cleaned_data.get('month')
+        tag = filter_form.cleaned_data.get('tag')
+        tag_kind = filter_form.cleaned_data.get('tag_kind')
 
         if status:
             bookings = bookings.filter(status=status)
@@ -83,6 +86,12 @@ def booking_list(request):
                 date__year=month.year,
                 date__month=month.month
             )
+
+        if tag:
+            bookings = bookings.filter(tags=tag)
+
+        if tag_kind:
+            bookings = bookings.filter(tags__kind=tag_kind).distinct()
 
     # Check for series filter (from query params, not in form)
     series_id = request.GET.get('series')
@@ -104,6 +113,7 @@ def booking_list(request):
         'page_obj': page_obj,
         'filter_form': filter_form,
         'today': date.today(),
+        'bulk_tag_choices': Tag.grouped_choices(),
     }
 
     # If HTMX request, return only the list partial
@@ -272,6 +282,35 @@ def booking_duplicate(request, booking_id):
         return render(request, 'bookings/_booking_form.html', context)
 
     return render(request, 'bookings/booking_form.html', context)
+
+
+@login_required
+def booking_bulk_tag(request):
+    """Weist einer Auswahl von Buchungen einen Tag zu oder entfernt ihn"""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    booking_ids = request.POST.getlist('selected_bookings')
+    tag_id = request.POST.get('tag')
+    action = request.POST.get('bulk_action')
+
+    if not booking_ids:
+        messages.warning(request, 'Bitte mindestens eine Buchung auswählen.')
+    elif not tag_id:
+        messages.warning(request, 'Bitte einen Tag auswählen.')
+    else:
+        tag = get_object_or_404(Tag, pk=tag_id)
+        selected_bookings = Booking.objects.filter(pk__in=booking_ids)
+        count = selected_bookings.count()
+
+        if action == 'remove':
+            tag.bookings.remove(*selected_bookings)
+            messages.success(request, f'Tag "{tag.name}" wurde von {count} Buchung(en) entfernt.')
+        else:
+            tag.bookings.add(*selected_bookings)
+            messages.success(request, f'Tag "{tag.name}" wurde {count} Buchung(en) zugewiesen.')
+
+    return redirect(request.META.get('HTTP_REFERER', reverse('bookings:list')))
 
 
 @login_required
