@@ -363,6 +363,19 @@ def update_time_entry(entry_id, client=None, date=None, duration=None, hourly_ra
 # Recurring series
 # ---------------------------------------------------------------------------
 
+def _get_series_or_raise(series_id):
+    try:
+        return RecurringSeries.objects.get(pk=series_id)
+    except RecurringSeries.DoesNotExist:
+        raise ValueError(f"Serie mit ID {series_id} nicht gefunden.")
+
+
+def list_series_attachments(series_id):
+    series = _get_series_or_raise(series_id)
+    attachments = get_attachments_for(series)
+    return [serialize_attachment(a, include_url=True) for a in attachments]
+
+
 def list_recurring_series(category=None, interval=None, limit=None):
     qs = RecurringSeries.objects.select_related('category').order_by('-created_at')
     if category is not None:

@@ -240,6 +240,18 @@ async def list_recurring_series(
 
 
 @mcp.tool()
+async def list_series_attachments(series_id: int) -> list[dict]:
+    """Listet alle Anhaenge (z.B. Vertraege, Kuendigungen, Preisanpassungen) einer
+    Serienbuchung (RecurringSeries), neueste zuerst, inkl. relativer Download-URL
+    ('url'). Die Anhaenge haengen an der Serie selbst, nicht an einzelnen daraus
+    erzeugten Buchungen (siehe list_booking_attachments fuer Anhaenge an
+    einzelnen Buchungen)."""
+    return await sync_to_async(logic.list_series_attachments, thread_sensitive=True)(
+        series_id
+    )
+
+
+@mcp.tool()
 async def create_recurring_series(
     description: str,
     amount: float,

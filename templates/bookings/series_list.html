@@ -45,7 +45,7 @@
                     </thead>
                     <tbody>
                         {% for item in series_with_counts %}
-                        {% with series=item.series booking_count=item.booking_count planned_count=item.planned_count %}
+                        {% with series=item.series booking_count=item.booking_count planned_count=item.planned_count attachment_count=item.attachment_count %}
                         <tr id="series-row-{{ series.id }}">
                             <td class="table-stack-heading">
                                 <strong>{{ series.description }}</strong>
@@ -85,6 +85,18 @@
                                             <a href="{% url 'bookings:list' %}?series={{ series.id }}" class="dropdown-item">
                                                 <i class="bi bi-journal-text"></i> Buchungen anzeigen
                                             </a>
+                                        </li>
+                                        <li>
+                                            <button type="button"
+                                                    class="dropdown-item"
+                                                    hx-get="{% url 'attachments:list' 'bookings' 'recurringseries' series.id %}"
+                                                    hx-target="#series-attachments-modal-content"
+                                                    hx-swap="innerHTML"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#seriesAttachmentsModal">
+                                                <i class="bi bi-paperclip"></i> Anhänge
+                                                {% if attachment_count %}<span class="badge text-bg-secondary">{{ attachment_count }}</span>{% endif %}
+                                            </button>
                                         </li>
                                         {% if not series.archived %}
                                         <li>
@@ -165,6 +177,21 @@
             </div>
             <div class="modal-body" id="series-amount-modal-content">
                 <!-- Form loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Anhänge Modal -->
+<div class="modal fade" id="seriesAttachmentsModal" tabindex="-1" aria-labelledby="seriesAttachmentsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="seriesAttachmentsModalLabel">Anhänge</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="series-attachments-modal-content">
+                <!-- Anhang-Panel wird hier via HTMX geladen -->
             </div>
         </div>
     </div>
