@@ -87,6 +87,19 @@ def _accumulate(totals: dict, row: dict) -> None:
         totals[field] += row[field]
 
 
+def _distinct_tagged(qs):
+    """
+    Queryset of distinct tagged rows, without the M2M join used for `tags__isnull`.
+
+    Aggregating directly on a `tags__isnull=False` queryset would sum each row once
+    per matching tag (join fan-out), double-counting bookings/time entries tagged in
+    more than one dimension. Resolving to distinct pks first and re-querying without
+    the join keeps the aggregate correct.
+    """
+    ids = qs.filter(tags__isnull=False).values_list('pk', flat=True).distinct()
+    return qs.model.objects.filter(pk__in=set(ids))
+
+
 def get_tag_overview(start_date, end_date) -> dict:
     """
     Rentabilität je Tag (Entity) und aggregiert je Dimension (Tag.kind) im Zeitraum.
@@ -99,11 +112,17 @@ def get_tag_overview(start_date, end_date) -> dict:
     fließt ihr Betrag in beide Tag-Zeilen und damit auch doppelt in die Dimensions-
     summe ein — das ist beabsichtigt (jeder Tag muss für sich rentabel bewertbar sein).
 
+    `grand_totals` ist davon bewusst ausgenommen: Trägt eine Buchung Tags aus
+    mehreren Dimensionen (z. B. Projekt UND Kostenstelle), darf sie in der
+    aggregierten Kopfzahl nur einmal zählen. Die Kopf-KPIs werden daher separat
+    über die Menge der eindeutigen getaggten Buchungen/Zeiteinträge berechnet,
+    nicht als Summe der Dimensions-/Tag-Zeilen.
+
     Returns:
         dict: {
             'groups': OrderedDict[kind] -> {'label': str, 'rows': [row, ...], 'totals': dict},
             'untagged': row | None,
-            'grand_totals': dict,  # Summe aller getaggten Zeilen (ohne 'untagged')
+            'grand_totals': dict,  # Distinct getaggte Buchungen/Zeiteinträge (ohne 'untagged'), je Buchung nur einmal gezählt
         }
 
         Jede `row` enthält (alle Decimal, Einnahmen/Ausgaben als positive Zahlen):
@@ -126,7 +145,6 @@ def get_tag_overview(start_date, end_date) -> dict:
         (kind_key, {'label': kind_labels[kind_key], 'rows': [], 'totals': _empty_totals()})
         for kind_key, _ in Tag.KIND_CHOICES
     )
-    grand_totals = _empty_totals()
 
     for tag in tags:
         row = _build_row(
@@ -137,7 +155,6 @@ def get_tag_overview(start_date, end_date) -> dict:
         group = groups[tag.kind]
         group['rows'].append(row)
         _accumulate(group['totals'], row)
-        _accumulate(grand_totals, row)
 
     # Dimensions ohne Aktivität im Zeitraum nicht anzeigen.
     groups = OrderedDict((kind, data) for kind, data in groups.items() if data['rows'])
@@ -148,6 +165,8 @@ def get_tag_overview(start_date, end_date) -> dict:
         untagged = _build_row(None, untagged_bookings, untagged_time_entries)
     else:
         untagged = None
+
+    grand_totals = _build_row(None, _distinct_tagged(period_bookings), _distinct_tagged(period_time_entries))
 
     return {
         'groups': groups,
