@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from datetime import date, timedelta
 from decimal import Decimal
 from .models import Category, RecurringSeries, Booking
+from .wizard import create_series_bookings
 
 
 class SeriesViewsTestCase(TestCase):
@@ -435,6 +436,145 @@ class SeriesViewsTestCase(TestCase):
         self.assertEqual(planned_on_cutoff.amount, Decimal('-150.00'))
         self.assertEqual(planned_after_cutoff.amount, Decimal('-150.00'))
         self.assertEqual(booked_after_cutoff.amount, Decimal('-100.00'))
+
+    def test_series_extend_get(self):
+        """Test GET request renders the extend form"""
+        series = RecurringSeries.objects.create(
+            description='Test Series',
+            amount=Decimal('100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 6, 1),
+            category=self.category
+        )
+
+        response = self.client.get(reverse('bookings:series_extend', args=[series.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Serie verlängern')
+
+    def test_series_extend_creates_missing_bookings_and_updates_end_date(self):
+        """Extending a series sets the new end_date and creates the missing planned bookings"""
+        series = RecurringSeries.objects.create(
+            description='Miete',
+            amount=Decimal('-100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 3, 1),
+            category=self.category
+        )
+        create_series_bookings(series)
+        self.assertEqual(series.bookings.count(), 3)
+
+        # Amount changes after initial generation - new bookings must use the current amount
+        series.amount = Decimal('-150.00')
+        series.save(update_fields=['amount'])
+
+        response = self.client.post(
+            reverse('bookings:series_extend', args=[series.id]),
+            {'new_end_date': '2024-06-01'}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('bookings:series_list'))
+
+        series.refresh_from_db()
+        self.assertEqual(series.end_date, date(2024, 6, 1))
+        self.assertEqual(series.bookings.count(), 6)
+
+        new_bookings = series.bookings.filter(date__gt=date(2024, 3, 1))
+        self.assertEqual(new_bookings.count(), 3)
+        for booking in new_bookings:
+            self.assertEqual(booking.amount, Decimal('-150.00'))
+            self.assertEqual(booking.status, 'planned')
+
+    def test_series_extend_is_idempotent(self):
+        """Running extend twice with the same target date does not create duplicate bookings"""
+        series = RecurringSeries.objects.create(
+            description='Miete',
+            amount=Decimal('-100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 3, 1),
+            category=self.category
+        )
+
+        self.client.post(
+            reverse('bookings:series_extend', args=[series.id]),
+            {'new_end_date': '2024-06-01'}
+        )
+        self.assertEqual(series.bookings.count(), 6)
+
+        self.client.post(
+            reverse('bookings:series_extend', args=[series.id]),
+            {'new_end_date': '2024-09-01'}
+        )
+        series.refresh_from_db()
+        self.assertEqual(series.end_date, date(2024, 9, 1))
+        self.assertEqual(series.bookings.count(), 9)
+
+    def test_series_extend_rejects_shortening(self):
+        """A target date on/before the current end_date is rejected, end_date stays unchanged"""
+        series = RecurringSeries.objects.create(
+            description='Miete',
+            amount=Decimal('-100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 6, 1),
+            category=self.category
+        )
+
+        response = self.client.post(
+            reverse('bookings:series_extend', args=[series.id]),
+            {'new_end_date': '2024-03-01'}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'muss nach dem aktuellen Enddatum')
+
+        series.refresh_from_db()
+        self.assertEqual(series.end_date, date(2024, 6, 1))
+        self.assertEqual(series.bookings.count(), 0)
+
+    def test_series_extend_rejects_archived_series(self):
+        """Archived series cannot be extended"""
+        series = RecurringSeries.objects.create(
+            description='Miete',
+            amount=Decimal('-100.00'),
+            interval='monthly',
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 3, 1),
+            category=self.category,
+            archived=True
+        )
+
+        response = self.client.post(
+            reverse('bookings:series_extend', args=[series.id]),
+            {'new_end_date': '2024-09-01'}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('bookings:series_list'))
+
+        series.refresh_from_db()
+        self.assertEqual(series.end_date, date(2024, 3, 1))
+        self.assertEqual(series.bookings.count(), 0)
+
+    def test_series_extend_caps_at_ten_years(self):
+        """The target end_date is capped to 10 years after start_date, matching the preview cap"""
+        series = RecurringSeries.objects.create(
+            description='Miete',
+            amount=Decimal('-100.00'),
+            interval='yearly',
+            start_date=date(2024, 1, 1),
+            end_date=date(2025, 1, 1),
+            category=self.category
+        )
+
+        response = self.client.post(
+            reverse('bookings:series_extend', args=[series.id]),
+            {'new_end_date': '2050-01-01'}
+        )
+        self.assertEqual(response.status_code, 302)
+
+        series.refresh_from_db()
+        self.assertEqual(series.end_date, date(2024, 1, 1) + timedelta(days=3650))
 
     def test_booking_list_series_filter(self):
         """Test filtering bookings by series"""

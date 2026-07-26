@@ -26,6 +26,7 @@ urlpatterns = [
     path('serien/<int:series_id>/archivieren/', views.series_archive, name='series_archive'),
     path('serien/<int:series_id>/wiederherstellen/', views.series_restore, name='series_restore'),
     path('serien/<int:series_id>/betrag-anpassen/', views.series_amount_change, name='series_amount_change'),
+    path('serien/<int:series_id>/verlaengern/', views.series_extend, name='series_extend'),
     path('monate/', views.month_view, name='month_view'),
     path('monate/<int:year>/<int:month>/', views.month_view, name='month_view_detail'),
     # Liability URLs

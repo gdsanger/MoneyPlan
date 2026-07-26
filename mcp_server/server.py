@@ -272,3 +272,18 @@ async def create_recurring_series(
     return await sync_to_async(logic.create_recurring_series, thread_sensitive=True)(
         description, amount, interval, start_date, category, end_date, notes, generate_bookings
     )
+
+
+@mcp.tool()
+async def extend_recurring_series(series_id: int, end_date: str) -> dict:
+    """Verlaengert eine bestehende Serienbuchung bis zum angegebenen Enddatum
+    (Format YYYY-MM-DD) und legt alle bis dahin fehlenden, noch nicht existierenden
+    Buchungen als 'planned' mit dem aktuellen Betrag der Serie an (dublettenfrei).
+
+    Nur Verlaengerung: end_date muss nach dem aktuellen Enddatum der Serie liegen,
+    sonst wird ein Fehler ausgeloest. Wird auf maximal 10 Jahre ab Serienstart
+    begrenzt (siehe 'capped_to_max_end_date' im Ergebnis). Archivierte Serien
+    koennen nicht verlaengert werden."""
+    return await sync_to_async(logic.extend_recurring_series, thread_sensitive=True)(
+        series_id, end_date
+    )

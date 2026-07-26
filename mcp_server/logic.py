@@ -435,3 +435,33 @@ def create_recurring_series(description, amount, interval, start_date, category,
     if generated_bookings is not None:
         result['generated_bookings'] = generated_bookings
     return result
+
+
+def extend_recurring_series(series_id, end_date):
+    """Verlängert eine Serie bis end_date und legt fehlende Buchungen bis dahin an."""
+    series = _get_series_or_raise(series_id)
+
+    if series.archived:
+        raise ValueError(f'Serie "{series.description}" ist archiviert und kann nicht verlängert werden.')
+
+    target_end_date = _parse_date(end_date, 'end_date')
+
+    if series.end_date and target_end_date <= series.end_date:
+        raise ValueError(
+            'Das neue Enddatum muss nach dem aktuellen Enddatum der Serie liegen.'
+        )
+
+    max_end_date = series.start_date + timedelta(days=3650)
+    capped = target_end_date > max_end_date
+    if capped:
+        target_end_date = max_end_date
+
+    series.end_date = target_end_date
+    series.save(update_fields=['end_date'])
+
+    created_bookings = create_series_bookings(series)
+
+    result = serialize_series(series)
+    result['generated_bookings'] = len(created_bookings)
+    result['capped_to_max_end_date'] = capped
+    return result

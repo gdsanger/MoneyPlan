@@ -113,6 +113,17 @@
                                         <li>
                                             <button type="button"
                                                     class="dropdown-item"
+                                                    hx-get="{% url 'bookings:series_extend' series.id %}"
+                                                    hx-target="#series-extend-modal-content"
+                                                    hx-swap="innerHTML"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#seriesExtendModal">
+                                                <i class="bi bi-arrow-bar-right"></i> Serie verlängern
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button"
+                                                    class="dropdown-item"
                                                     data-delete-url="{% url 'bookings:series_archive' series.id %}"
                                                     data-delete-title="Serie archivieren"
                                                     data-delete-message="Serie „{{ series.description }}“ archivieren?"
@@ -176,6 +187,21 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="series-amount-modal-content">
+                <!-- Form loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Serie verlängern Modal -->
+<div class="modal fade" id="seriesExtendModal" tabindex="-1" aria-labelledby="seriesExtendModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="seriesExtendModalLabel">Serie verlängern</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="series-extend-modal-content">
                 <!-- Form loaded here via HTMX -->
             </div>
         </div>
