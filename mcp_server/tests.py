@@ -16,6 +16,7 @@ from alerts.models import Alert, AlertConfig
 from attachments.models import Attachment
 from attachments.services import handle_upload
 from bookings.models import Booking, Category, RecurringSeries
+from bookings.wizard import create_series_bookings
 from timetracking.models import Client, TimeEntry
 
 from mcp_server import logic
@@ -534,6 +535,58 @@ class RecurringSeriesTestCase(McpTestDataMixin, TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['description'], "Neuer")
 
+    def test_extend_creates_missing_bookings(self):
+        series = RecurringSeries.objects.create(
+            description="Miete", amount=Decimal('-100'), interval='monthly',
+            start_date=date(2026, 1, 1), end_date=date(2026, 3, 1),
+            category=self.expense_category,
+        )
+        create_series_bookings(series)
+        self.assertEqual(series.bookings.count(), 3)
+
+        result = logic.extend_recurring_series(series.id, "2026-06-01")
+        self.assertEqual(result['end_date'], "2026-06-01")
+        self.assertEqual(result['generated_bookings'], 3)
+        self.assertFalse(result['capped_to_max_end_date'])
+
+        series.refresh_from_db()
+        self.assertEqual(series.end_date, date(2026, 6, 1))
+        self.assertEqual(series.bookings.count(), 6)
+
+    def test_extend_rejects_shortening(self):
+        series = RecurringSeries.objects.create(
+            description="Miete", amount=Decimal('-100'), interval='monthly',
+            start_date=date(2026, 1, 1), end_date=date(2026, 6, 1),
+            category=self.expense_category,
+        )
+        with self.assertRaises(ValueError):
+            logic.extend_recurring_series(series.id, "2026-03-01")
+
+    def test_extend_rejects_archived_series(self):
+        series = RecurringSeries.objects.create(
+            description="Miete", amount=Decimal('-100'), interval='monthly',
+            start_date=date(2026, 1, 1), end_date=date(2026, 3, 1),
+            category=self.expense_category, archived=True,
+        )
+        with self.assertRaises(ValueError):
+            logic.extend_recurring_series(series.id, "2026-09-01")
+
+    def test_extend_caps_at_ten_years(self):
+        series = RecurringSeries.objects.create(
+            description="Miete", amount=Decimal('-100'), interval='yearly',
+            start_date=date(2026, 1, 1), end_date=date(2027, 1, 1),
+            category=self.expense_category,
+        )
+        result = logic.extend_recurring_series(series.id, "2060-01-01")
+        self.assertTrue(result['capped_to_max_end_date'])
+
+        series.refresh_from_db()
+        self.assertEqual(series.end_date, date(2026, 1, 1) + timedelta(days=3650))
+
+    def test_extend_unknown_series_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.extend_recurring_series(999999, "2026-09-01")
+
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class SeriesAttachmentTestCase(McpTestDataMixin, TestCase):
@@ -671,7 +724,7 @@ class ServerToolRegistrationTestCase(SimpleTestCase):
         expected = {
             'create_booking', 'list_planned_bookings', 'list_due_bookings', 'list_categories',
             'list_clients', 'list_time_entries', 'create_time_entry', 'update_time_entry',
-            'list_recurring_series', 'create_recurring_series',
+            'list_recurring_series', 'create_recurring_series', 'extend_recurring_series',
             'add_booking_attachment', 'list_booking_attachments', 'delete_booking_attachment',
             'list_series_attachments',
         }

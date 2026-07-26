@@ -8,12 +8,12 @@ from django.utils.http import urlencode
 from django.db.models import Q, Count, Subquery, OuterRef
 from django.contrib.contenttypes.models import ContentType
 from django.contrib import messages
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from calendar import monthrange
 from decimal import Decimal, InvalidOperation
 import magic
 from .models import Booking, Category, RecurringSeries, Liability, Asset, ReconciliationLog
-from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, SeriesAmountChangeForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm, ReconciliationForm
+from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, SeriesAmountChangeForm, SeriesExtendForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm, ReconciliationForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
@@ -1072,6 +1072,63 @@ def series_amount_change(request, series_id):
 
     return render(request, 'bookings/series_amount_form.html', context)
 
+
+@login_required
+def series_extend(request, series_id):
+    """Verlängere eine Serie bis zu einem Zieldatum und lege fehlende Buchungen bis dahin an"""
+    series = get_object_or_404(RecurringSeries, pk=series_id)
+
+    if series.archived:
+        if request.htmx:
+            return HttpResponse(status=400)
+        messages.error(
+            request,
+            f'Serie "{series.description}" ist archiviert und kann nicht verlängert werden.'
+        )
+        return redirect('bookings:series_list')
+
+    if request.method == 'POST':
+        form = SeriesExtendForm(request.POST, series=series)
+        if form.is_valid():
+            target_end_date = form.cleaned_data['new_end_date']
+
+            max_end_date = series.start_date + timedelta(days=3650)
+            capped = target_end_date > max_end_date
+            if capped:
+                target_end_date = max_end_date
+
+            series.end_date = target_end_date
+            series.save(update_fields=['end_date'])
+
+            created_bookings = create_series_bookings(series)
+
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:series_list')
+                return response
+
+            message = (
+                f'Serie "{series.description}" wurde bis {target_end_date.strftime("%d.%m.%Y")} verlängert. '
+                f'{len(created_bookings)} neue Buchung(en) wurden angelegt.'
+            )
+            if capped:
+                message += ' Das Zieldatum wurde auf maximal 10 Jahre ab Serienstart begrenzt.'
+            messages.success(request, message)
+            return redirect('bookings:series_list')
+    else:
+        form = SeriesExtendForm(series=series, initial={
+            'new_end_date': series.end_date or date.today(),
+        })
+
+    context = {
+        'form': form,
+        'series': series,
+    }
+
+    if request.htmx:
+        return render(request, 'bookings/_series_extend_form.html', context)
+
+    return render(request, 'bookings/series_extend_form.html', context)
 
 
 @login_required

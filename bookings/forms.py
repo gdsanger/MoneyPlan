@@ -411,6 +411,31 @@ class SeriesAmountChangeForm(forms.Form):
         )
 
 
+class SeriesExtendForm(forms.Form):
+    """Form for extending a series' end date and generating missing bookings up to it"""
+
+    new_end_date = forms.DateField(
+        label='Verlängern bis',
+        widget=forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
+        help_text='Fehlende Buchungen bis zu diesem Datum werden mit dem aktuellen Betrag angelegt.',
+    )
+
+    def __init__(self, *args, series=None, **kwargs):
+        self.series = series
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.helper.layout = Layout('new_end_date')
+
+    def clean_new_end_date(self):
+        new_end_date = self.cleaned_data['new_end_date']
+        if self.series and self.series.end_date and new_end_date <= self.series.end_date:
+            raise forms.ValidationError(
+                'Das neue Datum muss nach dem aktuellen Enddatum der Serie liegen.'
+            )
+        return new_end_date
+
+
 class LiabilityForm(forms.ModelForm):
     """Form for creating and editing liabilities"""
 
