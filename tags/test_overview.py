@@ -184,6 +184,38 @@ class TagOverviewServiceTests(TestCase):
         self.assertEqual(overview['grand_totals']['income_booked'], Decimal('150.00'))
         self.assertEqual(overview['grand_totals']['result_booked'], Decimal('150.00'))
 
+    def test_grand_totals_not_double_counted_across_dimensions(self):
+        """
+        A booking/time entry tagged in more than one dimension (e.g. Projekt AND
+        Kunde) must still count once in the top KPIs, even though it legitimately
+        shows up in both dimension rows/subtotals.
+        """
+        booking = Booking.objects.create(
+            date=date(2026, 1, 10), description='Projekt+Kunde', amount=Decimal('100.00'),
+            status='booked', category=self.category_income,
+        )
+        booking.tags.add(self.project, self.client_tag)
+        entry = TimeEntry.objects.create(
+            client=self.time_client, date=date(2026, 1, 10),
+            duration=Decimal('2.00'), hourly_rate=Decimal('100.00'),
+            description='Beratung',
+        )
+        entry.tags.add(self.project, self.client_tag)
+
+        overview = get_tag_overview(self.start, self.end)
+
+        # Dimension rows still show the full amount each (Epic #978).
+        self.assertEqual(overview['groups']['projekt']['rows'][0]['income_booked'], Decimal('100.00'))
+        self.assertEqual(overview['groups']['kunde']['rows'][0]['income_booked'], Decimal('100.00'))
+        self.assertEqual(overview['groups']['projekt']['rows'][0]['hours'], Decimal('2.00'))
+        self.assertEqual(overview['groups']['kunde']['rows'][0]['hours'], Decimal('2.00'))
+
+        # But the aggregated top KPIs must count the booking/entry only once.
+        self.assertEqual(overview['grand_totals']['income_booked'], Decimal('100.00'))
+        self.assertEqual(overview['grand_totals']['result_booked'], Decimal('100.00'))
+        self.assertEqual(overview['grand_totals']['hours'], Decimal('2.00'))
+        self.assertEqual(overview['grand_totals']['time_value'], Decimal('200.00'))
+
 
 class TagOverviewViewTests(TestCase):
     """View-level behaviour for the tag overview page."""
