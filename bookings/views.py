@@ -805,13 +805,19 @@ def series_list(request):
         archived=show_archived
     ).order_by('-created_at')
 
-    # Annotate with booking count and planned (not yet booked) count
+    series_content_type = ContentType.objects.get_for_model(RecurringSeries)
+
+    # Annotate with booking count, planned (not yet booked) count and attachment count
     series_with_counts = []
     for s in series:
         series_with_counts.append({
             'series': s,
             'booking_count': s.bookings.count(),
             'planned_count': s.bookings.filter(status='planned').count(),
+            'attachment_count': Attachment.objects.filter(
+                content_type=series_content_type,
+                object_id=s.pk
+            ).count(),
         })
 
     context = {

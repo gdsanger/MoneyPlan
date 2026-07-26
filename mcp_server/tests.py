@@ -5,6 +5,7 @@ import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse
@@ -13,6 +14,7 @@ from starlette.testclient import TestClient
 
 from alerts.models import Alert, AlertConfig
 from attachments.models import Attachment
+from attachments.services import handle_upload
 from bookings.models import Booking, Category, RecurringSeries
 from timetracking.models import Client, TimeEntry
 
@@ -534,6 +536,42 @@ class RecurringSeriesTestCase(McpTestDataMixin, TestCase):
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
+class SeriesAttachmentTestCase(McpTestDataMixin, TestCase):
+    PDF_BYTES = (
+        b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog >>\nendobj\n'
+        b'trailer\n<< /Root 1 0 R >>\n%%EOF'
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.series = RecurringSeries.objects.create(
+            description="Miete", amount=Decimal('-950'), interval='monthly',
+            start_date=date(2026, 1, 1), category=self.expense_category,
+        )
+
+    def tearDown(self):
+        for attachment in Attachment.objects.all():
+            if attachment.file and os.path.isfile(attachment.file.path):
+                os.remove(attachment.file.path)
+        Attachment.objects.all().delete()
+
+    def test_list_series_attachments(self):
+        handle_upload(SimpleUploadedFile("vertrag.pdf", self.PDF_BYTES), self.series)
+
+        result = logic.list_series_attachments(self.series.id)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['filename'], "vertrag.pdf")
+        self.assertIn('url', result[0])
+
+    def test_list_series_attachments_empty(self):
+        self.assertEqual(logic.list_series_attachments(self.series.id), [])
+
+    def test_list_series_attachments_unknown_series_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_series_attachments(999999)
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class BookingAttachmentTestCase(McpTestDataMixin, TestCase):
     # Minimal but valid PDF header/trailer, so python-magic detects it as
     # application/pdf without needing a real invoice file on disk.
@@ -635,6 +673,7 @@ class ServerToolRegistrationTestCase(SimpleTestCase):
             'list_clients', 'list_time_entries', 'create_time_entry', 'update_time_entry',
             'list_recurring_series', 'create_recurring_series',
             'add_booking_attachment', 'list_booking_attachments', 'delete_booking_attachment',
+            'list_series_attachments',
         }
         self.assertEqual(names, expected)
 
