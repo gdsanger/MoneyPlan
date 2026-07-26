@@ -5,6 +5,7 @@ app_name = 'tags'
 
 urlpatterns = [
     path('', views.tag_list, name='list'),
+    path('auswertung/', views.tag_overview, name='overview'),
     path('neu/', views.tag_create, name='create'),
     path('<int:tag_id>/bearbeiten/', views.tag_edit, name='edit'),
     path('<int:tag_id>/loeschen/', views.tag_delete, name='delete'),
