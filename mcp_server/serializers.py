@@ -4,6 +4,27 @@ from decimal import ROUND_HALF_UP, Decimal
 TWO_PLACES = Decimal('0.01')
 
 
+def serialize_tag(tag):
+    return {
+        'id': tag.id,
+        'name': tag.name,
+        'kind': tag.kind,
+        'kind_display': tag.get_kind_display(),
+        'color': tag.color,
+        'description': tag.description,
+        'archived': tag.archived,
+    }
+
+
+def _serialize_tag_refs(instance):
+    """Compact tag view for embedding in booking/time-entry results — enough
+    to display and filter on without a second list_tags round-trip."""
+    return [
+        {'id': t.id, 'name': t.name, 'kind': t.kind, 'color': t.color}
+        for t in instance.tags.all()
+    ]
+
+
 def serialize_booking(booking):
     return {
         'id': booking.id,
@@ -15,6 +36,7 @@ def serialize_booking(booking):
         'series_id': booking.series_id,
         'liability_id': booking.liability_id,
         'notes': booking.notes,
+        'tags': _serialize_tag_refs(booking),
     }
 
 
@@ -31,6 +53,7 @@ def serialize_time_entry(entry):
         'description': entry.description,
         'notes': entry.notes,
         'billed': entry.billed,
+        'tags': _serialize_tag_refs(entry),
     }
 
 
