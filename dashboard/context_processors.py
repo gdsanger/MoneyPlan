@@ -62,7 +62,7 @@ _NAV_FINANZEN_NAMES = {
     'bookings:reconciliation', 'bookings:reconciliation_create',
     'alerts:list', 'alerts:test_mail',
 }
-_NAV_SONSTIGES_NAMESPACES = {'tasks', 'timetracking', 'reimbursements'}
+_NAV_SONSTIGES_NAMESPACES = {'tasks', 'timetracking', 'reimbursements', 'tags'}
 
 
 def nav_active_section(request):

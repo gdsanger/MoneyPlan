@@ -39,6 +39,12 @@ class TimeEntry(models.Model):
     description = models.CharField(max_length=255, verbose_name="Beschreibung")
     notes = models.TextField(blank=True, verbose_name="Notizen")
     billed = models.BooleanField(default=False, verbose_name="Abgerechnet")
+    tags = models.ManyToManyField(
+        'tags.Tag',
+        blank=True,
+        related_name='time_entries',
+        verbose_name="Tags",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Aktualisiert am")
 
