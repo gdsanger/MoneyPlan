@@ -17,11 +17,12 @@ from attachments.models import Attachment
 from attachments.services import handle_upload
 from bookings.models import Booking, Category, RecurringSeries
 from bookings.wizard import create_series_bookings
+from tags.models import Tag
 from timetracking.models import Client, TimeEntry
 
 from mcp_server import logic
 from mcp_server.auth import TokenAuthMiddleware
-from mcp_server.resolvers import resolve_category, resolve_client
+from mcp_server.resolvers import resolve_category, resolve_client, resolve_tag, resolve_tags
 from mcp_server.server import mcp
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp()
@@ -36,6 +37,8 @@ class McpTestDataMixin:
             name="Gehalt", icon="wallet", color="#28a745", category_type='income'
         )
         self.client_obj = Client.objects.create(name="Acme GmbH")
+        self.project_tag = Tag.objects.create(name="Website-Relaunch", kind='projekt', color="#0d6efd")
+        self.client_tag = Tag.objects.create(name="Acme GmbH", kind='kunde', color="#198754")
 
 
 class CreateBookingTestCase(McpTestDataMixin, TestCase):
@@ -83,6 +86,30 @@ class CreateBookingTestCase(McpTestDataMixin, TestCase):
         with self.assertRaises(ValueError):
             logic.create_booking(date="2026-08-01", description="x", amount=10, category="Miete", liability_id=999)
 
+    def test_tags_assigned_by_name(self):
+        result = logic.create_booking(
+            date="2026-08-01", description="x", amount=10, category="Miete",
+            tags=[self.project_tag.name],
+        )
+        self.assertEqual([t['id'] for t in result['tags']], [self.project_tag.pk])
+
+    def test_tags_assigned_by_id(self):
+        result = logic.create_booking(
+            date="2026-08-01", description="x", amount=10, category="Miete",
+            tags=[self.project_tag.pk],
+        )
+        self.assertEqual([t['id'] for t in result['tags']], [self.project_tag.pk])
+
+    def test_no_tags_gives_empty_list(self):
+        result = logic.create_booking(date="2026-08-01", description="x", amount=10, category="Miete")
+        self.assertEqual(result['tags'], [])
+
+    def test_unknown_tag_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.create_booking(
+                date="2026-08-01", description="x", amount=10, category="Miete", tags=["Nichtvorhanden"],
+            )
+
 
 class ListPlannedBookingsTestCase(McpTestDataMixin, TestCase):
     def setUp(self):
@@ -113,7 +140,7 @@ class ListPlannedBookingsTestCase(McpTestDataMixin, TestCase):
             set(first),
             {
                 'id', 'date', 'description', 'amount', 'status', 'category', 'series_id',
-                'liability_id', 'notes', 'attachment_count',
+                'liability_id', 'notes', 'tags', 'attachment_count',
             },
         )
 
@@ -145,6 +172,53 @@ class ListPlannedBookingsTestCase(McpTestDataMixin, TestCase):
     def test_invalid_limit_rejected(self):
         with self.assertRaises(ValueError):
             logic.list_planned_bookings(limit="abc")
+
+    def test_filter_by_tag_name(self):
+        tagged = Booking.objects.get(description="Planned 1")
+        tagged.tags.set([self.project_tag])
+        result = logic.list_planned_bookings(tag=self.project_tag.name)
+        self.assertEqual([b['description'] for b in result], ["Planned 1"])
+
+    def test_filter_by_tag_id(self):
+        tagged = Booking.objects.get(description="Planned 1")
+        tagged.tags.set([self.project_tag])
+        result = logic.list_planned_bookings(tag=self.project_tag.pk)
+        self.assertEqual([b['description'] for b in result], ["Planned 1"])
+
+    def test_filter_by_tag_kind(self):
+        planned_1 = Booking.objects.get(description="Planned 1")
+        planned_1.tags.set([self.project_tag])
+        planned_2 = Booking.objects.get(description="Planned 2")
+        other_project_tag = Tag.objects.create(name="Anderes Projekt", kind='projekt')
+        planned_2.tags.set([other_project_tag])
+
+        result = logic.list_planned_bookings(tag_kind='projekt')
+        self.assertEqual({b['description'] for b in result}, {"Planned 1", "Planned 2"})
+
+    def test_filter_by_tag_kind_no_duplicates_with_multiple_matching_tags(self):
+        planned_1 = Booking.objects.get(description="Planned 1")
+        other_project_tag = Tag.objects.create(name="Anderes Projekt", kind='projekt')
+        planned_1.tags.set([self.project_tag, other_project_tag])
+
+        result = logic.list_planned_bookings(tag_kind='projekt')
+        self.assertEqual(len(result), 1)
+
+    def test_filter_by_invalid_tag_kind_raises(self):
+        with self.assertRaises(ValueError):
+            logic.list_planned_bookings(tag_kind="nichtvorhanden")
+
+    def test_filter_by_unknown_tag_raises(self):
+        with self.assertRaises(ValueError):
+            logic.list_planned_bookings(tag="Nichtvorhanden")
+
+    def test_filter_by_archived_tag_still_matches(self):
+        tagged = Booking.objects.get(description="Planned 1")
+        tagged.tags.set([self.project_tag])
+        self.project_tag.archived = True
+        self.project_tag.save(update_fields=['archived'])
+
+        result = logic.list_planned_bookings(tag=self.project_tag.name)
+        self.assertEqual([b['description'] for b in result], ["Planned 1"])
 
 
 class ListDueBookingsTestCase(McpTestDataMixin, TestCase):
@@ -209,6 +283,20 @@ class ListDueBookingsTestCase(McpTestDataMixin, TestCase):
         due_soon = self._make(1, "DueSoon")
         result = logic.list_due_bookings(include_overdue=False)
         self.assertEqual([i['id'] for i in result], [due_soon.id])
+
+    def test_filter_by_tag_across_overdue_and_due_soon(self):
+        overdue = self._make(-2, "Overdue")
+        overdue.tags.set([self.project_tag])
+        due_soon = self._make(1, "DueSoon")
+        due_soon.tags.set([self.project_tag])
+        self._make(1, "DueSoonUntagged")
+
+        result = logic.list_due_bookings(tag=self.project_tag.name)
+        self.assertEqual({i['id'] for i in result}, {overdue.id, due_soon.id})
+
+    def test_filter_by_unknown_tag_raises(self):
+        with self.assertRaises(ValueError):
+            logic.list_due_bookings(tag="Nichtvorhanden")
 
     def test_include_due_soon_false_excludes_due_soon(self):
         overdue = self._make(-2, "Overdue")
@@ -285,6 +373,60 @@ class ResolverTestCase(McpTestDataMixin, TestCase):
         with self.assertRaises(ValueError):
             resolve_client("Ghost Inc")
 
+    def test_resolve_tag_by_name_case_insensitive(self):
+        self.assertEqual(resolve_tag("website-relaunch").pk, self.project_tag.pk)
+
+    def test_resolve_tag_by_id(self):
+        self.assertEqual(resolve_tag(self.project_tag.pk).pk, self.project_tag.pk)
+        self.assertEqual(resolve_tag(str(self.project_tag.pk)).pk, self.project_tag.pk)
+
+    def test_resolve_tag_unknown_id_raises(self):
+        with self.assertRaises(ValueError):
+            resolve_tag(999999)
+
+    def test_resolve_tag_not_found_lists_available(self):
+        with self.assertRaises(ValueError) as ctx:
+            resolve_tag("Nichtvorhanden")
+        self.assertIn("Website-Relaunch", str(ctx.exception))
+        self.assertIn("Acme GmbH", str(ctx.exception))
+
+    def test_resolve_tag_empty_rejected(self):
+        with self.assertRaises(ValueError):
+            resolve_tag("  ")
+
+    def test_resolve_tag_ambiguous_name_across_dimensions_raises(self):
+        # "Acme GmbH" exists both as kunde-Tag (self.client_tag) and could collide
+        # with another dimension - add a second dimension with the same name here.
+        Tag.objects.create(name="Acme GmbH", kind='projekt', color="#ffc107")
+        with self.assertRaises(ValueError) as ctx:
+            resolve_tag("Acme GmbH")
+        self.assertIn("nicht eindeutig", str(ctx.exception))
+
+    def test_resolve_tag_archived_rejected_by_default(self):
+        self.project_tag.archived = True
+        self.project_tag.save(update_fields=['archived'])
+        with self.assertRaises(ValueError):
+            resolve_tag("Website-Relaunch")
+
+    def test_resolve_tag_archived_allowed_when_include_archived(self):
+        self.project_tag.archived = True
+        self.project_tag.save(update_fields=['archived'])
+        self.assertEqual(
+            resolve_tag("Website-Relaunch", include_archived=True).pk, self.project_tag.pk
+        )
+
+    def test_resolve_tags_deduplicates_by_id(self):
+        tags = resolve_tags([self.project_tag.pk, "Website-Relaunch"])
+        self.assertEqual(len(tags), 1)
+        self.assertEqual(tags[0].pk, self.project_tag.pk)
+
+    def test_resolve_tags_empty_for_none(self):
+        self.assertEqual(resolve_tags(None), [])
+
+    def test_resolve_tags_rejects_non_list(self):
+        with self.assertRaises(ValueError):
+            resolve_tags("Website-Relaunch")
+
 
 class ListCategoriesAndClientsTestCase(McpTestDataMixin, TestCase):
     def test_list_categories(self):
@@ -306,6 +448,66 @@ class ListCategoriesAndClientsTestCase(McpTestDataMixin, TestCase):
     def test_list_clients(self):
         names = {c['name'] for c in logic.list_clients()}
         self.assertEqual(names, {"Acme GmbH"})
+
+
+class ListTagsTestCase(McpTestDataMixin, TestCase):
+    def test_list_tags_includes_dimension_and_color(self):
+        by_name_kind = {(t['name'], t['kind']): t for t in logic.list_tags()}
+        entry = by_name_kind[(self.project_tag.name, 'projekt')]
+        self.assertEqual(entry['color'], self.project_tag.color)
+        self.assertEqual(entry['kind_display'], 'Projekt')
+        self.assertFalse(entry['archived'])
+
+    def test_list_tags_excludes_archived_by_default(self):
+        self.project_tag.archived = True
+        self.project_tag.save(update_fields=['archived'])
+        names = {t['name'] for t in logic.list_tags()}
+        self.assertNotIn(self.project_tag.name, names)
+
+    def test_list_tags_include_archived_true_shows_them(self):
+        self.project_tag.archived = True
+        self.project_tag.save(update_fields=['archived'])
+        names = {t['name'] for t in logic.list_tags(include_archived=True)}
+        self.assertIn(self.project_tag.name, names)
+
+    def test_list_tags_filters_by_kind(self):
+        result = logic.list_tags(kind='projekt')
+        self.assertEqual([t['name'] for t in result], [self.project_tag.name])
+
+    def test_list_tags_invalid_kind_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.list_tags(kind='nichtvorhanden')
+
+
+class SetBookingTagsTestCase(McpTestDataMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.booking = Booking.objects.create(
+            date=date(2026, 8, 1), description="Miete August", amount=Decimal('-950'),
+            status='planned', category=self.expense_category,
+        )
+
+    def test_sets_tags_by_name(self):
+        result = logic.set_booking_tags(self.booking.id, [self.project_tag.name])
+        self.assertEqual([t['id'] for t in result['tags']], [self.project_tag.pk])
+
+    def test_replaces_existing_tags_not_additive(self):
+        self.booking.tags.set([self.client_tag])
+        result = logic.set_booking_tags(self.booking.id, [self.project_tag.pk])
+        self.assertEqual([t['id'] for t in result['tags']], [self.project_tag.pk])
+
+    def test_empty_list_clears_tags(self):
+        self.booking.tags.set([self.project_tag])
+        result = logic.set_booking_tags(self.booking.id, [])
+        self.assertEqual(result['tags'], [])
+
+    def test_unknown_booking_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.set_booking_tags(999999, [self.project_tag.name])
+
+    def test_unknown_tag_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.set_booking_tags(self.booking.id, ["Nichtvorhanden"])
 
 
 class TimeEntryTestCase(McpTestDataMixin, TestCase):
@@ -338,6 +540,26 @@ class TimeEntryTestCase(McpTestDataMixin, TestCase):
     def test_empty_description_rejected(self):
         with self.assertRaises(ValueError):
             logic.create_time_entry(client="Acme GmbH", date="2026-07-01", duration=1, hourly_rate=10, description=" ")
+
+    def test_tags_assigned_by_name(self):
+        result = logic.create_time_entry(
+            client="Acme GmbH", date="2026-07-01", duration=1, hourly_rate=10, description="x",
+            tags=[self.project_tag.name],
+        )
+        self.assertEqual([t['id'] for t in result['tags']], [self.project_tag.pk])
+
+    def test_no_tags_gives_empty_list(self):
+        result = logic.create_time_entry(
+            client="Acme GmbH", date="2026-07-01", duration=1, hourly_rate=10, description="x",
+        )
+        self.assertEqual(result['tags'], [])
+
+    def test_unknown_tag_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.create_time_entry(
+                client="Acme GmbH", date="2026-07-01", duration=1, hourly_rate=10, description="x",
+                tags=["Nichtvorhanden"],
+            )
 
     def test_update_partial_fields_only(self):
         entry = TimeEntry.objects.create(
@@ -394,7 +616,7 @@ class TimeEntryTestCase(McpTestDataMixin, TestCase):
         entry = result[0]
         self.assertEqual(
             set(entry),
-            {'id', 'client', 'date', 'duration', 'hourly_rate', 'amount', 'description', 'notes', 'billed'},
+            {'id', 'client', 'date', 'duration', 'hourly_rate', 'amount', 'description', 'notes', 'billed', 'tags'},
         )
         self.assertEqual(entry['amount'], '150.00')
 
@@ -427,9 +649,66 @@ class TimeEntryTestCase(McpTestDataMixin, TestCase):
         with self.assertRaises(ValueError):
             logic.list_time_entries(limit="abc")
 
+    def test_list_time_entries_filter_by_tag(self):
+        tagged = TimeEntry.objects.create(
+            client=self.client_obj, date=date(2026, 7, 1), duration=Decimal('1.00'),
+            hourly_rate=Decimal('50.00'), description="Tagged",
+        )
+        tagged.tags.set([self.project_tag])
+        TimeEntry.objects.create(
+            client=self.client_obj, date=date(2026, 7, 2), duration=Decimal('1.00'),
+            hourly_rate=Decimal('50.00'), description="Untagged",
+        )
+        result = logic.list_time_entries(tag=self.project_tag.name)
+        self.assertEqual([e['id'] for e in result], [tagged.id])
+
+    def test_list_time_entries_filter_by_tag_kind(self):
+        tagged = TimeEntry.objects.create(
+            client=self.client_obj, date=date(2026, 7, 1), duration=Decimal('1.00'),
+            hourly_rate=Decimal('50.00'), description="Tagged",
+        )
+        tagged.tags.set([self.client_tag])
+        result = logic.list_time_entries(tag_kind='kunde')
+        self.assertEqual([e['id'] for e in result], [tagged.id])
+
+    def test_list_time_entries_unknown_tag_filter_raises(self):
+        with self.assertRaises(ValueError):
+            logic.list_time_entries(tag="Nichtvorhanden")
+
     def test_list_time_entries_unknown_client_filter_raises(self):
         with self.assertRaises(ValueError):
             logic.list_time_entries(client="Nichtvorhanden")
+
+
+class SetTimeEntryTagsTestCase(McpTestDataMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.entry = TimeEntry.objects.create(
+            client=self.client_obj, date=date(2026, 7, 1), duration=Decimal('1.00'),
+            hourly_rate=Decimal('50.00'), description="Beratung",
+        )
+
+    def test_sets_tags_by_name(self):
+        result = logic.set_time_entry_tags(self.entry.id, [self.project_tag.name])
+        self.assertEqual([t['id'] for t in result['tags']], [self.project_tag.pk])
+
+    def test_replaces_existing_tags_not_additive(self):
+        self.entry.tags.set([self.client_tag])
+        result = logic.set_time_entry_tags(self.entry.id, [self.project_tag.pk])
+        self.assertEqual([t['id'] for t in result['tags']], [self.project_tag.pk])
+
+    def test_empty_list_clears_tags(self):
+        self.entry.tags.set([self.project_tag])
+        result = logic.set_time_entry_tags(self.entry.id, [])
+        self.assertEqual(result['tags'], [])
+
+    def test_unknown_entry_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.set_time_entry_tags(999999, [self.project_tag.name])
+
+    def test_unknown_tag_rejected(self):
+        with self.assertRaises(ValueError):
+            logic.set_time_entry_tags(self.entry.id, ["Nichtvorhanden"])
 
 
 class RecurringSeriesTestCase(McpTestDataMixin, TestCase):
@@ -723,6 +1002,7 @@ class ServerToolRegistrationTestCase(SimpleTestCase):
         names = {t.name for t in tools}
         expected = {
             'create_booking', 'list_planned_bookings', 'list_due_bookings', 'list_categories',
+            'list_tags', 'set_booking_tags', 'set_time_entry_tags',
             'list_clients', 'list_time_entries', 'create_time_entry', 'update_time_entry',
             'list_recurring_series', 'create_recurring_series', 'extend_recurring_series',
             'add_booking_attachment', 'list_booking_attachments', 'delete_booking_attachment',

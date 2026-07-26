@@ -23,7 +23,11 @@ mcp = FastMCP(
         "Kategorien und Kunden werden per eindeutigem Namen referenziert - bei Bedarf "
         "list_categories/list_clients aufrufen, um gueltige Namen zu ermitteln. "
         "Belege/Rechnungen koennen per add_booking_attachment (Base64) an eine "
-        "Buchung angehaengt werden."
+        "Buchung angehaengt werden. Tags (Schlagworte je Dimension, z.B. Projekt/"
+        "Kunde/Kostenstelle) werden ausschliesslich im UI angelegt/gepflegt - "
+        "list_tags liefert die bestehenden Namen, create_booking/create_time_entry "
+        "und set_booking_tags/set_time_entry_tags ordnen sie zu, list_planned_bookings/"
+        "list_due_bookings/list_time_entries filtern danach."
     ),
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
@@ -48,6 +52,7 @@ async def create_booking(
     notes: str = "",
     series_id: int | None = None,
     liability_id: int | None = None,
+    tags: list[str] | None = None,
 ) -> dict:
     """Legt eine neue Buchung an.
 
@@ -56,9 +61,12 @@ async def create_booking(
     category: Name einer bestehenden Kategorie (siehe list_categories).
     status: 'planned' (Geplant) oder 'booked' (Gebucht). Default: 'planned'.
     series_id / liability_id: optionale IDs einer bestehenden Serie bzw. Verbindlichkeit.
+    tags: optionale Liste bestehender Tag-Namen oder -IDs (siehe list_tags). Ein
+    Tag-Name muss innerhalb seiner Dimension eindeutig sein; kommt derselbe Name
+    in mehreren Dimensionen vor, die Tag-ID statt des Namens verwenden.
     """
     return await sync_to_async(logic.create_booking, thread_sensitive=True)(
-        date, description, amount, category, status, notes, series_id, liability_id
+        date, description, amount, category, status, notes, series_id, liability_id, tags
     )
 
 
@@ -67,15 +75,19 @@ async def list_planned_bookings(
     date_from: str | None = None,
     date_to: str | None = None,
     category: str | None = None,
+    tag: str | None = None,
+    tag_kind: str | None = None,
     limit: int | None = None,
 ) -> list[dict]:
     """Listet ausschliesslich geplante Buchungen (status='planned'), optional gefiltert
-    nach Datumsbereich (YYYY-MM-DD), Kategorie (Name oder ID) und/oder begrenzt auf die
-    ersten `limit` Treffer (sortiert nach Datum aufsteigend). Gebuchte Buchungen werden
-    nie zurueckgegeben. Jeder Eintrag enthaelt 'attachment_count' - Anzahl bereits
-    angehaengter Belege (siehe add_booking_attachment/list_booking_attachments)."""
+    nach Datumsbereich (YYYY-MM-DD), Kategorie (Name oder ID), Tag (Name oder ID),
+    Tag-Dimension (tag_kind, z.B. 'projekt') und/oder begrenzt auf die ersten `limit`
+    Treffer (sortiert nach Datum aufsteigend). Gebuchte Buchungen werden nie
+    zurueckgegeben. Jeder Eintrag enthaelt 'attachment_count' - Anzahl bereits
+    angehaengter Belege (siehe add_booking_attachment/list_booking_attachments) sowie
+    'tags' - Liste der zugeordneten Tags."""
     return await sync_to_async(logic.list_planned_bookings, thread_sensitive=True)(
-        date_from, date_to, category, limit
+        date_from, date_to, category, tag, tag_kind, limit
     )
 
 
@@ -84,6 +96,8 @@ async def list_due_bookings(
     days_before_due: int | None = None,
     include_overdue: bool = True,
     include_due_soon: bool = True,
+    tag: str | None = None,
+    tag_kind: str | None = None,
     limit: int | None = None,
 ) -> list[dict]:
     """Listet faellige (due_soon) und ueberfaellige (overdue) geplante Buchungen,
@@ -92,11 +106,13 @@ async def list_due_bookings(
 
     days_before_due: Vorlauf in Tagen fuer 'faellig'; Default aus AlertConfig (Singleton).
     include_overdue / include_due_soon: je Default True, um eine der beiden Gruppen auszublenden.
+    tag / tag_kind: optionaler Filter nach Tag (Name oder ID) bzw. Tag-Dimension.
     limit: optionale Begrenzung der Trefferanzahl (sortiert nach Datum aufsteigend).
-    Jeder Eintrag enthaelt 'attachment_count' - Anzahl bereits angehaengter Belege.
+    Jeder Eintrag enthaelt 'attachment_count' - Anzahl bereits angehaengter Belege
+    sowie 'tags' - Liste der zugeordneten Tags.
     """
     return await sync_to_async(logic.list_due_bookings, thread_sensitive=True)(
-        days_before_due, include_overdue, include_due_soon, limit
+        days_before_due, include_overdue, include_due_soon, tag, tag_kind, limit
     )
 
 
@@ -107,6 +123,34 @@ async def list_categories() -> list[dict]:
     Jeder Eintrag enthaelt 'description' - kurze Erklaerung zur Kategorie, die
     bei der Auswahl der richtigen Kategorie (z.B. privat vs. geschaeftlich) helfen soll."""
     return await sync_to_async(logic.list_categories, thread_sensitive=True)()
+
+
+@mcp.tool()
+async def list_tags(kind: str | None = None, include_archived: bool = False) -> list[dict]:
+    """Listet Tags (Schlagworte) inkl. Dimension ('kind') und Farbe - zur Aufloesung
+    von Tag-Namen fuer create_booking/create_time_entry/set_booking_tags/
+    set_time_entry_tags sowie zum Filtern in list_planned_bookings/list_due_bookings/
+    list_time_entries.
+
+    kind: optionale Dimension ('projekt', 'kunde', 'kostenstelle' oder 'sonstiges').
+    include_archived: Default False (nur aktive Tags); True zeigt auch archivierte.
+    Tags werden manuell im UI gepflegt - dieses Tool legt keine neuen Tags an.
+    """
+    return await sync_to_async(logic.list_tags, thread_sensitive=True)(kind, include_archived)
+
+
+@mcp.tool()
+async def set_booking_tags(booking_id: int, tags: list[str]) -> dict:
+    """Ersetzt die komplette Tag-Zuordnung einer Buchung (nicht additiv - vorhandene
+    Tags, die nicht in der Liste enthalten sind, werden entfernt). Leere Liste
+    entfernt alle Tags.
+
+    booking_id: ID einer bestehenden Buchung.
+    tags: Liste bestehender Tag-Namen oder -IDs (siehe list_tags).
+    """
+    return await sync_to_async(logic.set_booking_tags, thread_sensitive=True)(
+        booking_id, tags
+    )
 
 
 @mcp.tool()
@@ -173,14 +217,17 @@ async def list_time_entries(
     date_to: str | None = None,
     client: str | None = None,
     billed: bool | None = None,
+    tag: str | None = None,
+    tag_kind: str | None = None,
     limit: int | None = None,
 ) -> list[dict]:
     """Listet Zeiterfassungseintraege, neueste zuerst, optional gefiltert nach
-    Datumsbereich (YYYY-MM-DD), Kunde (Name oder ID), Abrechnungsstatus und/oder
-    begrenzt auf die ersten `limit` Treffer. Jeder Eintrag enthaelt 'amount'
-    (= duration x hourly_rate, berechnet)."""
+    Datumsbereich (YYYY-MM-DD), Kunde (Name oder ID), Abrechnungsstatus, Tag
+    (Name oder ID), Tag-Dimension (tag_kind, z.B. 'projekt') und/oder begrenzt
+    auf die ersten `limit` Treffer. Jeder Eintrag enthaelt 'amount'
+    (= duration x hourly_rate, berechnet) sowie 'tags' - Liste der zugeordneten Tags."""
     return await sync_to_async(logic.list_time_entries, thread_sensitive=True)(
-        date_from, date_to, client, billed, limit
+        date_from, date_to, client, billed, tag, tag_kind, limit
     )
 
 
@@ -193,6 +240,7 @@ async def create_time_entry(
     description: str,
     notes: str = "",
     billed: bool = False,
+    tags: list[str] | None = None,
 ) -> dict:
     """Erfasst einen neuen Zeiteintrag.
 
@@ -200,9 +248,26 @@ async def create_time_entry(
     date: Datum im Format YYYY-MM-DD.
     duration: Dauer in Stunden (z.B. 1.5 = 1h 30min), muss > 0 sein.
     hourly_rate: Stundensatz, darf nicht negativ sein.
+    tags: optionale Liste bestehender Tag-Namen oder -IDs (siehe list_tags). Ein
+    Tag-Name muss innerhalb seiner Dimension eindeutig sein; kommt derselbe Name
+    in mehreren Dimensionen vor, die Tag-ID statt des Namens verwenden.
     """
     return await sync_to_async(logic.create_time_entry, thread_sensitive=True)(
-        client, date, duration, hourly_rate, description, notes, billed
+        client, date, duration, hourly_rate, description, notes, billed, tags
+    )
+
+
+@mcp.tool()
+async def set_time_entry_tags(entry_id: int, tags: list[str]) -> dict:
+    """Ersetzt die komplette Tag-Zuordnung eines Zeiteintrags (nicht additiv -
+    vorhandene Tags, die nicht in der Liste enthalten sind, werden entfernt).
+    Leere Liste entfernt alle Tags.
+
+    entry_id: ID eines bestehenden Zeiteintrags.
+    tags: Liste bestehender Tag-Namen oder -IDs (siehe list_tags).
+    """
+    return await sync_to_async(logic.set_time_entry_tags, thread_sensitive=True)(
+        entry_id, tags
     )
 
 

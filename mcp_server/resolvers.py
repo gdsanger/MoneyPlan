@@ -6,6 +6,7 @@ Category and Client are both referenced by their unique, human-readable
 internal ids, and both models already enforce uniqueness on name.
 """
 from bookings.models import Category
+from tags.models import Tag
 from timetracking.models import Client
 
 
@@ -71,3 +72,82 @@ def resolve_client(name) -> Client:
         raise ValueError(
             f"Kunde '{name}' nicht gefunden. Verfügbare Kunden: {available}"
         )
+
+
+def resolve_tag(value, include_archived=False) -> Tag:
+    """Resolve a Tag by name (case-insensitive) or numeric id.
+
+    Unlike Category/Client, Tag.name is only unique per dimension (`kind`),
+    not globally — a bare name can therefore match tags in several
+    dimensions. In that case an id (see list_tags) is required instead of a
+    name, since there is no single correct dimension to prefer.
+
+    include_archived: when False (default, used when *assigning* a tag),
+    archived tags are excluded — mirrors the web UI, which only lets new
+    assignments pick non-archived tags. Pass True when *filtering* by tag,
+    since already-tagged items should stay findable even if the tag was
+    archived afterwards.
+    """
+    if isinstance(value, int):
+        try:
+            tag = Tag.objects.get(pk=value)
+        except Tag.DoesNotExist:
+            raise ValueError(f"Tag mit ID {value} nicht gefunden.")
+        if not include_archived and tag.archived:
+            raise ValueError(f"Tag '{tag.name}' ist archiviert und kann nicht neu zugeordnet werden.")
+        return tag
+
+    value = (value or '').strip()
+    if not value:
+        raise ValueError("Tag darf nicht leer sein.")
+
+    if value.isdigit():
+        try:
+            tag = Tag.objects.get(pk=int(value))
+        except Tag.DoesNotExist:
+            tag = None
+        if tag is not None:
+            if not include_archived and tag.archived:
+                raise ValueError(f"Tag '{tag.name}' ist archiviert und kann nicht neu zugeordnet werden.")
+            return tag
+
+    qs = Tag.objects.filter(name__iexact=value)
+    if not include_archived:
+        qs = qs.filter(archived=False)
+    matches = list(qs)
+
+    if not matches:
+        available = ', '.join(
+            f"{t.name} ({t.get_kind_display()})" for t in Tag.objects.order_by('kind', 'name')
+        )
+        raise ValueError(f"Tag '{value}' nicht gefunden. Verfügbare Tags: {available}")
+
+    if len(matches) > 1:
+        dimensions = ', '.join(sorted(t.get_kind_display() for t in matches))
+        raise ValueError(
+            f"Tag '{value}' ist nicht eindeutig, vorhanden in mehreren Dimensionen "
+            f"({dimensions}). Bitte die Tag-ID verwenden (siehe list_tags)."
+        )
+
+    return matches[0]
+
+
+def resolve_tags(values, include_archived=False) -> list:
+    """Resolve a list of tag names/ids (see resolve_tag) to Tag instances.
+
+    Deduplicates by id so passing the same tag twice (e.g. by name and id)
+    doesn't raise a duplicate-M2M-entry error further down.
+    """
+    if values is None:
+        return []
+    if not isinstance(values, (list, tuple)):
+        raise ValueError("'tags' muss eine Liste von Namen oder IDs sein.")
+
+    tags = []
+    seen_ids = set()
+    for value in values:
+        tag = resolve_tag(value, include_archived=include_archived)
+        if tag.id not in seen_ids:
+            seen_ids.add(tag.id)
+            tags.append(tag)
+    return tags

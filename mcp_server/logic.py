@@ -23,10 +23,17 @@ from attachments.services import delete_attachment as delete_attachment_service
 from attachments.services import get_attachments_for, handle_upload
 from bookings.models import Booking, Category, Liability, RecurringSeries
 from bookings.wizard import create_series_bookings
+from tags.models import Tag
 from timetracking.models import Client, TimeEntry
 
-from .resolvers import resolve_category, resolve_client
-from .serializers import serialize_attachment, serialize_booking, serialize_series, serialize_time_entry
+from .resolvers import resolve_category, resolve_client, resolve_tag, resolve_tags
+from .serializers import (
+    serialize_attachment,
+    serialize_booking,
+    serialize_series,
+    serialize_tag,
+    serialize_time_entry,
+)
 
 TWO_PLACES = Decimal('0.01')
 
@@ -61,7 +68,7 @@ def _parse_amount(value, field_name='amount'):
 # ---------------------------------------------------------------------------
 
 def create_booking(date, description, amount, category, status='planned',
-                    notes='', series_id=None, liability_id=None):
+                    notes='', series_id=None, liability_id=None, tags=None):
     booking_date = _parse_date(date)
 
     description = (description or '').strip()
@@ -77,6 +84,7 @@ def create_booking(date, description, amount, category, status='planned',
         raise ValueError(f"Ungültiger Status '{status}'. Erlaubt: {', '.join(valid_statuses)}.")
 
     category_obj = resolve_category(category)
+    tag_objs = resolve_tags(tags)
 
     series = None
     if series_id is not None:
@@ -102,6 +110,8 @@ def create_booking(date, description, amount, category, status='planned',
         liability=liability,
         notes=notes or '',
     )
+    if tag_objs:
+        booking.tags.set(tag_objs)
     return serialize_booking(booking)
 
 
@@ -124,7 +134,33 @@ def _with_attachment_counts(items):
     return items
 
 
-def list_planned_bookings(date_from=None, date_to=None, category=None, limit=None):
+def _validate_tag_kind(tag_kind):
+    valid_kinds = dict(Tag.KIND_CHOICES)
+    if tag_kind not in valid_kinds:
+        raise ValueError(f"Ungültige Tag-Dimension '{tag_kind}'. Erlaubt: {', '.join(valid_kinds)}.")
+    return tag_kind
+
+
+def _apply_tag_filters(qs, tag=None, tag_kind=None):
+    """Filters a Booking/TimeEntry queryset by tag and/or tag dimension.
+
+    Filtering by an already-archived tag still works (include_archived=True)
+    - the tag stayed assigned even if it was archived afterwards, and callers
+    filtering for historical data shouldn't lose those results.
+    """
+    filtered = False
+    if tag is not None:
+        qs = qs.filter(tags=resolve_tag(tag, include_archived=True))
+        filtered = True
+    if tag_kind is not None:
+        qs = qs.filter(tags__kind=_validate_tag_kind(tag_kind))
+        filtered = True
+    # A tag-dimension filter can match several tags on the same booking/entry,
+    # producing duplicate rows via the M2M join - collapse them back down.
+    return qs.distinct() if filtered else qs
+
+
+def list_planned_bookings(date_from=None, date_to=None, category=None, tag=None, tag_kind=None, limit=None):
     qs = Booking.objects.filter(status='planned')
     if date_from is not None:
         qs = qs.filter(date__gte=_parse_date(date_from, 'date_from'))
@@ -132,7 +168,8 @@ def list_planned_bookings(date_from=None, date_to=None, category=None, limit=Non
         qs = qs.filter(date__lte=_parse_date(date_to, 'date_to'))
     if category is not None:
         qs = qs.filter(category=resolve_category(category))
-    qs = qs.select_related('category').order_by('date', 'id')
+    qs = _apply_tag_filters(qs, tag, tag_kind)
+    qs = qs.select_related('category').prefetch_related('tags').order_by('date', 'id')
     if limit is not None:
         try:
             limit = int(limit)
@@ -144,7 +181,8 @@ def list_planned_bookings(date_from=None, date_to=None, category=None, limit=Non
     return _with_attachment_counts([serialize_booking(b) for b in qs])
 
 
-def list_due_bookings(days_before_due=None, include_overdue=True, include_due_soon=True, limit=None):
+def list_due_bookings(days_before_due=None, include_overdue=True, include_due_soon=True,
+                       tag=None, tag_kind=None, limit=None):
     """Read-only equivalent of alerts.checks: due_soon + overdue planned bookings.
 
     Deliberately does not call alerts.checks.check_due_soon/check_overdue, since
@@ -171,18 +209,18 @@ def list_due_bookings(days_before_due=None, include_overdue=True, include_due_so
 
     result = []
     if include_overdue:
-        overdue = Booking.objects.filter(
-            status='planned', date__lt=today
-        ).select_related('category').order_by('date', 'id')
+        overdue = _apply_tag_filters(
+            Booking.objects.filter(status='planned', date__lt=today), tag, tag_kind
+        ).select_related('category').prefetch_related('tags').order_by('date', 'id')
         for booking in overdue:
             item = serialize_booking(booking)
             item['due_state'] = 'overdue'
             item['days_until_due'] = (booking.date - today).days
             result.append(item)
     if include_due_soon:
-        due_soon = Booking.objects.filter(
-            status='planned', date__gte=today, date__lte=due_date
-        ).select_related('category').order_by('date', 'id')
+        due_soon = _apply_tag_filters(
+            Booking.objects.filter(status='planned', date__gte=today, date__lte=due_date), tag, tag_kind
+        ).select_related('category').prefetch_related('tags').order_by('date', 'id')
         for booking in due_soon:
             item = serialize_booking(booking)
             item['due_state'] = 'due_soon'
@@ -208,11 +246,29 @@ def list_categories():
     ]
 
 
+def list_tags(kind=None, include_archived=False):
+    qs = Tag.objects.all()
+    if kind is not None:
+        qs = qs.filter(kind=_validate_tag_kind(kind))
+    if not include_archived:
+        qs = qs.filter(archived=False)
+    qs = qs.order_by('kind', 'name')
+    return [serialize_tag(tag) for tag in qs]
+
+
 def _get_booking_or_raise(booking_id):
     try:
         return Booking.objects.get(pk=booking_id)
     except Booking.DoesNotExist:
         raise ValueError(f"Buchung mit ID {booking_id} nicht gefunden.")
+
+
+def set_booking_tags(booking_id, tags):
+    """Ersetzt die komplette Tag-Zuordnung einer Buchung (nicht additiv)."""
+    booking = _get_booking_or_raise(booking_id)
+    tag_objs = resolve_tags(tags)
+    booking.tags.set(tag_objs)
+    return serialize_booking(booking)
 
 
 def add_booking_attachment(booking_id, filename, content_base64):
@@ -265,7 +321,8 @@ def list_clients():
     return [{'name': client.name, 'notes': client.notes} for client in Client.objects.order_by('name')]
 
 
-def list_time_entries(date_from=None, date_to=None, client=None, billed=None, limit=None):
+def list_time_entries(date_from=None, date_to=None, client=None, billed=None,
+                       tag=None, tag_kind=None, limit=None):
     qs = TimeEntry.objects.all()
     if date_from is not None:
         qs = qs.filter(date__gte=_parse_date(date_from, 'date_from'))
@@ -275,7 +332,8 @@ def list_time_entries(date_from=None, date_to=None, client=None, billed=None, li
         qs = qs.filter(client=resolve_client(client))
     if billed is not None:
         qs = qs.filter(billed=bool(billed))
-    qs = qs.select_related('client').order_by('-date', '-created_at')
+    qs = _apply_tag_filters(qs, tag, tag_kind)
+    qs = qs.select_related('client').prefetch_related('tags').order_by('-date', '-created_at')
     if limit is not None:
         try:
             limit = int(limit)
@@ -307,7 +365,7 @@ def _validate_hourly_rate(value):
     return rate_dec
 
 
-def create_time_entry(client, date, duration, hourly_rate, description, notes='', billed=False):
+def create_time_entry(client, date, duration, hourly_rate, description, notes='', billed=False, tags=None):
     entry_date = _parse_date(date)
 
     description = (description or '').strip()
@@ -317,6 +375,7 @@ def create_time_entry(client, date, duration, hourly_rate, description, notes=''
     duration_dec = _validate_duration(duration)
     rate_dec = _validate_hourly_rate(hourly_rate)
     client_obj = resolve_client(client)
+    tag_objs = resolve_tags(tags)
 
     entry = TimeEntry.objects.create(
         client=client_obj,
@@ -327,6 +386,19 @@ def create_time_entry(client, date, duration, hourly_rate, description, notes=''
         notes=notes or '',
         billed=bool(billed),
     )
+    if tag_objs:
+        entry.tags.set(tag_objs)
+    return serialize_time_entry(entry)
+
+
+def set_time_entry_tags(entry_id, tags):
+    """Ersetzt die komplette Tag-Zuordnung eines Zeiteintrags (nicht additiv)."""
+    try:
+        entry = TimeEntry.objects.get(pk=entry_id)
+    except TimeEntry.DoesNotExist:
+        raise ValueError(f"Zeiteintrag mit ID {entry_id} nicht gefunden.")
+    tag_objs = resolve_tags(tags)
+    entry.tags.set(tag_objs)
     return serialize_time_entry(entry)
 
 

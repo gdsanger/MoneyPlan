@@ -14,17 +14,26 @@ KI-Agenten (Claude, OpenAI, ...) direkt damit arbeiten können.
 
 | Tool | Zweck |
 |---|---|
-| `create_booking` | Neue Buchung anlegen (geplant oder gebucht) |
-| `list_planned_bookings` | Nur geplante Buchungen lesen (nie gebuchte) |
-| `list_due_bookings` | Fällige (`due_soon`) und überfällige (`overdue`) geplante Buchungen lesen |
+| `create_booking` | Neue Buchung anlegen (geplant oder gebucht), optional mit `tags` |
+| `list_planned_bookings` | Nur geplante Buchungen lesen (nie gebuchte), filterbar nach `tag`/`tag_kind` |
+| `list_due_bookings` | Fällige (`due_soon`) und überfällige (`overdue`) geplante Buchungen lesen, filterbar nach `tag`/`tag_kind` |
 | `list_categories` | Kategorien auflisten (zur Namens-Auflösung) |
 | `list_clients` | Kunden auflisten (zur Namens-Auflösung) |
-| `list_time_entries` / `create_time_entry` / `update_time_entry` | Zeiterfassung lesen/anlegen/ändern |
+| `list_tags` | Tags auflisten inkl. Dimension (`kind`) und Farbe (zur Namens-Auflösung) |
+| `set_booking_tags` / `set_time_entry_tags` | Tag-Zuordnung einer Buchung/eines Zeiteintrags nachträglich ersetzen |
+| `list_time_entries` / `create_time_entry` / `update_time_entry` | Zeiterfassung lesen/anlegen/ändern, `create_time_entry` optional mit `tags`, `list_time_entries` filterbar nach `tag`/`tag_kind` |
 | `list_recurring_series` / `create_recurring_series` | Serienbuchungen lesen/neu anlegen |
 
 Kategorien und Kunden werden einheitlich per eindeutigem **Namen**
 referenziert (nicht per ID) — beide Felder sind in der Datenbank `unique`.
 Ist ein Name unbekannt, listet die Fehlermeldung die verfügbaren Namen auf.
+
+Tags sind nur *innerhalb ihrer Dimension* (`kind`, z.B. `projekt`/`kunde`/
+`kostenstelle`/`sonstiges`) eindeutig benannt. Ein Tag-Name wird deshalb per
+Namen aufgelöst, solange er in genau einer Dimension vorkommt — kommt derselbe
+Name in mehreren Dimensionen vor, verlangt die Fehlermeldung die Tag-ID (aus
+`list_tags`) statt des Namens. Tags werden ausschließlich im UI angelegt und
+gepflegt; die MCP-Tools ordnen nur bestehende Tags zu.
 
 ## Einrichtung
 
