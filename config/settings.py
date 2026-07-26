@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'timetracking',
     'reimbursements',
     'mcp_server',
+    'tags',
 ]
 
 MIDDLEWARE = [

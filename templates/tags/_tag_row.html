@@ -1,0 +1,64 @@
+{% with usage_count=tag.booking_count|add:tag.time_entry_count %}
+<tr id="tag-row-{{ tag.id }}">
+    <td data-label="Farbe">
+        <span class="badge" style="background-color: {{ tag.color }}; width: 40px; height: 25px; display: inline-block;"></span>
+    </td>
+    <td class="table-stack-heading">
+        {{ tag.name }}
+        {% if tag.archived %}<span class="badge text-bg-secondary ms-1">Archiviert</span>{% endif %}
+    </td>
+    <td data-label="Dimension">{{ tag.get_kind_display }}</td>
+    <td data-label="Beschreibung">
+        {% if tag.description %}
+        <span class="text-muted" title="{{ tag.description }}">{{ tag.description|truncatechars:60 }}</span>
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+    </td>
+    <td data-label="Verwendung">
+        <span class="badge text-bg-secondary">{{ usage_count }}</span>
+    </td>
+    <td class="table-stack-actions">
+        <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary row-actions-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end row-actions-menu">
+                <li>
+                    <a href="{% url 'tags:edit' tag.id %}"
+                       class="dropdown-item"
+                       hx-get="{% url 'tags:edit' tag.id %}"
+                       hx-target="#form-modal-content"
+                       hx-swap="innerHTML"
+                       data-bs-toggle="modal"
+                       data-bs-target="#formModal">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a>
+                </li>
+                <li>
+                    <form method="post" action="{% url 'tags:toggle_archived' tag.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="dropdown-item">
+                            {% if tag.archived %}
+                                <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
+                            {% else %}
+                                <i class="bi bi-archive"></i> Archivieren
+                            {% endif %}
+                        </button>
+                    </form>
+                </li>
+                <li>
+                    <button type="button"
+                            class="dropdown-item text-danger"
+                            data-delete-url="{% url 'tags:delete' tag.id %}"
+                            data-delete-title="Tag löschen"
+                            data-delete-message="Sind Sie sicher, dass Sie den Tag „{{ tag.name }}“ löschen möchten?"
+                            data-delete-target="#tag-row-{{ tag.id }}">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </td>
+</tr>
+{% endwith %}
