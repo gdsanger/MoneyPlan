@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, RecurringSeries, Booking, Liability, Asset, ReconciliationLog
+from .models import Category, RecurringSeries, Booking, Liability, Asset, ReconciliationLog, Account, AccountBalance
 
 
 @admin.register(Category)
@@ -48,5 +48,27 @@ class ReconciliationLogAdmin(admin.ModelAdmin):
     list_display = ['date', 'actual_balance', 'expected_balance', 'difference', 'booking']
     readonly_fields = ['created_at']
     date_hierarchy = 'date'
+
+
+class AccountBalanceInline(admin.TabularInline):
+    model = AccountBalance
+    extra = 0
+    fields = ['date', 'balance', 'note']
+
+
+@admin.register(Account)
+class AccountAdmin(admin.ModelAdmin):
+    list_display = ['name', 'account_type', 'is_active', 'sort_order', 'latest_balance']
+    list_filter = ['account_type', 'is_active']
+    search_fields = ['name']
+    inlines = [AccountBalanceInline]
+
+
+@admin.register(AccountBalance)
+class AccountBalanceAdmin(admin.ModelAdmin):
+    list_display = ['account', 'date', 'balance', 'note']
+    list_filter = ['account', 'date']
+    date_hierarchy = 'date'
+    readonly_fields = ['created_at', 'updated_at']
 
 

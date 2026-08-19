@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import Q
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, Submit, HTML, Div
-from .models import Booking, Category, RecurringSeries, Liability, Asset
+from .models import Booking, Category, RecurringSeries, Liability, Asset, Account, AccountBalance
 from tags.models import Tag
 from datetime import date
 
@@ -636,3 +636,67 @@ class AssetQuickUpdateForm(forms.ModelForm):
         self.fields['current_value'].required = True
 
 
+
+
+class AccountForm(forms.ModelForm):
+    """Konto anlegen/bearbeiten (ohne Bezug zu Buchungen)."""
+
+    class Meta:
+        model = Account
+        fields = ['name', 'account_type', 'sort_order', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'z. B. Girokonto Sparkasse'}),
+            'account_type': forms.Select(attrs={'class': 'form-select'}),
+            'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'name': 'Name',
+            'account_type': 'Typ',
+            'sort_order': 'Sortierung',
+            'is_active': 'Aktiv',
+        }
+        help_texts = {
+            'sort_order': 'Kleinere Werte werden zuerst angezeigt.',
+            'is_active': 'Deaktivierte Konten zählen nicht zur Gesamtsumme.',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.fields['name'].required = True
+
+
+class AccountBalanceForm(forms.ModelForm):
+    """Einzelnen Kontostand-Eintrag erfassen/korrigieren."""
+
+    class Meta:
+        model = AccountBalance
+        fields = ['account', 'date', 'balance', 'note']
+        widgets = {
+            'account': forms.Select(attrs={'class': 'form-select'}),
+            'date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
+            'balance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'inputmode': 'decimal'}),
+            'note': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optionale Notiz'}),
+        }
+        labels = {
+            'account': 'Konto',
+            'date': 'Datum',
+            'balance': 'Kontostand (€)',
+            'note': 'Notiz',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['date'].input_formats = [ISO_DATE_FORMAT]
+        self.fields['account'].queryset = Account.objects.filter(is_active=True)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+
+    def validate_unique(self):
+        """Freundliche Fehlermeldung bei doppeltem (Konto, Datum)."""
+        try:
+            super().validate_unique()
+        except forms.ValidationError as e:
+            self.add_error(None, 'Für dieses Konto existiert bereits ein Stand an diesem Datum. Bitte den vorhandenen Eintrag bearbeiten.')

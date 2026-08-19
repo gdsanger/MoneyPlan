@@ -9,7 +9,7 @@ from datetime import date
 from calendar import monthrange
 from django.db.models import Sum, Q, Count, QuerySet
 from django.db.models.functions import Coalesce
-from .models import Booking, Category, Liability, Asset
+from .models import Booking, Category, Liability, Asset, Account, AccountBalance
 
 
 def exclude_neutral_categories(queryset: QuerySet) -> QuerySet:
@@ -705,3 +705,104 @@ def get_assets_by_category() -> list[dict]:
     return result
 
 
+
+# ---------------------------------------------------------------------------
+# Konten (Account) – zweite, parallele Kontroll-/Übersichtsebene.
+# Diese Werte fließen bewusst NICHT ins Nettovermögen ein (siehe Account-Modell).
+# ---------------------------------------------------------------------------
+
+def get_accounts_overview(include_inactive: bool = False) -> list[dict]:
+    """Konten mit ihrem jeweils aktuellsten Stand.
+
+    Returns a list of dicts: {account, latest_balance, latest_date}.
+    """
+    accounts = Account.objects.all()
+    if not include_inactive:
+        accounts = accounts.filter(is_active=True)
+
+    result = []
+    for account in accounts:
+        entry = account.latest_balance_entry
+        result.append({
+            'account': account,
+            'latest_balance': entry.balance if entry else None,
+            'latest_date': entry.date if entry else None,
+        })
+    return result
+
+
+def get_snapshot_dates() -> list[date]:
+    """Alle Datumswerte, für die mindestens ein Kontostand existiert (neueste zuerst)."""
+    return list(
+        AccountBalance.objects.values_list('date', flat=True).distinct().order_by('-date')
+    )
+
+
+def get_snapshot_sum(target_date: date) -> Decimal:
+    """Summe aller Kontostände genau zu einem Datum (ein Snapshot, kein Mischen von Tagen)."""
+    if target_date is None:
+        return Decimal('0.00')
+    result = AccountBalance.objects.filter(date=target_date).aggregate(total=Sum('balance'))
+    return result['total'] or Decimal('0.00')
+
+
+def get_latest_snapshot() -> dict | None:
+    """Neuester Snapshot (Datum + Summe der Stände dieses Datums) oder None."""
+    dates = get_snapshot_dates()
+    if not dates:
+        return None
+    latest = dates[0]
+    return {'date': latest, 'sum': get_snapshot_sum(latest)}
+
+
+def get_account_chart_data() -> dict:
+    """Zeitreihe für das Kontodiagramm: Entwicklung je Konto und Gesamt.
+
+    Da Einträge unregelmäßig sind, wird der letzte bekannte Stand fortgeschrieben
+    (Stufendarstellung). Vor dem ersten Eintrag eines Kontos ist der Wert `None`
+    (Lücke), damit nicht fälschlich linear interpoliert wird.
+    """
+    balances = list(
+        AccountBalance.objects.select_related('account').order_by('date', 'account__sort_order', 'account__name')
+    )
+    if not balances:
+        return {'labels': [], 'accounts': [], 'total': []}
+
+    # Alle Datumswerte (aufsteigend) als gemeinsame X-Achse.
+    all_dates = sorted({b.date for b in balances})
+
+    # Je Konto ein Mapping date -> balance.
+    accounts = {}
+    for b in balances:
+        accounts.setdefault(b.account, {})[b.date] = b.balance
+
+    account_series = []
+    # Carry-forward je Konto über die gemeinsame Datumsachse.
+    per_account_carried = {acc: [] for acc in accounts}
+    for acc, by_date in accounts.items():
+        last = None
+        started = False
+        series = []
+        for d in all_dates:
+            if d in by_date:
+                last = by_date[d]
+                started = True
+            series.append(float(last) if started else None)
+        per_account_carried[acc] = series
+        account_series.append({
+            'name': acc.name,
+            'data': series,
+        })
+
+    # Gesamtsumme je Datum = Summe der fortgeschriebenen Stände aller Konten,
+    # die bis dahin einen bekannten Stand haben.
+    total_series = []
+    for idx, _ in enumerate(all_dates):
+        values = [series[idx] for series in per_account_carried.values() if series[idx] is not None]
+        total_series.append(round(sum(values), 2) if values else None)
+
+    return {
+        'labels': [d.isoformat() for d in all_dates],
+        'accounts': account_series,
+        'total': total_series,
+    }

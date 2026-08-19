@@ -77,6 +77,7 @@
                             <i class="bi bi-bank"></i> Finanzen
                         </a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item {% if nav_active_view == 'bookings:account_overview' %}active{% endif %}" href="{% url 'bookings:account_overview' %}"><i class="bi bi-bank"></i> Kontoübersicht</a></li>
                             <li><a class="dropdown-item {% if nav_active_view == 'bookings:reconciliation' %}active{% endif %}" href="{% url 'bookings:reconciliation' %}"><i class="bi bi-clipboard-check"></i> Kontenabgleich</a></li>
                             <li><a class="dropdown-item {% if nav_active_view == 'bookings:liability_list' %}active{% endif %}" href="{% url 'bookings:liability_list' %}"><i class="bi bi-credit-card"></i> Verbindlichkeiten</a></li>
                             <li><a class="dropdown-item {% if nav_active_view == 'bookings:asset_list' %}active{% endif %}" href="{% url 'bookings:asset_list' %}"><i class="bi bi-piggy-bank"></i> Vermögen</a></li>
@@ -156,6 +157,7 @@
 
             <div class="text-uppercase text-secondary small px-2 mt-3 mb-1">Finanzen</div>
             <ul class="nav flex-column mb-2">
+                <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:account_overview' %}active{% endif %}" href="{% url 'bookings:account_overview' %}"><i class="bi bi-bank"></i> Kontoübersicht</a></li>
                 <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:reconciliation' %}active{% endif %}" href="{% url 'bookings:reconciliation' %}"><i class="bi bi-clipboard-check"></i> Kontenabgleich</a></li>
                 <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:liability_list' %}active{% endif %}" href="{% url 'bookings:liability_list' %}"><i class="bi bi-credit-card"></i> Verbindlichkeiten</a></li>
                 <li class="nav-item"><a class="nav-link {% if nav_active_view == 'bookings:asset_list' %}active{% endif %}" href="{% url 'bookings:asset_list' %}"><i class="bi bi-piggy-bank"></i> Vermögen</a></li>

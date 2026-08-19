@@ -60,6 +60,9 @@ _NAV_FINANZEN_NAMES = {
     'bookings:asset_list', 'bookings:asset_create', 'bookings:asset_edit',
     'bookings:asset_delete', 'bookings:asset_update_value',
     'bookings:reconciliation', 'bookings:reconciliation_create',
+    'bookings:account_overview', 'bookings:account_create', 'bookings:account_edit',
+    'bookings:account_delete', 'bookings:account_detail', 'bookings:account_snapshot',
+    'bookings:account_balance_edit', 'bookings:account_balance_delete',
     'alerts:list', 'alerts:test_mail',
 }
 _NAV_SONSTIGES_NAMESPACES = {'tasks', 'timetracking', 'reimbursements', 'tags'}
