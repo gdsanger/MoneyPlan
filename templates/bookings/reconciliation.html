@@ -18,6 +18,17 @@
                         den Saldo (und damit den Forecast-Startpunkt) korrigiert.
                     </p>
 
+                    {% if latest_snapshot %}
+                    <div class="alert alert-info d-flex align-items-start gap-2 py-2">
+                        <i class="bi bi-info-circle mt-1"></i>
+                        <div class="small">
+                            Vorbefüllt mit der Summe des neuesten Snapshots aus der
+                            <a href="{% url 'bookings:account_overview' %}" class="alert-link">Kontoübersicht</a>
+                            ({{ latest_snapshot.sum|floatformat:2 }} € vom {{ latest_snapshot.date|date:"d.m.Y" }}).
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <form id="reconciliation-form" method="post" action="{% url 'bookings:reconciliation_create' %}">
                         {% csrf_token %}
                         <div class="mb-3">

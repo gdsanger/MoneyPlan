@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title|default:"Kontostand" }} - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1><i class="bi bi-cash-stack"></i> {{ title|default:"Kontostand" }}</h1>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {% crispy form %}
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Speichern
+                    </button>
+                    <a href="{% url 'bookings:account_detail' balance.account_id %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Abbrechen
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

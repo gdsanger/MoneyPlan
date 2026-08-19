@@ -142,6 +142,79 @@ class ReconciliationLog(models.Model):
         return f"{self.date}: Ist {self.actual_balance} € / Soll {self.expected_balance} € (Diff {self.difference} €)"
 
 
+class Account(models.Model):
+    """Konto als zweite, parallele Kontroll-/Übersichtsebene neben den Buchungen.
+
+    Wichtig: Konten haben KEINEN Bezug zu `Booking` und fließen NICHT ins
+    Nettovermögen ein. Das Geld ist über die Buchungen bereits enthalten – die
+    Kontostände dienen nur der Übersicht, dem Kontenabgleich und dem Diagramm.
+    """
+    ACCOUNT_TYPE_CHOICES = [
+        ('giro', 'Girokonto'),
+        ('savings', 'Tagesgeld/Sparkonto'),
+        ('cash', 'Bargeld'),
+        ('credit_card', 'Kreditkarte'),
+        ('paypal', 'PayPal'),
+        ('other', 'Sonstiges'),
+    ]
+
+    name = models.CharField(max_length=100, verbose_name="Name")
+    account_type = models.CharField(
+        max_length=20,
+        choices=ACCOUNT_TYPE_CHOICES,
+        default='giro',
+        verbose_name="Typ",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Aktiv")
+    sort_order = models.PositiveIntegerField(default=0, verbose_name="Sortierung")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
+
+    class Meta:
+        verbose_name = "Konto"
+        verbose_name_plural = "Konten"
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def latest_balance_entry(self):
+        """Neuester Kontostand-Eintrag (nach Datum) oder None."""
+        return self.balances.order_by('-date', '-id').first()
+
+    @property
+    def latest_balance(self):
+        """Betrag des neuesten Standes oder None, wenn noch kein Stand erfasst wurde."""
+        entry = self.latest_balance_entry
+        return entry.balance if entry else None
+
+
+class AccountBalance(models.Model):
+    """Manuell gepflegter Kontostand eines Kontos zu einem Datum (Snapshot je Tag)."""
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        related_name='balances',
+        verbose_name="Konto",
+    )
+    date = models.DateField(default=timezone.localdate, verbose_name="Datum")
+    balance = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Kontostand (€)")
+    note = models.CharField(max_length=255, blank=True, verbose_name="Notiz")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Erstellt am")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Aktualisiert am")
+
+    class Meta:
+        verbose_name = "Kontostand"
+        verbose_name_plural = "Kontostände"
+        ordering = ['-date', 'account__sort_order', 'account__name']
+        constraints = [
+            models.UniqueConstraint(fields=['account', 'date'], name='unique_account_balance_per_day'),
+        ]
+
+    def __str__(self):
+        return f"{self.account.name} | {self.date} | {self.balance} €"
+
+
 class Liability(models.Model):
     """Verbindlichkeit (Schuld/Darlehen)"""
     name = models.CharField(max_length=255, verbose_name="Name")

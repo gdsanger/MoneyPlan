@@ -45,4 +45,13 @@ urlpatterns = [
     # Kontenabgleich
     path('kontenabgleich/', views.reconciliation_view, name='reconciliation'),
     path('kontenabgleich/ausgleichsbuchung/', views.reconciliation_create, name='reconciliation_create'),
+    # Kontoübersicht (Konten & manuelle Kontostände)
+    path('konten/', views.account_overview, name='account_overview'),
+    path('konten/neu/', views.account_create, name='account_create'),
+    path('konten/snapshot/', views.account_snapshot, name='account_snapshot'),
+    path('konten/<int:account_id>/', views.account_detail, name='account_detail'),
+    path('konten/<int:account_id>/bearbeiten/', views.account_edit, name='account_edit'),
+    path('konten/<int:account_id>/loeschen/', views.account_delete, name='account_delete'),
+    path('kontostaende/<int:balance_id>/bearbeiten/', views.account_balance_edit, name='account_balance_edit'),
+    path('kontostaende/<int:balance_id>/loeschen/', views.account_balance_delete, name='account_balance_delete'),
 ]

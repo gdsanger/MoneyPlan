@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}{{ account.name }} - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 class="mb-0">
+            <i class="bi bi-bank"></i> {{ account.name }}
+            <span class="badge text-bg-secondary align-middle">{{ account.get_account_type_display }}</span>
+            {% if not account.is_active %}<span class="badge text-bg-warning align-middle">Deaktiviert</span>{% endif %}
+        </h1>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'bookings:account_snapshot' %}?date={{ today|date:'Y-m-d' }}" class="btn btn-primary">
+                <i class="bi bi-calendar-plus"></i> Stände erfassen
+            </a>
+            <a href="{% url 'bookings:account_overview' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Übersicht
+            </a>
+        </div>
+    </div>
+
+    {% if has_chart %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-graph-up"></i> Entwicklung</h5>
+            <canvas id="accountDetailChart" style="max-height: 320px;"></canvas>
+            <small class="text-muted">Stufendarstellung: Der letzte bekannte Stand gilt bis zum nächsten Eintrag fort.</small>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-clock-history"></i> Verlauf der Stände</h5>
+            {% if balances %}
+            <div class="table-responsive">
+                <table class="table table-hover table-stack align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th class="text-end">Kontostand</th>
+                            <th>Notiz</th>
+                            <th class="text-end">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for balance in balances %}
+                        <tr id="balance-row-{{ balance.id }}">
+                            <td>{{ balance.date|date:"d.m.Y" }}</td>
+                            <td class="text-end"><strong>{{ balance.balance|floatformat:2 }} €</strong></td>
+                            <td>{% if balance.note %}{{ balance.note }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'bookings:account_balance_edit' balance.id %}"
+                                       class="btn btn-outline-primary"
+                                       hx-get="{% url 'bookings:account_balance_edit' balance.id %}"
+                                       hx-target="#form-modal-content"
+                                       hx-swap="innerHTML"
+                                       data-bs-toggle="modal"
+                                       data-bs-target="#formModal"
+                                       title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-outline-danger"
+                                            data-delete-url="{% url 'bookings:account_balance_delete' balance.id %}"
+                                            data-delete-title="Kontostand löschen"
+                                            data-delete-message="Stand vom {{ balance.date|date:'d.m.Y' }} wirklich löschen?"
+                                            data-delete-target="#balance-row-{{ balance.id }}"
+                                            title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-secondary mb-0">
+                <i class="bi bi-info-circle"></i> Noch keine Stände für dieses Konto erfasst.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="formModalLabel">Kontostand</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content"></div>
+        </div>
+    </div>
+</div>
+
+{% if has_chart %}
+<script id="account-detail-data" type="application/json">{{ chart_data_json|safe }}</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const series = JSON.parse(document.getElementById('account-detail-data').textContent);
+        new Chart(document.getElementById('accountDetailChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: series.map(function (p) { return p.date; }),
+                datasets: [{
+                    label: '{{ account.name|escapejs }}',
+                    data: series.map(function (p) { return p.balance; }),
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    backgroundColor: 'rgba(13, 110, 253, 0.15)',
+                    fill: true,
+                    stepped: true,
+                    tension: 0,
+                    pointRadius: 3,
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { ticks: { color: '#adb5bd' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: {
+                        ticks: {
+                            color: '#adb5bd',
+                            callback: function (v) { return v.toLocaleString('de-DE') + ' €'; }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(ctx.parsed.y);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

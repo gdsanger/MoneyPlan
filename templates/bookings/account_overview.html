@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Kontoübersicht - MoneyPlan{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 class="mb-0">
+            <i class="bi bi-bank"></i> Kontoübersicht
+        </h1>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'bookings:account_snapshot' %}" class="btn btn-primary">
+                <i class="bi bi-calendar-plus"></i> Stände erfassen
+            </a>
+            <a href="{% url 'bookings:account_create' %}"
+               class="btn btn-outline-primary"
+               hx-get="{% url 'bookings:account_create' %}"
+               hx-target="#form-modal-content"
+               hx-swap="innerHTML"
+               data-bs-toggle="modal"
+               data-bs-target="#formModal">
+                <i class="bi bi-plus-circle"></i> Neues Konto
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-info d-flex align-items-start gap-2">
+        <i class="bi bi-info-circle mt-1"></i>
+        <div>
+            Die Kontostände sind eine <strong>parallele Kontroll-/Übersichtsebene</strong> und dienen als Basis
+            für den <a href="{% url 'bookings:reconciliation' %}" class="alert-link">Kontenabgleich</a>.
+            Sie fließen bewusst <strong>nicht</strong> ins Nettovermögen ein – das Geld ist über die Buchungen
+            bereits enthalten.
+        </div>
+    </div>
+
+    <!-- Gesamtsumme -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Ist-Gesamtstand</h5>
+                    <h2 class="mb-1">{{ total|floatformat:2 }} €</h2>
+                    <small>
+                        Summe der aktuellsten Stände je Konto
+                        {% if latest_snapshot %}
+                        · neuester Snapshot {{ latest_snapshot.date|date:"d.m.Y" }}
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entwicklung / Diagramm -->
+    {% if has_chart %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-graph-up"></i> Entwicklung je Konto und Gesamt</h5>
+            <canvas id="accountChart" style="max-height: 340px;"></canvas>
+            <small class="text-muted">
+                Stufendarstellung: Der letzte bekannte Stand gilt bis zum nächsten Eintrag fort.
+            </small>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Kontenliste -->
+    {% if overview %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-stack align-middle">
+                    <thead>
+                        <tr>
+                            <th>Konto</th>
+                            <th>Typ</th>
+                            <th class="text-end">Aktueller Stand</th>
+                            <th>Stand vom</th>
+                            <th class="text-end">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in overview %}
+                        <tr id="account-row-{{ row.account.id }}">
+                            <td>
+                                <a href="{% url 'bookings:account_detail' row.account.id %}" class="fw-semibold text-decoration-none">
+                                    {{ row.account.name }}
+                                </a>
+                            </td>
+                            <td>{{ row.account.get_account_type_display }}</td>
+                            <td class="text-end">
+                                {% if row.latest_balance is not None %}
+                                <strong>{{ row.latest_balance|floatformat:2 }} €</strong>
+                                {% else %}
+                                <span class="text-muted">— noch kein Stand —</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.latest_date %}
+                                <small class="text-muted">{{ row.latest_date|date:"d.m.Y" }}</small>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'bookings:account_detail' row.account.id %}"
+                                       class="btn btn-outline-secondary" title="Verlauf & Diagramm">
+                                        <i class="bi bi-graph-up"></i>
+                                    </a>
+                                    <a href="{% url 'bookings:account_edit' row.account.id %}"
+                                       class="btn btn-outline-primary"
+                                       hx-get="{% url 'bookings:account_edit' row.account.id %}"
+                                       hx-target="#form-modal-content"
+                                       hx-swap="innerHTML"
+                                       data-bs-toggle="modal"
+                                       data-bs-target="#formModal"
+                                       title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-outline-danger"
+                                            data-delete-url="{% url 'bookings:account_delete' row.account.id %}"
+                                            data-delete-title="Konto löschen"
+                                            data-delete-message="Konto „{{ row.account.name }}“ inkl. aller Kontostände wirklich löschen?"
+                                            data-delete-target="#account-row-{{ row.account.id }}"
+                                            title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="2">Gesamt</th>
+                            <th class="text-end">{{ total|floatformat:2 }} €</th>
+                            <th colspan="2"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-secondary">
+        <i class="bi bi-info-circle"></i>
+        Noch keine Konten angelegt. Lege dein erstes Konto über „Neues Konto" an und erfasse anschließend die Stände.
+    </div>
+    {% endif %}
+
+    <!-- Deaktivierte Konten -->
+    {% if inactive_overview %}
+    <div class="card">
+        <div class="card-body">
+            <h6 class="card-title text-muted"><i class="bi bi-archive"></i> Deaktivierte Konten</h6>
+            <p class="text-muted small mb-3">Zählen nicht zur Gesamtsumme.</p>
+            <div class="table-responsive">
+                <table class="table table-sm table-stack align-middle mb-0">
+                    <tbody>
+                        {% for row in inactive_overview %}
+                        <tr id="account-row-{{ row.account.id }}">
+                            <td>{{ row.account.name }} <span class="badge text-bg-secondary">{{ row.account.get_account_type_display }}</span></td>
+                            <td class="text-end">
+                                {% if row.latest_balance is not None %}{{ row.latest_balance|floatformat:2 }} €{% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'bookings:account_edit' row.account.id %}"
+                                   class="btn btn-sm btn-outline-primary"
+                                   hx-get="{% url 'bookings:account_edit' row.account.id %}"
+                                   hx-target="#form-modal-content"
+                                   hx-swap="innerHTML"
+                                   data-bs-toggle="modal"
+                                   data-bs-target="#formModal">
+                                    <i class="bi bi-pencil"></i> Bearbeiten
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Form Modal -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="formModalLabel">Konto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body" id="form-modal-content">
+                <!-- Form loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if has_chart %}
+<script id="account-chart-data" type="application/json">{{ chart_data_json|safe }}</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const payload = JSON.parse(document.getElementById('account-chart-data').textContent);
+        // Feste Farbreihenfolge für Konten (identisch zur restlichen App).
+        const palette = [
+            'rgba(13, 110, 253, 1)',
+            'rgba(25, 135, 84, 1)',
+            'rgba(255, 193, 7, 1)',
+            'rgba(220, 53, 69, 1)',
+            'rgba(13, 202, 240, 1)',
+            'rgba(111, 66, 193, 1)',
+            'rgba(108, 117, 125, 1)',
+        ];
+
+        const datasets = payload.accounts.map(function (acc, i) {
+            const color = palette[i % palette.length];
+            return {
+                label: acc.name,
+                data: acc.data,
+                borderColor: color,
+                backgroundColor: color,
+                stepped: true,
+                spanGaps: false,
+                tension: 0,
+                pointRadius: 3,
+                borderWidth: 2,
+            };
+        });
+
+        // Gesamtlinie deutlich abgesetzt (weiß, gestrichelt, dicker).
+        datasets.push({
+            label: 'Gesamt',
+            data: payload.total,
+            borderColor: 'rgba(255, 255, 255, 0.9)',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            stepped: true,
+            spanGaps: false,
+            tension: 0,
+            pointRadius: 3,
+            borderWidth: 3,
+            borderDash: [6, 4],
+        });
+
+        new Chart(document.getElementById('accountChart').getContext('2d'), {
+            type: 'line',
+            data: { labels: payload.labels, datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { ticks: { color: '#adb5bd' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: {
+                        ticks: {
+                            color: '#adb5bd',
+                            callback: function (v) { return v.toLocaleString('de-DE') + ' €'; }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#fff' } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                if (ctx.parsed.y === null) { return null; }
+                                return ctx.dataset.label + ': ' + new Intl.NumberFormat('de-DE', {
+                                    style: 'currency', currency: 'EUR'
+                                }).format(ctx.parsed.y);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

@@ -5,16 +5,18 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.utils.http import urlencode
+from django.utils import timezone
 from django.db.models import Q, Count, Subquery, OuterRef
 from django.contrib.contenttypes.models import ContentType
 from django.contrib import messages
 from datetime import date, datetime, timedelta
 from calendar import monthrange
 from decimal import Decimal, InvalidOperation
+import json
 import magic
-from .models import Booking, Category, RecurringSeries, Liability, Asset, ReconciliationLog
+from .models import Booking, Category, RecurringSeries, Liability, Asset, ReconciliationLog, Account, AccountBalance
 from tags.models import Tag
-from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, SeriesAmountChangeForm, SeriesExtendForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm, ReconciliationForm
+from .forms import BookingForm, BookingFilterForm, MonthFilterForm, RecurringSeriesForm, SeriesAmountChangeForm, SeriesExtendForm, CategoryForm, QuickBookingForm, LiabilityForm, AssetForm, AssetQuickUpdateForm, ReconciliationForm, AccountForm, AccountBalanceForm
 from .services import (
     get_monthly_carry_forward,
     get_bookings_for_month,
@@ -29,6 +31,11 @@ from .services import (
     get_category_overview,
     get_category_bookings,
     get_current_balance,
+    get_accounts_overview,
+    get_snapshot_dates,
+    get_snapshot_sum,
+    get_latest_snapshot,
+    get_account_chart_data,
 )
 from .wizard import preview_series_bookings, create_series_bookings
 from .receipt_service import recognize_receipt, ReceiptRecognitionResult
@@ -1632,13 +1639,24 @@ def _parse_decimal(raw):
         return None
 
 
-def _reconciliation_context(form, expected_balance, actual_balance):
+def _parse_iso_date(raw):
+    """Parse an ISO date (YYYY-MM-DD) from a query/form value, or None."""
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw.strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def _reconciliation_context(form, expected_balance, actual_balance, latest_snapshot=None):
     difference = (actual_balance - expected_balance) if actual_balance is not None else None
     return {
         'form': form,
         'expected_balance': expected_balance,
         'actual_balance': actual_balance,
         'difference': difference,
+        'latest_snapshot': latest_snapshot,
         'logs': ReconciliationLog.objects.select_related('booking')[:12],
     }
 
@@ -1647,7 +1665,14 @@ def _reconciliation_context(form, expected_balance, actual_balance):
 def reconciliation_view(request):
     """Kontenabgleich: Ist-Gesamtstand gegen das MoneyPlan-Soll prüfen und Differenz anzeigen."""
     expected_balance = get_current_balance()
-    actual_balance = _parse_decimal(request.GET.get('actual_balance'))
+    latest_snapshot = get_latest_snapshot()
+
+    raw_actual = request.GET.get('actual_balance')
+    actual_balance = _parse_decimal(raw_actual)
+    # Ist-Gesamtstand aus der Kontoübersicht vorbefüllen (Summe des neuesten
+    # Snapshots), solange der Nutzer noch nichts Eigenes eingegeben hat.
+    if raw_actual is None and latest_snapshot:
+        actual_balance = latest_snapshot['sum']
 
     default_category = Category.objects.filter(category_type='neutral').first()
     category_id = request.GET.get('category') or (default_category.pk if default_category else None)
@@ -1657,7 +1682,7 @@ def reconciliation_view(request):
         calc_url=reverse('bookings:reconciliation'),
     )
 
-    context = _reconciliation_context(form, expected_balance, actual_balance)
+    context = _reconciliation_context(form, expected_balance, actual_balance, latest_snapshot)
 
     if request.htmx:
         return render(request, 'bookings/_reconciliation_result.html', context)
@@ -1718,3 +1743,215 @@ def reconciliation_create(request):
     return render(request, 'bookings/reconciliation.html', context)
 
 
+
+
+# ---------------------------------------------------------------------------
+# Konten (Account) & Kontostände (AccountBalance)
+# Zweite, parallele Kontroll-/Übersichtsebene neben den Buchungen.
+# Kein Bezug zu Booking, fließt NICHT ins Nettovermögen ein.
+# ---------------------------------------------------------------------------
+
+@login_required
+def account_overview(request):
+    """Kontoübersicht: alle Konten mit aktuellem Stand, Gesamtsumme und Diagramm."""
+    overview = get_accounts_overview(include_inactive=False)
+    inactive = get_accounts_overview(include_inactive=True)
+    inactive = [row for row in inactive if not row['account'].is_active]
+
+    total = sum((row['latest_balance'] for row in overview if row['latest_balance'] is not None), Decimal('0.00'))
+
+    latest_snapshot = get_latest_snapshot()
+    chart_data = get_account_chart_data()
+
+    context = {
+        'overview': overview,
+        'inactive_overview': inactive,
+        'total': total,
+        'latest_snapshot': latest_snapshot,
+        'chart_data_json': json.dumps(chart_data),
+        'has_chart': bool(chart_data['labels']),
+    }
+    return render(request, 'bookings/account_overview.html', context)
+
+
+@login_required
+def account_create(request):
+    """Neues Konto anlegen."""
+    if request.method == 'POST':
+        form = AccountForm(request.POST)
+        if form.is_valid():
+            account = form.save()
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:account_overview')
+                return response
+            messages.success(request, f'Konto "{account.name}" wurde angelegt.')
+            return redirect('bookings:account_overview')
+    else:
+        form = AccountForm()
+
+    context = {'form': form, 'title': 'Neues Konto'}
+    if request.htmx:
+        return render(request, 'bookings/_account_form.html', context)
+    return render(request, 'bookings/account_form.html', context)
+
+
+@login_required
+def account_edit(request, account_id):
+    """Konto bearbeiten/deaktivieren."""
+    account = get_object_or_404(Account, pk=account_id)
+    if request.method == 'POST':
+        form = AccountForm(request.POST, instance=account)
+        if form.is_valid():
+            account = form.save()
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:account_overview')
+                return response
+            messages.success(request, f'Konto "{account.name}" wurde aktualisiert.')
+            return redirect('bookings:account_overview')
+    else:
+        form = AccountForm(instance=account)
+
+    context = {'form': form, 'account': account, 'title': f'Konto: {account.name}'}
+    if request.htmx:
+        return render(request, 'bookings/_account_form.html', context)
+    return render(request, 'bookings/account_form.html', context)
+
+
+@login_required
+def account_delete(request, account_id):
+    """Konto löschen (inkl. aller Kontostände)."""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    account = get_object_or_404(Account, pk=account_id)
+    name = account.name
+    account.delete()
+
+    if request.htmx:
+        response = HttpResponse('')
+        response['HX-Redirect'] = reverse('bookings:account_overview')
+        return response
+
+    messages.success(request, f'Konto "{name}" wurde gelöscht.')
+    return redirect('bookings:account_overview')
+
+
+@login_required
+def account_detail(request, account_id):
+    """Einzelnes Konto: Verlauf der Stände + Diagramm (Stufendarstellung)."""
+    account = get_object_or_404(Account, pk=account_id)
+    balances = account.balances.order_by('-date')
+
+    chart_series = [
+        {'date': b.date.isoformat(), 'balance': float(b.balance)}
+        for b in reversed(list(balances))
+    ]
+
+    context = {
+        'account': account,
+        'balances': balances,
+        'chart_data_json': json.dumps(chart_series),
+        'has_chart': bool(chart_series),
+        'today': timezone.localdate(),
+    }
+    return render(request, 'bookings/account_detail.html', context)
+
+
+@login_required
+def account_snapshot(request):
+    """Snapshot erfassen: für ein Datum je aktivem Konto einen Stand eintragen.
+
+    Vorhandene Stände dieses Datums werden vorbefüllt und beim Speichern
+    aktualisiert (ein Stand je Konto und Tag).
+    """
+    accounts = Account.objects.filter(is_active=True)
+
+    if request.method == 'POST':
+        snapshot_date = _parse_iso_date(request.POST.get('date')) or timezone.localdate()
+
+        saved, cleared = 0, 0
+        for account in accounts:
+            raw = request.POST.get(f'balance_{account.pk}')
+            value = _parse_decimal(raw)
+            existing = AccountBalance.objects.filter(account=account, date=snapshot_date).first()
+
+            if value is None:
+                # Leeres Feld: vorhandenen Eintrag dieses Tages entfernen (Korrektur).
+                if existing and (raw is None or raw.strip() == ''):
+                    existing.delete()
+                    cleared += 1
+                continue
+
+            if existing:
+                if existing.balance != value:
+                    existing.balance = value
+                    existing.save(update_fields=['balance', 'updated_at'])
+                    saved += 1
+            else:
+                AccountBalance.objects.create(account=account, date=snapshot_date, balance=value)
+                saved += 1
+
+        messages.success(
+            request,
+            f'Snapshot vom {snapshot_date:%d.%m.%Y} gespeichert ({saved} Stand/Stände aktualisiert).'
+        )
+        return redirect('bookings:account_overview')
+
+    # GET: Datum bestimmen (Query-Param oder heute) und vorhandene Stände vorbefüllen.
+    snapshot_date = _parse_iso_date(request.GET.get('date')) or timezone.localdate()
+    existing = {
+        b.account_id: b.balance
+        for b in AccountBalance.objects.filter(date=snapshot_date)
+    }
+    rows = [{'account': acc, 'balance': existing.get(acc.pk)} for acc in accounts]
+
+    context = {
+        'rows': rows,
+        'snapshot_date': snapshot_date,
+        'snapshot_dates': get_snapshot_dates(),
+    }
+    return render(request, 'bookings/account_snapshot.html', context)
+
+
+@login_required
+def account_balance_edit(request, balance_id):
+    """Einzelnen Kontostand-Eintrag korrigieren."""
+    balance = get_object_or_404(AccountBalance, pk=balance_id)
+    if request.method == 'POST':
+        form = AccountBalanceForm(request.POST, instance=balance)
+        if form.is_valid():
+            form.save()
+            if request.htmx:
+                response = HttpResponse('')
+                response['HX-Redirect'] = reverse('bookings:account_detail', args=[balance.account_id])
+                return response
+            messages.success(request, 'Kontostand wurde aktualisiert.')
+            return redirect('bookings:account_detail', account_id=balance.account_id)
+    else:
+        form = AccountBalanceForm(instance=balance)
+
+    context = {'form': form, 'balance': balance, 'title': 'Kontostand bearbeiten'}
+    if request.htmx:
+        return render(request, 'bookings/_account_balance_form.html', context)
+    return render(request, 'bookings/account_balance_form.html', context)
+
+
+@login_required
+def account_balance_delete(request, balance_id):
+    """Einzelnen Kontostand-Eintrag löschen."""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    balance = get_object_or_404(AccountBalance, pk=balance_id)
+    account_id = balance.account_id
+    balance.delete()
+
+    if request.htmx:
+        response = HttpResponse('')
+        response['HX-Redirect'] = reverse('bookings:account_detail', args=[account_id])
+        return response
+
+    messages.success(request, 'Kontostand wurde gelöscht.')
+    return redirect('bookings:account_detail', account_id=account_id)
