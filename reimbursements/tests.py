@@ -1,4 +1,5 @@
 """Tests for reimbursements app."""
+import tempfile
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
@@ -7,7 +8,7 @@ from unittest.mock import patch, MagicMock
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 
 from bookings.services import get_forecast
@@ -432,3 +433,105 @@ class PdfServiceTestCase(TestCase):
         self.assertTrue(pdf_bytes.startswith(b'%PDF'))
         self.assertIn('ISARtec Auslagenerstattung.pdf', filename)
         mock_app_pdf.assert_called_once()
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class SubmissionPdfReceiptTestCase(TestCase):
+    """Each receipt must appear exactly once in the submission PDF."""
+
+    def setUp(self):
+        ReimbursementConfig.get()
+        self._blank_pdf = self._make_pdf()
+
+    @staticmethod
+    def _make_pdf(width=200, height=300):
+        from pypdf import PdfWriter
+
+        writer = PdfWriter()
+        writer.add_blank_page(width=width, height=height)
+        buffer = BytesIO()
+        writer.write(buffer)
+        return buffer.getvalue()
+
+    def _make_claim(self, day, description, receipt_bytes, mime_type='application/pdf'):
+        from django.contrib.contenttypes.models import ContentType
+        from django.core.files.base import ContentFile
+
+        from attachments.models import Attachment
+
+        claim = ExpenseClaim.objects.create(
+            date=date(2026, 4, day),
+            description=description,
+            amount=Decimal('50.00'),
+            status=ExpenseClaim.STATUS_PENDING,
+        )
+        attachment = Attachment(
+            content_type=ContentType.objects.get_for_model(claim),
+            object_id=claim.pk,
+            filename=f'{description}.pdf',
+            file_size=len(receipt_bytes),
+            mime_type=mime_type,
+        )
+        attachment.file.save(f'{description}.pdf', ContentFile(receipt_bytes), save=True)
+        return claim
+
+    def _page_count(self, claims):
+        from pypdf import PdfReader
+        from reimbursements.pdf_service import generate_submission_pdf
+
+        with patch(
+            'reimbursements.pdf_service.generate_application_pdf_bytes',
+            return_value=self._blank_pdf,
+        ):
+            pdf_bytes, _ = generate_submission_pdf(claims)
+        return len(PdfReader(BytesIO(pdf_bytes)).pages)
+
+    def test_every_receipt_is_added_once(self):
+        claims = [
+            self._make_claim(1, 'Shell', self._make_pdf(210, 300)),
+            self._make_claim(2, 'Aral', self._make_pdf(211, 300)),
+            self._make_claim(3, 'Esso', self._make_pdf(212, 300)),
+        ]
+
+        # 1 application page + 1 page per receipt
+        self.assertEqual(self._page_count(claims), 4)
+
+    def test_duplicate_claim_does_not_duplicate_receipt(self):
+        first = self._make_claim(1, 'Shell', self._make_pdf(210, 300))
+        last = self._make_claim(2, 'Aral', self._make_pdf(211, 300))
+
+        self.assertEqual(self._page_count([first, last, last]), 3)
+        self.assertEqual(self._page_count([first, first, last]), 3)
+
+    def test_identical_receipt_on_two_claims_is_added_once(self):
+        receipt = self._make_pdf(210, 300)
+        first = self._make_claim(1, 'Shell', receipt)
+        second = self._make_claim(2, 'Shell-Kopie', receipt)
+
+        # 1 application page + 1 receipt page (the second copy is skipped)
+        self.assertEqual(self._page_count([first, second]), 2)
+
+    def test_duplicate_claim_appears_once_in_application_form(self):
+        from reimbursements.pdf_service import generate_submission_pdf
+
+        claim = self._make_claim(1, 'Shell', self._make_pdf(210, 300))
+
+        with patch(
+            'reimbursements.pdf_service.generate_application_pdf_bytes',
+            return_value=self._blank_pdf,
+        ) as mock_app_pdf:
+            generate_submission_pdf([claim, claim])
+
+        rendered_claims = mock_app_pdf.call_args.args[0]
+        self.assertEqual(len(rendered_claims), 1)
+
+    def test_image_receipt_is_added_once(self):
+        from PIL import Image
+
+        buffer = BytesIO()
+        Image.new('RGB', (300, 400), 'orange').save(buffer, format='JPEG')
+        image_bytes = buffer.getvalue()
+
+        claim = self._make_claim(1, 'Foto', image_bytes, mime_type='image/jpeg')
+
+        self.assertEqual(self._page_count([claim, claim]), 2)
