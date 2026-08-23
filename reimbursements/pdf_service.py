@@ -1,4 +1,5 @@
 """Generate combined submission PDF (application + receipts)."""
+import hashlib
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
@@ -110,9 +111,28 @@ def _image_to_pdf_bytes(image_bytes: bytes, mime_type: str) -> bytes:
     return img2pdf.convert(image_bytes)
 
 
-def _append_attachment_pages(writer, claim: ExpenseClaim) -> None:
-    """Append receipt file pages for a claim to the PDF writer."""
-    from pypdf import PdfReader, PdfWriter
+def unique_claims(claims: list[ExpenseClaim]) -> list[ExpenseClaim]:
+    """Return the claims without duplicates, keeping the original order."""
+    seen: set = set()
+    result: list[ExpenseClaim] = []
+    for claim in claims:
+        key = claim.pk if claim.pk is not None else id(claim)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(claim)
+    return result
+
+
+def _append_attachment_pages(writer, claim: ExpenseClaim, seen_receipts: set | None = None) -> None:
+    """
+    Append the receipt pages for a claim to the PDF writer.
+
+    ``seen_receipts`` collects the receipts already written to the document.
+    A receipt that was appended before is skipped, so no receipt can end up
+    in the submission PDF more than once.
+    """
+    from pypdf import PdfReader
 
     attachments = get_attachments_for(claim)
     if not attachments:
@@ -120,23 +140,38 @@ def _append_attachment_pages(writer, claim: ExpenseClaim) -> None:
             f'Beleg vom {claim.date:%d.%m.%Y} ({claim.description}) hat keinen Anhang.'
         )
 
+    if seen_receipts is None:
+        seen_receipts = set()
+
     attachment = attachments[0]
+    if attachment.pk is not None and ('id', attachment.pk) in seen_receipts:
+        return
+
     attachment.file.open('rb')
     try:
         file_bytes = attachment.file.read()
     finally:
         attachment.file.close()
 
+    content_key = ('sha256', hashlib.sha256(file_bytes).hexdigest())
+    if content_key in seen_receipts:
+        return
+
     mime = attachment.mime_type
     if mime == 'application/pdf':
-        reader = PdfReader(BytesIO(file_bytes))
-        for page in reader.pages:
-            writer.add_page(page)
+        receipt_pdf = file_bytes
     elif mime.startswith('image/'):
-        image_pdf = _image_to_pdf_bytes(file_bytes, mime)
-        reader = PdfReader(BytesIO(image_pdf))
-        for page in reader.pages:
-            writer.add_page(page)
+        receipt_pdf = _image_to_pdf_bytes(file_bytes, mime)
+    else:
+        return
+
+    if attachment.pk is not None:
+        seen_receipts.add(('id', attachment.pk))
+    seen_receipts.add(content_key)
+
+    reader = PdfReader(BytesIO(receipt_pdf))
+    for page in reader.pages:
+        writer.add_page(page)
 
 
 def generate_submission_pdf(claims: list[ExpenseClaim] | None = None) -> tuple[bytes, str]:
@@ -152,6 +187,8 @@ def generate_submission_pdf(claims: list[ExpenseClaim] | None = None) -> tuple[b
         from .services import get_pending_claims
         claims = list(get_pending_claims())
 
+    claims = unique_claims(claims)
+
     if not claims:
         raise ValueError('Keine offenen Belege zum Einreichen vorhanden.')
 
@@ -165,8 +202,9 @@ def generate_submission_pdf(claims: list[ExpenseClaim] | None = None) -> tuple[b
     for page in app_reader.pages:
         writer.add_page(page)
 
+    seen_receipts: set = set()
     for claim in claims:
-        _append_attachment_pages(writer, claim)
+        _append_attachment_pages(writer, claim, seen_receipts)
 
     output = BytesIO()
     writer.write(output)
