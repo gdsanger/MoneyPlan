@@ -4,6 +4,13 @@
         <input type="checkbox" class="form-check-input booking-row-checkbox" name="selected_bookings" value="{{ booking.id }}">
     </td>
     <td data-label="Datum">{{ booking.date|date:"d.m.Y" }}</td>
+    <td data-label="Gebucht am">
+        {% if booking.booked_date %}
+            {{ booking.booked_date|date:"d.m.Y" }}
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
     <td class="table-stack-heading">
         {{ booking.description }}
         {% if booking.attachment_count %}

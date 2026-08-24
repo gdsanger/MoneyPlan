@@ -178,6 +178,7 @@
                         <thead>
                             <tr>
                                 <th>Datum</th>
+                                <th>Gebucht am</th>
                                 <th>Beschreibung</th>
                                 <th>Betrag</th>
                                 <th>Kumulierter Saldo</th>
@@ -191,6 +192,13 @@
                                 {% with booking=item.booking running_balance=item.running_balance %}
                                 <tr id="booking-row-{{ booking.id }}" {% if booking.status == 'planned' and booking.date > today %}class="text-muted fst-italic"{% endif %}>
                                     <td data-label="Datum">{{ booking.date|date:"d.m.Y" }}</td>
+                                    <td data-label="Gebucht am">
+                                        {% if booking.booked_date %}
+                                            {{ booking.booked_date|date:"d.m.Y" }}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="table-stack-heading">
                                         {{ booking.description }}
                                         {% if booking.attachment_count %}

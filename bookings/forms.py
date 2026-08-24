@@ -69,9 +69,10 @@ class BookingForm(forms.ModelForm):
 
     class Meta:
         model = Booking
-        fields = ['date', 'description', 'amount', 'category', 'status', 'liability', 'tags', 'notes']
+        fields = ['date', 'booked_date', 'description', 'amount', 'category', 'status', 'liability', 'tags', 'notes']
         widgets = {
             'date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
+            'booked_date': forms.DateInput(format=ISO_DATE_FORMAT, attrs={'type': 'date', 'class': 'form-control'}),
             'description': forms.TextInput(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
@@ -81,6 +82,7 @@ class BookingForm(forms.ModelForm):
         }
         labels = {
             'date': 'Datum',
+            'booked_date': 'Gebucht am',
             'description': 'Beschreibung',
             'amount': 'Betrag',
             'category': 'Kategorie',
@@ -91,6 +93,7 @@ class BookingForm(forms.ModelForm):
         }
         help_texts = {
             'amount': 'Positiv = Einnahme, Negativ = Ausgabe',
+            'booked_date': 'Tatsächliches Abbuchungsdatum. Bei geplanten Buchungen leer. Saldo/Forecast bleiben am Plandatum.',
             'liability': 'Ordne diese Ausgabe einer Verbindlichkeit zu (nur für Ausgaben)',
             'tags': 'Mehrfachauswahl möglich (Strg/Cmd gedrückt halten), gruppiert nach Dimension',
             'notes': 'Optionale Notizen zur Buchung',
@@ -105,6 +108,9 @@ class BookingForm(forms.ModelForm):
                 Column('date', css_class='col-md-6'),
                 Column('status', css_class='col-md-6'),
             ),
+            Row(
+                Column('booked_date', css_class='col-md-6'),
+            ),
             'description',
             Row(
                 Column('amount', css_class='col-md-6'),
@@ -117,6 +123,7 @@ class BookingForm(forms.ModelForm):
 
         # Make fields required
         self.fields['date'].required = True
+        self.fields['booked_date'].required = False
         self.fields['description'].required = True
         self.fields['amount'].required = True
         self.fields['category'].required = True
@@ -136,6 +143,11 @@ class BookingForm(forms.ModelForm):
         self.fields['tags'].queryset = tag_queryset
         self.fields['tags'].widget = forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
         self.fields['tags'].widget.choices = Tag.grouped_choices(tag_queryset)
+
+        # Schon gebuchte Buchungen ohne echtes Abbuchungsdatum (z. B. Altbestand
+        # oder Schnellerfassung) bekommen heute als editierbaren Vorschlag.
+        if self.instance.pk and self.instance.status == 'booked' and not self.instance.booked_date:
+            self.fields['booked_date'].initial = date.today()
 
 
 class BookingFilterForm(forms.Form):
