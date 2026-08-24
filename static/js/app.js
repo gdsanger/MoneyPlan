@@ -276,6 +276,61 @@
         });
     }
 
+    // Auf-/Zu-Zustand der Wochen-Accordions in der Monatsansicht wird je
+    // Woche (Jahr-Monat-Wochenindex) im localStorage gemerkt, damit er beim
+    // erneuten Öffnen desselben Monats erhalten bleibt. Ohne gespeicherten
+    // Wert gilt der vom Server gerenderte Default (aktuelle Woche offen).
+    var WEEK_ACCORDION_PREFIX = 'moneyplan.monthAccordion.';
+
+    function readStoredWeekState(key) {
+        try {
+            var value = window.localStorage.getItem(WEEK_ACCORDION_PREFIX + key);
+            return value === null ? null : value === 'open';
+        } catch (e) {
+            // localStorage gesperrt (z.B. Private Mode) – Server-Default gilt.
+            return null;
+        }
+    }
+
+    function writeStoredWeekState(key, isOpen) {
+        try {
+            window.localStorage.setItem(WEEK_ACCORDION_PREFIX + key, isOpen ? 'open' : 'closed');
+        } catch (e) {
+            // Ohne Storage bleibt der Zustand nur für die aktuelle Sitzung erhalten.
+        }
+    }
+
+    // Überschreibt den vom Server gerenderten Default anhand des gespeicherten
+    // Zustands. Wird sowohl beim initialen Laden als auch nach jedem
+    // HTMX-Swap der Monatsansicht aufgerufen, da die Accordion-Items dabei
+    // neu ins DOM eingefügt werden.
+    function initWeekAccordionPersistence(root) {
+        var collapses = (root || document).querySelectorAll('[data-week-key]');
+        collapses.forEach(function (collapseEl) {
+            var stored = readStoredWeekState(collapseEl.getAttribute('data-week-key'));
+            if (stored === null) {
+                return;
+            }
+
+            var item = collapseEl.closest('.accordion-item');
+            var button = item ? item.querySelector('.accordion-button') : null;
+
+            if (stored) {
+                collapseEl.classList.add('show');
+                if (button) {
+                    button.classList.remove('collapsed');
+                    button.setAttribute('aria-expanded', 'true');
+                }
+            } else {
+                collapseEl.classList.remove('show');
+                if (button) {
+                    button.classList.add('collapsed');
+                    button.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initTooltips(document);
         initPopovers(document);
@@ -284,6 +339,22 @@
         initConfirmDelete();
         initMonthFilterStatusPersistence();
         restoreMonthFilterStatus();
+        initWeekAccordionPersistence(document);
+    });
+
+    // Bootstrap feuert diese Events auf dem jeweiligen .accordion-collapse-
+    // Element, sobald es (durch Klick oder JS) auf- bzw. zugeklappt wurde -
+    // unabhängig davon, ob der initiale Zustand vom Server oder aus dem
+    // Storage kam.
+    document.body.addEventListener('shown.bs.collapse', function (event) {
+        if (event.target && event.target.hasAttribute('data-week-key')) {
+            writeStoredWeekState(event.target.getAttribute('data-week-key'), true);
+        }
+    });
+    document.body.addEventListener('hidden.bs.collapse', function (event) {
+        if (event.target && event.target.hasAttribute('data-week-key')) {
+            writeStoredWeekState(event.target.getAttribute('data-week-key'), false);
+        }
     });
 
     // Für Inline-Skripte in Templates (z.B. die Reloads der Monatsansicht).
@@ -295,5 +366,6 @@
     document.body.addEventListener('htmx:afterSwap', function (event) {
         initTooltips(event.target);
         initPopovers(event.target);
+        initWeekAccordionPersistence(event.target);
     });
 })();
