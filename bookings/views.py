@@ -1320,6 +1320,46 @@ def month_view(request, year=None, month=None):
 
     month_label = f"{MONTH_NAMES[month - 1]} {year}"
 
+    # Group the (already filtered) bookings into weeks of the month: Woche 1
+    # = Tag 1-7, Woche 2 = Tag 8-14, usw.; der Rest des Monats (Tag 29+)
+    # bildet die letzte Woche. Das ist unabhängig von der ISO-Kalenderwoche
+    # und überlappt nie einen Monat - passend für die Monatsansicht.
+    last_day_of_month = monthrange(year, month)[1]
+    weeks = []
+    week_start_day = 1
+    week_index = 1
+    while week_start_day <= last_day_of_month:
+        week_end_day = min(week_start_day + 6, last_day_of_month)
+        week_start = date(year, month, week_start_day)
+        week_end = date(year, month, week_end_day)
+
+        week_items = [
+            item for item in filtered_bookings_with_balance
+            if week_start <= item['booking'].date <= week_end
+        ]
+        week_income = sum(
+            (item['booking'].amount for item in week_items if item['booking'].amount >= 0),
+            Decimal('0.00')
+        )
+        week_expenses = sum(
+            (item['booking'].amount for item in week_items if item['booking'].amount < 0),
+            Decimal('0.00')
+        )
+
+        weeks.append({
+            'index': week_index,
+            'start': week_start,
+            'end': week_end,
+            'items': week_items,
+            'income': week_income,
+            'expenses': week_expenses,
+            'result': week_income + week_expenses,
+            'is_current': week_start <= today <= week_end and year == today.year and month == today.month,
+        })
+
+        week_start_day = week_end_day + 1
+        week_index += 1
+
     context = {
         'year': year,
         'month': month,
@@ -1333,6 +1373,7 @@ def month_view(request, year=None, month=None):
         'end_balance': end_balance,
         'prev_month_end_balance': prev_month_end_balance,
         'bookings_with_balance': filtered_bookings_with_balance,
+        'weeks': weeks,
         'total_booking_count': len(bookings_with_balance),
         'filter_form': filter_form,
         'is_filtered': is_filtered,
