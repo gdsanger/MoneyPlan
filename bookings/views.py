@@ -234,11 +234,17 @@ def booking_toggle_status(request, booking_id):
 
     booking = get_object_or_404(Booking, pk=booking_id)
 
-    # Toggle status
+    # Toggle status. Beim Umschalten auf "gebucht" das tatsächliche
+    # Abbuchungsdatum mit heute vorbelegen (falls leer); beim Zurücksetzen auf
+    # "geplant" wieder leeren, damit geplante Buchungen kein Ist-Datum tragen.
+    # booked_date ist rein informativ - Saldo/Forecast laufen weiter über date.
     if booking.status == 'planned':
         booking.status = 'booked'
+        if booking.booked_date is None:
+            booking.booked_date = date.today()
     else:
         booking.status = 'planned'
+        booking.booked_date = None
 
     booking.save()
 

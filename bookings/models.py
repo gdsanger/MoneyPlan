@@ -77,6 +77,11 @@ class Booking(models.Model):
     ]
 
     date = models.DateField(verbose_name="Datum")
+    booked_date = models.DateField(
+        null=True, blank=True,
+        verbose_name="Gebucht am",
+        help_text="Tatsächliches Abbuchungsdatum (rein informativ – Saldo/Forecast laufen weiter über das Plandatum)",
+    )
     description = models.CharField(max_length=255, verbose_name="Beschreibung")
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Betrag")
     notes = models.TextField(blank=True, verbose_name="Notizen")
