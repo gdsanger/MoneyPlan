@@ -32,6 +32,7 @@
                 <i class="bi bi-funnel"></i> Filter
             </h5>
             <button class="btn btn-sm btn-outline-secondary"
+                    id="month-filter-reset"
                     hx-get="{% url 'bookings:month_view_detail' year month %}"
                     hx-target="#month-content"
                     hx-swap="innerHTML">
@@ -40,31 +41,27 @@
         </div>
         <form method="get" id="month-filter-form">
             <div class="row g-3">
-                <div class="col-md-2">
-                    <label for="{{ filter_form.date_from.id_for_label }}" class="form-label">{{ filter_form.date_from.label }}</label>
-                    {{ filter_form.date_from }}
+                <div class="col-6 col-md-2">
+                    <label for="{{ filter_form.status.id_for_label }}" class="form-label">{{ filter_form.status.label }}</label>
+                    {{ filter_form.status }}
                 </div>
-                <div class="col-md-2">
-                    <label for="{{ filter_form.date_to.id_for_label }}" class="form-label">{{ filter_form.date_to.label }}</label>
-                    {{ filter_form.date_to }}
-                </div>
-                <div class="col-md-2">
-                    <label for="{{ filter_form.amount_min.id_for_label }}" class="form-label">{{ filter_form.amount_min.label }}</label>
-                    {{ filter_form.amount_min }}
-                </div>
-                <div class="col-md-2">
-                    <label for="{{ filter_form.amount_max.id_for_label }}" class="form-label">{{ filter_form.amount_max.label }}</label>
-                    {{ filter_form.amount_max }}
-                </div>
-                <div class="col-md-2">
+                <div class="col-6 col-md-2">
                     <label for="{{ filter_form.type.id_for_label }}" class="form-label">{{ filter_form.type.label }}</label>
                     {{ filter_form.type }}
                 </div>
-                <div class="col-md-2">
+                <div class="col-6 col-md-2">
+                    <label for="{{ filter_form.amount_min.id_for_label }}" class="form-label">{{ filter_form.amount_min.label }}</label>
+                    {{ filter_form.amount_min }}
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="{{ filter_form.amount_max.id_for_label }}" class="form-label">{{ filter_form.amount_max.label }}</label>
+                    {{ filter_form.amount_max }}
+                </div>
+                <div class="col-12 col-md-2">
                     <label for="{{ filter_form.category.id_for_label }}" class="form-label">{{ filter_form.category.label }}</label>
                     {{ filter_form.category }}
                 </div>
-                <div class="col-md-4">
+                <div class="col-12 col-md-4">
                     <label for="{{ filter_form.description.id_for_label }}" class="form-label">{{ filter_form.description.label }}</label>
                     {{ filter_form.description }}
                 </div>
@@ -246,7 +243,8 @@
                                                     data-delete-url="{% url 'bookings:delete' booking.id %}"
                                                     data-delete-title="Buchung löschen"
                                                     data-delete-message="Buchung „{{ booking.description }}“ wirklich löschen?"
-                                                    data-delete-reload-target="#month-content">
+                                                    data-delete-reload-target="#month-content"
+                                                    data-delete-reload-include="#month-filter-form">
                                                 <i class="bi bi-trash"></i> Löschen
                                             </button>
                                         </li>

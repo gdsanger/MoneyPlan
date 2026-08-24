@@ -419,7 +419,7 @@ class MonthViewTestCase(TestCase):
 
 
 class MonthViewFilterTestCase(TestCase):
-    """Test suite for the month_view row filters (date, amount, category, description)"""
+    """Test suite for the month_view row filters (status, amount, category, description)"""
 
     def setUp(self):
         self.user = User.objects.create_user(username='testuser', password='testpass')
@@ -470,11 +470,20 @@ class MonthViewFilterTestCase(TestCase):
             params
         )
 
-    def test_filter_by_date_range(self):
+    def test_date_range_filter_is_gone(self):
+        """Die Monatsansicht ist bereits auf einen Monat begrenzt - ein
+        Datum-von/bis-Filter gibt es dort nicht mehr."""
+        response = self._get()
+        self.assertNotIn('date_from', response.context['filter_form'].fields)
+        self.assertNotIn('date_to', response.context['filter_form'].fields)
+        self.assertNotContains(response, 'Datum von')
+        self.assertNotContains(response, 'Datum bis')
+
+    def test_unknown_date_params_are_ignored(self):
+        """Alte Links mit ?date_from=... dürfen die Ansicht nicht filtern."""
         response = self._get(date_from='2026-05-05', date_to='2026-05-31')
-        bookings = [item['booking'] for item in response.context['bookings_with_balance']]
-        self.assertEqual(set(bookings), {self.booking_rent, self.booking_groceries})
-        self.assertTrue(response.context['is_filtered'])
+        self.assertFalse(response.context['is_filtered'])
+        self.assertEqual(len(response.context['bookings_with_balance']), 3)
 
     def test_filter_by_amount_range(self):
         response = self._get(amount_min='-100', amount_max='100')
@@ -546,3 +555,105 @@ class MonthViewFilterTestCase(TestCase):
         active filters survive a month change."""
         response = self._get(type='expense')
         self.assertContains(response, 'hx-include="#month-filter-form"')
+
+
+class MonthViewStatusFilterTestCase(TestCase):
+    """Test suite for the status filter (gebucht/geplant/alle) of the month view"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.client = Client()
+        self.client.login(username='testuser', password='testpass')
+
+        self.category = Category.objects.create(
+            name="Miete", icon="house", color="#dc3545"
+        )
+
+        self.booked_income = Booking.objects.create(
+            date=date(2026, 5, 1),
+            description="Gehalt Mai",
+            amount=Decimal('2000.00'),
+            status='booked',
+            category=self.category
+        )
+        self.booked_expense = Booking.objects.create(
+            date=date(2026, 5, 5),
+            description="Miete Mai",
+            amount=Decimal('-800.00'),
+            status='booked',
+            category=self.category
+        )
+        self.planned_expense = Booking.objects.create(
+            date=date(2026, 5, 20),
+            description="Geplante Anschaffung",
+            amount=Decimal('-300.00'),
+            status='planned',
+            category=self.category
+        )
+
+    def _get(self, **params):
+        return self.client.get(
+            reverse('bookings:month_view_detail', kwargs={'year': 2026, 'month': 5}),
+            params
+        )
+
+    def _bookings(self, response):
+        return [item['booking'] for item in response.context['bookings_with_balance']]
+
+    def test_status_field_is_offered(self):
+        response = self._get()
+        choices = response.context['filter_form'].fields['status'].choices
+        self.assertEqual(choices, [('', 'Alle'), ('booked', 'Gebucht'), ('planned', 'Geplant')])
+        # Eigene id, damit sie nicht mit dem status-Feld des Buchungsmodals
+        # kollidiert und als JS-Anker für localStorage dient.
+        self.assertContains(response, 'id="month-filter-status"')
+
+    def test_filter_booked_only(self):
+        response = self._get(status='booked')
+        self.assertEqual(self._bookings(response), [self.booked_income, self.booked_expense])
+        self.assertTrue(response.context['is_filtered'])
+
+    def test_filter_planned_only(self):
+        response = self._get(status='planned')
+        self.assertEqual(self._bookings(response), [self.planned_expense])
+        self.assertTrue(response.context['is_filtered'])
+
+    def test_status_all_shows_everything_and_is_not_filtered(self):
+        response = self._get(status='')
+        self.assertEqual(len(self._bookings(response)), 3)
+        self.assertFalse(response.context['is_filtered'])
+
+    def test_invalid_status_falls_back_to_unfiltered(self):
+        response = self._get(status='bogus')
+        self.assertEqual(len(self._bookings(response)), 3)
+        self.assertFalse(response.context['is_filtered'])
+
+    def test_status_filter_combines_with_other_filters(self):
+        response = self._get(status='booked', type='expense')
+        self.assertEqual(self._bookings(response), [self.booked_expense])
+
+    def test_status_filter_keeps_running_balance_and_summary_bar(self):
+        """Der kumulierte Saldo bleibt über die volle Monatsreihenfolge korrekt,
+        die Summenleiste bleibt der volle Monatswert."""
+        unfiltered = self._get()
+        filtered = self._get(status='planned')
+
+        for key in ('carry_forward', 'month_income', 'month_expenses', 'month_result', 'end_balance'):
+            self.assertEqual(unfiltered.context[key], filtered.context[key])
+
+        unfiltered_balances = {
+            item['booking'].id: item['running_balance']
+            for item in unfiltered.context['bookings_with_balance']
+        }
+        for item in filtered.context['bookings_with_balance']:
+            self.assertEqual(item['running_balance'], unfiltered_balances[item['booking'].id])
+
+        # Volle Monatssummen enthalten weiterhin auch die geplante Buchung.
+        self.assertEqual(filtered.context['month_expenses'], Decimal('-1100.00'))
+        self.assertEqual(filtered.context['total_booking_count'], 3)
+
+    def test_filtered_totals_cover_only_visible_rows(self):
+        response = self._get(status='planned')
+        self.assertEqual(response.context['filtered_income'], Decimal('0.00'))
+        self.assertEqual(response.context['filtered_expenses'], Decimal('-300.00'))
+        self.assertEqual(response.context['filtered_result'], Decimal('-300.00'))

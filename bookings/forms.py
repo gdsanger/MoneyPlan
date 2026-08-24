@@ -202,7 +202,11 @@ class BookingFilterForm(forms.Form):
 
 
 class MonthFilterForm(forms.Form):
-    """Form for filtering bookings within the monthly view (date, amount, category, description)"""
+    """Form for filtering bookings within the monthly view (status, amount, category, description)
+
+    Kein Datum-von/bis-Filter: die Monatsansicht ist bereits auf einen Monat
+    begrenzt, ein zusätzlicher Zeitraum-Filter wäre dort redundant.
+    """
 
     TYPE_CHOICES = [
         ('', 'Alle'),
@@ -210,16 +214,24 @@ class MonthFilterForm(forms.Form):
         ('expense', 'Ausgabe'),
     ]
 
-    date_from = forms.DateField(
-        required=False,
-        label='Datum von',
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control', 'hx-trigger': 'change'})
-    )
+    STATUS_CHOICES = [
+        ('', 'Alle'),
+        ('booked', 'Gebucht'),
+        ('planned', 'Geplant'),
+    ]
 
-    date_to = forms.DateField(
+    # Eigene id, weil das Buchungs-Modal derselben Seite ebenfalls ein
+    # status-Feld rendert (id_status) - und weil das JS in app.js diesen
+    # Selektor als stabilen Anker für die localStorage-Persistenz nutzt.
+    status = forms.ChoiceField(
+        choices=STATUS_CHOICES,
         required=False,
-        label='Datum bis',
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control', 'hx-trigger': 'change'})
+        label='Status',
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'hx-trigger': 'change',
+            'id': 'month-filter-status',
+        })
     )
 
     amount_min = forms.DecimalField(
