@@ -1250,7 +1250,7 @@ def month_view(request, year=None, month=None):
     month_result = month_income + month_expenses
     end_balance = carry_forward + month_result
 
-    # Apply row filters (date/amount/category/description) on top of the
+    # Apply row filters (status/amount/category/description) on top of the
     # already-computed running balances. This only narrows which rows are
     # displayed - it never changes the running balance or the summary bar.
     filter_form = MonthFilterForm(
@@ -1259,8 +1259,7 @@ def month_view(request, year=None, month=None):
     )
     is_filtered = False
     if filter_form.is_valid():
-        date_from = filter_form.cleaned_data.get('date_from')
-        date_to = filter_form.cleaned_data.get('date_to')
+        status_filter = filter_form.cleaned_data.get('status')
         amount_min = filter_form.cleaned_data.get('amount_min')
         amount_max = filter_form.cleaned_data.get('amount_max')
         booking_type = filter_form.cleaned_data.get('type')
@@ -1268,14 +1267,12 @@ def month_view(request, year=None, month=None):
         description_filter = filter_form.cleaned_data.get('description')
 
         is_filtered = any([
-            date_from, date_to, amount_min is not None, amount_max is not None,
+            status_filter, amount_min is not None, amount_max is not None,
             booking_type, category_filter, description_filter,
         ])
 
         def matches_filter(booking):
-            if date_from and booking.date < date_from:
-                return False
-            if date_to and booking.date > date_to:
+            if status_filter and booking.status != status_filter:
                 return False
             if amount_min is not None and booking.amount < amount_min:
                 return False

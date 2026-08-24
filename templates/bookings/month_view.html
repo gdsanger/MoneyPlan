@@ -68,10 +68,13 @@
     // Booking created from receipt (and it belongs to the currently displayed
     // month): reload the month content and close the modal, matching the
     // status-toggle / delete reload pattern above.
+    // Die Filterleiste geht mit, damit eine aktive Auswahl (z.B. Status
+    // "geplant") den Reload überlebt.
     document.body.addEventListener('receiptBookingSaved', function() {
         htmx.ajax('GET', window.location.pathname, {
             target: '#month-content',
-            swap: 'innerHTML'
+            swap: 'innerHTML',
+            values: MoneyPlan.formValues('#month-filter-form')
         });
         const receiptModal = bootstrap.Modal.getInstance(document.getElementById('receiptModal'));
         if (receiptModal) {
@@ -79,13 +82,17 @@
         }
     });
 
-    // Toggle status and reload month view
+    // Toggle status and reload month view (Filter bleibt erhalten – gerade bei
+    // aktivem Status-Filter wäre ein Reset nach jedem Statuswechsel störend).
     function toggleStatusAndReload(bookingId, year, month) {
+        // Vor dem POST auslesen: danach ist die Filterleiste ggf. schon getauscht.
+        const filterValues = MoneyPlan.formValues('#month-filter-form');
         htmx.ajax('POST', `/bookings/${bookingId}/status/`, {}).then(function() {
             // Reload the current month view
             htmx.ajax('GET', `/bookings/monate/${year}/${month}/`, {
                 target: '#month-content',
-                swap: 'innerHTML'
+                swap: 'innerHTML',
+                values: filterValues
             });
         });
     }

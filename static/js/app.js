@@ -8,6 +8,17 @@
 (function () {
     'use strict';
 
+    // Serialisiert ein Formular (per CSS-Selektor) zu einem flachen Objekt,
+    // das an htmx.ajax(..., {values: ...}) übergeben werden kann. Damit
+    // überleben aktive Filter ein programmatisches Neuladen des Inhalts.
+    function formValues(selector) {
+        var form = selector ? document.querySelector(selector) : null;
+        if (!form) {
+            return {};
+        }
+        return Object.fromEntries(new FormData(form).entries());
+    }
+
     function initTooltips(root) {
         root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
             if (!bootstrap.Tooltip.getInstance(el)) {
@@ -84,6 +95,9 @@
     //                              geladen wird (z.B. Monatsansicht, wo Summen
     //                              neu berechnet werden müssen)
     //   data-delete-reload-url     URL für den Reload (Default: aktuelle Seite)
+    //   data-delete-reload-include CSS-Selektor eines Formulars, dessen Felder
+    //                              beim Reload als Query-Parameter mitgehen
+    //                              (z.B. die Filterleiste der Monatsansicht)
     //   data-delete-error-target   CSS-Selektor für die Fehleranzeige (Default:
     //                              #delete-error-container aus base.html)
     function initConfirmDelete() {
@@ -121,6 +135,7 @@
                 swap: trigger.getAttribute('data-delete-swap') || 'outerHTML',
                 reloadTarget: trigger.getAttribute('data-delete-reload-target'),
                 reloadUrl: trigger.getAttribute('data-delete-reload-url') || window.location.pathname,
+                reloadInclude: trigger.getAttribute('data-delete-reload-include'),
                 errorTarget: trigger.getAttribute('data-delete-error-target')
             };
 
@@ -163,7 +178,8 @@
                 if (current.reloadTarget) {
                     return htmx.ajax('GET', current.reloadUrl, {
                         target: current.reloadTarget,
-                        swap: 'innerHTML'
+                        swap: 'innerHTML',
+                        values: formValues(current.reloadInclude)
                     });
                 }
 
@@ -183,13 +199,96 @@
         });
     }
 
+    // Der Status-Filter der Monatsansicht (gebucht/geplant/alle) wird
+    // clientseitig im localStorage gehalten - dafür braucht es keinen
+    // Server-State. Beim Monatswechsel genügt das hx-include des
+    // Filterformulars an den Blätter-Buttons (der Wert wird also einfach
+    // mitgeschickt); nur beim frischen Seitenaufruf muss die Auswahl aus dem
+    // Storage wiederhergestellt und der Monatsinhalt einmal nachgeladen werden.
+    var MONTH_FILTER_STATUS_KEY = 'moneyplan.monthFilter.status';
+
+    function readStoredMonthStatus() {
+        try {
+            return window.localStorage.getItem(MONTH_FILTER_STATUS_KEY);
+        } catch (e) {
+            // localStorage gesperrt (z.B. Private Mode) – Filter startet leer.
+            return null;
+        }
+    }
+
+    function writeStoredMonthStatus(value) {
+        try {
+            if (value === null) {
+                window.localStorage.removeItem(MONTH_FILTER_STATUS_KEY);
+            } else {
+                window.localStorage.setItem(MONTH_FILTER_STATUS_KEY, value);
+            }
+        } catch (e) {
+            // Ohne Storage funktioniert der Filter weiter, nur nicht persistent.
+        }
+    }
+
+    function restoreMonthFilterStatus() {
+        var select = document.getElementById('month-filter-status');
+        if (!select) {
+            return;
+        }
+
+        var stored = readStoredMonthStatus();
+        // Ein ?status=... in der URL (geteilter Link, Filter-Reset) hat Vorrang.
+        var hasExplicitStatus = new URLSearchParams(window.location.search).has('status');
+        if (!stored || hasExplicitStatus || stored === select.value) {
+            return;
+        }
+
+        select.value = stored;
+        if (select.value !== stored) {
+            // Unbekannter Wert im Storage – nichts nachladen, Storage aufräumen.
+            writeStoredMonthStatus(null);
+            return;
+        }
+
+        // Übrige Filter (Betrag, Kategorie, Beschreibung) aus der URL mitnehmen,
+        // damit ein gesetzter Status sie nicht verwirft.
+        var form = document.getElementById('month-filter-form');
+        htmx.ajax('GET', window.location.pathname, {
+            target: '#month-content',
+            swap: 'innerHTML',
+            values: form
+                ? Object.fromEntries(new FormData(form).entries())
+                : { status: stored }
+        });
+    }
+
+    // Delegiert, weil das Filterformular Teil des per HTMX getauschten
+    // #month-content ist und nach jedem Swap neu im DOM steht.
+    function initMonthFilterStatusPersistence() {
+        document.body.addEventListener('change', function (event) {
+            if (event.target && event.target.id === 'month-filter-status') {
+                writeStoredMonthStatus(event.target.value);
+            }
+        });
+
+        document.body.addEventListener('click', function (event) {
+            if (event.target.closest && event.target.closest('#month-filter-reset')) {
+                writeStoredMonthStatus(null);
+            }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initTooltips(document);
         initPopovers(document);
         initMobileNavAutoClose();
         openQuickAction();
         initConfirmDelete();
+        initMonthFilterStatusPersistence();
+        restoreMonthFilterStatus();
     });
+
+    // Für Inline-Skripte in Templates (z.B. die Reloads der Monatsansicht).
+    window.MoneyPlan = window.MoneyPlan || {};
+    window.MoneyPlan.formValues = formValues;
 
     // HTMX tauscht Teile des DOM aus – Bootstrap-Komponenten in neu
     // eingefügtem Markup müssen danach erneut initialisiert werden.
