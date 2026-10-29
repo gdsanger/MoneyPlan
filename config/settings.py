@@ -33,8 +33,8 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['mp.angerlabs.de', 'localhost', '127.0.0.1', 'mpmcp.angerlabs.de','127.0.0.1:8888','178.105.124.17:8888']
 # Wichtig: ab Django 4.x MIT Schema!
 CSRF_TRUSTED_ORIGINS = [
-    "https://mp.angerlabs.de",
-    "https://mpmcp.angerlabs.de",
+    "https://mp.angerlabs.de:8443",
+    "https://mpmcp.angerlabs.de:8443",
     "http://localhost",
     "http://127.0.0.1:8888",
     "http://178.105.124.17:8888",
