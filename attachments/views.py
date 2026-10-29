@@ -1,12 +1,14 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.models import ContentType
 from django.apps import apps
 
 from .services import handle_upload, get_attachments_for, delete_attachment
 from .forms import AttachmentUploadForm
+from .models import Attachment
 
 
 @login_required
@@ -137,3 +139,40 @@ def delete_attachment_view(request, attachment_id):
             return HttpResponse('Anhang nicht gefunden', status=404)
         else:
             return JsonResponse({'error': 'Attachment not found'}, status=404)
+
+
+@login_required
+@xframe_options_sameorigin
+def attachment_file(request, attachment_id):
+    """
+    Liefert eine Datei inline aus (für iframe/PDF-Vorschau).
+
+    URL: /attachments/file/<attachment_id>/
+    """
+    attachment = get_object_or_404(Attachment, pk=attachment_id)
+    try:
+        handle = attachment.file.open('rb')
+    except (FileNotFoundError, ValueError):
+        raise Http404('Datei nicht gefunden')
+    response = FileResponse(handle, content_type=attachment.mime_type or 'application/octet-stream')
+    response['Content-Disposition'] = 'inline; filename="%s"' % attachment.filename.replace('"', '')
+    return response
+
+
+@login_required
+def preview_attachments(request, app_label, model_name, object_id):
+    """
+    Modal-Inhalt: Anhänge eines Objekts als Vorschau (iframe).
+
+    URL: /attachments/preview/<app_label>/<model_name>/<object_id>/
+    """
+    try:
+        model = apps.get_model(app_label, model_name)
+    except LookupError:
+        return JsonResponse({'error': 'Model not found'}, status=404)
+
+    content_object = get_object_or_404(model, pk=object_id)
+    return render(request, 'attachments/_preview_modal_content.html', {
+        'object': content_object,
+        'attachments': get_attachments_for(content_object),
+    })

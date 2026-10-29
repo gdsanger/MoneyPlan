@@ -11,13 +11,18 @@
     </h1>
 
     <div class="row">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-12 {% if attachments %}col-xl-5{% else %}col-md-8 col-lg-6{% endif %}">
             <div class="card">
                 <div class="card-body">
-                    {% include 'bookings/_booking_form.html' %}
+                    {% include 'bookings/_booking_form.html' with page_layout=True %}
                 </div>
             </div>
         </div>
+        {% if attachments %}
+        <div class="col-12 col-xl-7 mt-4 mt-xl-0">
+            {% include 'attachments/_inline_preview.html' with preview_height='85vh' %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
