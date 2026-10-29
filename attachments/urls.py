@@ -10,4 +10,8 @@ urlpatterns = [
          views.list_attachments, name='list'),
     path('delete/<int:attachment_id>/',
          views.delete_attachment_view, name='delete'),
+    path('file/<int:attachment_id>/',
+         views.attachment_file, name='file'),
+    path('preview/<str:app_label>/<str:model_name>/<int:object_id>/',
+         views.preview_attachments, name='preview'),
 ]

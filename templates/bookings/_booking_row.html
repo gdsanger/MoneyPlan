@@ -14,7 +14,9 @@
     <td class="table-stack-heading">
         {{ booking.description }}
         {% if booking.attachment_count %}
-        <a href="{% url 'bookings:edit' booking.id %}" class="text-decoration-none" title="{{ booking.attachment_count }} Anhang{{ booking.attachment_count|pluralize:'e' }}">
+        <a href="{% url 'attachments:preview' 'bookings' 'booking' booking.id %}" class="text-decoration-none"
+           hx-get="{% url 'attachments:preview' 'bookings' 'booking' booking.id %}" hx-target="#attachment-preview-content" hx-swap="innerHTML"
+           data-bs-toggle="modal" data-bs-target="#attachmentPreviewModal" title="{{ booking.attachment_count }} Anhang{{ booking.attachment_count|pluralize:'e' }}">
             <i class="bi bi-paperclip"></i> {{ booking.attachment_count }}
         </a>
         {% endif %}

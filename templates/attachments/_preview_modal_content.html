@@ -1,0 +1,5 @@
+{% if attachments %}
+{% include 'attachments/_inline_preview.html' with preview_height='78vh' %}
+{% else %}
+<div class="p-4 text-muted">Keine Anhänge vorhanden.</div>
+{% endif %}
