@@ -1,0 +1,46 @@
+{% comment %}
+Vorschau der Anhänge per iframe. Erwartet: attachments (QuerySet), optional preview_height.
+Bei mehreren Anhängen: Auswahl per Buttons.
+{% endcomment %}
+{% with first=attachments.first %}
+{% if first %}
+<div class="attachment-preview" data-attachment-preview>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        {% if attachments|length > 1 %}
+        {% for attachment in attachments %}
+        <button type="button" class="btn btn-sm {% if forloop.first %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                data-preview-src="{% url 'attachments:file' attachment.id %}"
+                data-preview-open="{% url 'attachments:file' attachment.id %}">
+            <i class="bi bi-file-earmark-pdf"></i> {{ attachment.filename }}
+        </button>
+        {% endfor %}
+        {% else %}
+        <span class="text-muted small"><i class="bi bi-file-earmark-pdf"></i> {{ first.filename }}</span>
+        {% endif %}
+        <a href="{% url 'attachments:file' first.id %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary ms-auto" data-preview-newtab>
+            <i class="bi bi-box-arrow-up-right"></i> In neuem Tab
+        </a>
+    </div>
+    <iframe src="{% url 'attachments:file' first.id %}#view=FitH" title="Anhang-Vorschau"
+            class="w-100 border rounded bg-white" style="height: {{ preview_height|default:'80vh' }}; min-height: 400px;"></iframe>
+</div>
+<script>
+(function () {
+    var box = document.currentScript.previousElementSibling;
+    if (!box) return;
+    var frame = box.querySelector('iframe');
+    var newTab = box.querySelector('[data-preview-newtab]');
+    box.querySelectorAll('[data-preview-src]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            frame.src = btn.dataset.previewSrc + '#view=FitH';
+            newTab.href = btn.dataset.previewSrc;
+            box.querySelectorAll('[data-preview-src]').forEach(function (b) {
+                b.classList.toggle('btn-primary', b === btn);
+                b.classList.toggle('btn-outline-secondary', b !== btn);
+            });
+        });
+    });
+})();
+</script>
+{% endif %}
+{% endwith %}
