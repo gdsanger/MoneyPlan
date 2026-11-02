@@ -2,6 +2,8 @@
 
 <form method="post"
       hx-post="{% if entry %}{% url 'timetracking:edit' entry.id %}{% else %}{% url 'timetracking:create' %}{% endif %}"
+      hx-target="#form-modal-content"
+      hx-swap="innerHTML"
       id="time-entry-form">
     {% csrf_token %}
 
@@ -24,7 +26,7 @@
 
 <script>
 // Live amount calculation
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     const form = document.getElementById('time-entry-form');
     if (!form) return;
 
@@ -44,5 +46,5 @@ document.addEventListener('DOMContentLoaded', function() {
         rateField.addEventListener('input', updateAmount);
         updateAmount(); // Initial calculation
     }
-});
+})();
 </script>
