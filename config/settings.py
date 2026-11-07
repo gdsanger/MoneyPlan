@@ -196,7 +196,7 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Dashboard forecast horizon (future months; current month is added separately)
-FORECAST_MONTHS = 6
+FORECAST_MONTHS = 12
 
 # MCP server (mcp_server app) — static access token for the Streamable HTTP endpoint.
 # Accepted via query string (?token=...) or "Authorization: Bearer ..." header.
