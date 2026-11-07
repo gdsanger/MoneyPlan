@@ -87,13 +87,27 @@
     function toggleStatusAndReload(bookingId, year, month) {
         // Vor dem POST auslesen: danach ist die Filterleiste ggf. schon getauscht.
         const filterValues = MoneyPlan.formValues('#month-filter-form');
-        htmx.ajax('POST', `/bookings/${bookingId}/status/`, {}).then(function() {
+        // Bewusst fetch statt htmx.ajax ohne target: htmx würde die Antwort (eine
+        // einzelne Zeile) sonst in den <body> schreiben und damit Navbar, Header
+        // und alle Handler der Seite zerstören.
+        fetch(`/bookings/${bookingId}/status/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'HX-Request': 'true'
+            }
+        }).then(function(response) {
+            if (!response.ok) {
+                throw new Error('Status-Wechsel fehlgeschlagen');
+            }
             // Reload the current month view
-            htmx.ajax('GET', `/bookings/monate/${year}/${month}/`, {
+            return htmx.ajax('GET', `/bookings/monate/${year}/${month}/`, {
                 target: '#month-content',
                 swap: 'innerHTML',
                 values: filterValues
             });
+        }).catch(function() {
+            window.location.reload();
         });
     }
 </script>
