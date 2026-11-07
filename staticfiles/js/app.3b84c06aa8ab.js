@@ -1,0 +1,371 @@
+/*
+ * MoneyPlan – globales UI-JavaScript
+ *
+ * Sammelt HTMX-Helfer sowie Init-Code für Bootstrap-Komponenten (Tooltips,
+ * Popovers), damit einzelne Templates kein eigenes Inline-<script> dafür
+ * brauchen. Wird nach Bootstrap- und HTMX-JS eingebunden.
+ */
+(function () {
+    'use strict';
+
+    // Serialisiert ein Formular (per CSS-Selektor) zu einem flachen Objekt,
+    // das an htmx.ajax(..., {values: ...}) übergeben werden kann. Damit
+    // überleben aktive Filter ein programmatisches Neuladen des Inhalts.
+    function formValues(selector) {
+        var form = selector ? document.querySelector(selector) : null;
+        if (!form) {
+            return {};
+        }
+        return Object.fromEntries(new FormData(form).entries());
+    }
+
+    function initTooltips(root) {
+        root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+            if (!bootstrap.Tooltip.getInstance(el)) {
+                new bootstrap.Tooltip(el);
+            }
+        });
+    }
+
+    function initPopovers(root) {
+        root.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+            if (!bootstrap.Popover.getInstance(el)) {
+                new bootstrap.Popover(el);
+            }
+        });
+    }
+
+    // Schließt das mobile Offcanvas-Menü, sobald ein Link darin angeklickt wird
+    // (Bootstrap tut das nicht von selbst, anders als beim klassischen Collapse-Menü).
+    function initMobileNavAutoClose() {
+        var offcanvasEl = document.getElementById('mobileNav');
+        if (!offcanvasEl) {
+            return;
+        }
+        offcanvasEl.querySelectorAll('.nav-link').forEach(function (link) {
+            link.addEventListener('click', function () {
+                var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) {
+                    instance.hide();
+                }
+            });
+        });
+    }
+
+    // Der mobile Schnellzugriff (FAB/Bottom-Bar) verlinkt auf die Buchungsliste
+    // mit ?quickaction=..., damit von jeder Seite aus direkt das passende Modal
+    // aufgeht, statt eine eigene Zielseite pro Aktion pflegen zu müssen.
+    function openQuickAction() {
+        var params = new URLSearchParams(window.location.search);
+        var action = params.get('quickaction');
+        if (!action) {
+            return;
+        }
+
+        var triggerId = action === 'receipt' ? 'quickReceiptBtn' : action === 'create' ? 'quickNewBookingBtn' : null;
+        var trigger = triggerId ? document.getElementById(triggerId) : null;
+        if (trigger) {
+            trigger.click();
+        }
+
+        params.delete('quickaction');
+        var query = params.toString();
+        var cleanUrl = window.location.pathname + (query ? '?' + query : '') + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+    }
+
+    // Einheitliches Bestätigen-und-Löschen-Muster für alle Listen (Kategorien,
+    // Verbindlichkeiten, Buchungen, Serien, Vermögensgegenstände, Aufgaben).
+    // Ein Klick auf ein Element mit data-delete-url öffnet das globale
+    // #confirmDeleteModal (siehe base.html); nach Bestätigung wird per fetch()
+    // gelöscht, damit sowohl Erfolg (Status 2xx) als auch Fehler (z.B. 400 bei
+    // "Kategorie hat noch Buchungen") einheitlich behandelt werden können –
+    // reines htmx.ajax swappt bei 4xx/5xx standardmäßig nicht.
+    //
+    // Unterstützte data-Attribute am Trigger:
+    //   data-delete-url            (Pflicht) Lösch-Endpunkt (POST)
+    //   data-delete-title          Modal-Titel (Default: "Eintrag löschen")
+    //   data-delete-message        Bestätigungstext
+    //   data-delete-warning        zusätzlicher Hinweistext (alert-warning)
+    //   data-delete-target         CSS-Selektor des Elements, das bei Erfolg
+    //                              entfernt (outerHTML) oder geleert (innerHTML)
+    //                              wird
+    //   data-delete-swap           "outerHTML" (Default) oder "innerHTML"
+    //   data-delete-reload-target  CSS-Selektor, der stattdessen per GET neu
+    //                              geladen wird (z.B. Monatsansicht, wo Summen
+    //                              neu berechnet werden müssen)
+    //   data-delete-reload-url     URL für den Reload (Default: aktuelle Seite)
+    //   data-delete-reload-include CSS-Selektor eines Formulars, dessen Felder
+    //                              beim Reload als Query-Parameter mitgehen
+    //                              (z.B. die Filterleiste der Monatsansicht)
+    //   data-delete-error-target   CSS-Selektor für die Fehleranzeige (Default:
+    //                              #delete-error-container aus base.html)
+    function initConfirmDelete() {
+        var modalEl = document.getElementById('confirmDeleteModal');
+        if (!modalEl) {
+            return;
+        }
+        var modal = new bootstrap.Modal(modalEl);
+        var titleEl = document.getElementById('confirmDeleteModalLabel');
+        var messageEl = document.getElementById('confirmDeleteModalMessage');
+        var warningEl = document.getElementById('confirmDeleteModalWarning');
+        var confirmBtn = document.getElementById('confirmDeleteModalBtn');
+        var pending = null;
+
+        function showError(html, errorTargetSelector) {
+            var container = (errorTargetSelector && document.querySelector(errorTargetSelector)) ||
+                document.getElementById('delete-error-container');
+            if (!container) {
+                return;
+            }
+            container.innerHTML = html;
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        document.body.addEventListener('click', function (event) {
+            var trigger = event.target.closest('[data-delete-url]');
+            if (!trigger) {
+                return;
+            }
+            event.preventDefault();
+
+            pending = {
+                url: trigger.getAttribute('data-delete-url'),
+                target: trigger.getAttribute('data-delete-target'),
+                swap: trigger.getAttribute('data-delete-swap') || 'outerHTML',
+                reloadTarget: trigger.getAttribute('data-delete-reload-target'),
+                reloadUrl: trigger.getAttribute('data-delete-reload-url') || window.location.pathname,
+                reloadInclude: trigger.getAttribute('data-delete-reload-include'),
+                errorTarget: trigger.getAttribute('data-delete-error-target')
+            };
+
+            titleEl.textContent = trigger.getAttribute('data-delete-title') || 'Eintrag löschen';
+            messageEl.textContent = trigger.getAttribute('data-delete-message') ||
+                'Sind Sie sicher, dass Sie diesen Eintrag löschen möchten?';
+
+            var warning = trigger.getAttribute('data-delete-warning');
+            if (warning) {
+                warningEl.textContent = warning;
+                warningEl.classList.remove('d-none');
+            } else {
+                warningEl.classList.add('d-none');
+            }
+
+            modal.show();
+        });
+
+        confirmBtn.addEventListener('click', function () {
+            if (!pending) {
+                return;
+            }
+            var current = pending;
+            pending = null;
+            modal.hide();
+
+            fetch(current.url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'HX-Request': 'true'
+                }
+            }).then(function (response) {
+                if (!response.ok) {
+                    return response.text().then(function (text) {
+                        showError(text, current.errorTarget);
+                    });
+                }
+
+                if (current.reloadTarget) {
+                    return htmx.ajax('GET', current.reloadUrl, {
+                        target: current.reloadTarget,
+                        swap: 'innerHTML',
+                        values: formValues(current.reloadInclude)
+                    });
+                }
+
+                if (current.target) {
+                    var el = document.querySelector(current.target);
+                    if (el) {
+                        if (current.swap === 'innerHTML') {
+                            el.innerHTML = '';
+                        } else {
+                            el.remove();
+                        }
+                    }
+                }
+            }).catch(function () {
+                showError('<div class="alert alert-danger">Ein Fehler ist aufgetreten.</div>', current.errorTarget);
+            });
+        });
+    }
+
+    // Der Status-Filter der Monatsansicht (gebucht/geplant/alle) wird
+    // clientseitig im localStorage gehalten - dafür braucht es keinen
+    // Server-State. Beim Monatswechsel genügt das hx-include des
+    // Filterformulars an den Blätter-Buttons (der Wert wird also einfach
+    // mitgeschickt); nur beim frischen Seitenaufruf muss die Auswahl aus dem
+    // Storage wiederhergestellt und der Monatsinhalt einmal nachgeladen werden.
+    var MONTH_FILTER_STATUS_KEY = 'moneyplan.monthFilter.status';
+
+    function readStoredMonthStatus() {
+        try {
+            return window.localStorage.getItem(MONTH_FILTER_STATUS_KEY);
+        } catch (e) {
+            // localStorage gesperrt (z.B. Private Mode) – Filter startet leer.
+            return null;
+        }
+    }
+
+    function writeStoredMonthStatus(value) {
+        try {
+            if (value === null) {
+                window.localStorage.removeItem(MONTH_FILTER_STATUS_KEY);
+            } else {
+                window.localStorage.setItem(MONTH_FILTER_STATUS_KEY, value);
+            }
+        } catch (e) {
+            // Ohne Storage funktioniert der Filter weiter, nur nicht persistent.
+        }
+    }
+
+    function restoreMonthFilterStatus() {
+        var select = document.getElementById('month-filter-status');
+        if (!select) {
+            return;
+        }
+
+        var stored = readStoredMonthStatus();
+        // Ein ?status=... in der URL (geteilter Link, Filter-Reset) hat Vorrang.
+        var hasExplicitStatus = new URLSearchParams(window.location.search).has('status');
+        if (!stored || hasExplicitStatus || stored === select.value) {
+            return;
+        }
+
+        select.value = stored;
+        if (select.value !== stored) {
+            // Unbekannter Wert im Storage – nichts nachladen, Storage aufräumen.
+            writeStoredMonthStatus(null);
+            return;
+        }
+
+        // Übrige Filter (Betrag, Kategorie, Beschreibung) aus der URL mitnehmen,
+        // damit ein gesetzter Status sie nicht verwirft.
+        var form = document.getElementById('month-filter-form');
+        htmx.ajax('GET', window.location.pathname, {
+            target: '#month-content',
+            swap: 'innerHTML',
+            values: form
+                ? Object.fromEntries(new FormData(form).entries())
+                : { status: stored }
+        });
+    }
+
+    // Delegiert, weil das Filterformular Teil des per HTMX getauschten
+    // #month-content ist und nach jedem Swap neu im DOM steht.
+    function initMonthFilterStatusPersistence() {
+        document.body.addEventListener('change', function (event) {
+            if (event.target && event.target.id === 'month-filter-status') {
+                writeStoredMonthStatus(event.target.value);
+            }
+        });
+
+        document.body.addEventListener('click', function (event) {
+            if (event.target.closest && event.target.closest('#month-filter-reset')) {
+                writeStoredMonthStatus(null);
+            }
+        });
+    }
+
+    // Auf-/Zu-Zustand der Wochen-Accordions in der Monatsansicht wird je
+    // Woche (Jahr-Monat-Wochenindex) im localStorage gemerkt, damit er beim
+    // erneuten Öffnen desselben Monats erhalten bleibt. Ohne gespeicherten
+    // Wert gilt der vom Server gerenderte Default (aktuelle Woche offen).
+    var WEEK_ACCORDION_PREFIX = 'moneyplan.monthAccordion.';
+
+    function readStoredWeekState(key) {
+        try {
+            var value = window.localStorage.getItem(WEEK_ACCORDION_PREFIX + key);
+            return value === null ? null : value === 'open';
+        } catch (e) {
+            // localStorage gesperrt (z.B. Private Mode) – Server-Default gilt.
+            return null;
+        }
+    }
+
+    function writeStoredWeekState(key, isOpen) {
+        try {
+            window.localStorage.setItem(WEEK_ACCORDION_PREFIX + key, isOpen ? 'open' : 'closed');
+        } catch (e) {
+            // Ohne Storage bleibt der Zustand nur für die aktuelle Sitzung erhalten.
+        }
+    }
+
+    // Überschreibt den vom Server gerenderten Default anhand des gespeicherten
+    // Zustands. Wird sowohl beim initialen Laden als auch nach jedem
+    // HTMX-Swap der Monatsansicht aufgerufen, da die Accordion-Items dabei
+    // neu ins DOM eingefügt werden.
+    function initWeekAccordionPersistence(root) {
+        var collapses = (root || document).querySelectorAll('[data-week-key]');
+        collapses.forEach(function (collapseEl) {
+            var stored = readStoredWeekState(collapseEl.getAttribute('data-week-key'));
+            if (stored === null) {
+                return;
+            }
+
+            var item = collapseEl.closest('.accordion-item');
+            var button = item ? item.querySelector('.accordion-button') : null;
+
+            if (stored) {
+                collapseEl.classList.add('show');
+                if (button) {
+                    button.classList.remove('collapsed');
+                    button.setAttribute('aria-expanded', 'true');
+                }
+            } else {
+                collapseEl.classList.remove('show');
+                if (button) {
+                    button.classList.add('collapsed');
+                    button.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initTooltips(document);
+        initPopovers(document);
+        initMobileNavAutoClose();
+        openQuickAction();
+        initConfirmDelete();
+        initMonthFilterStatusPersistence();
+        restoreMonthFilterStatus();
+        initWeekAccordionPersistence(document);
+    });
+
+    // Bootstrap feuert diese Events auf dem jeweiligen .accordion-collapse-
+    // Element, sobald es (durch Klick oder JS) auf- bzw. zugeklappt wurde -
+    // unabhängig davon, ob der initiale Zustand vom Server oder aus dem
+    // Storage kam.
+    document.body.addEventListener('shown.bs.collapse', function (event) {
+        if (event.target && event.target.hasAttribute('data-week-key')) {
+            writeStoredWeekState(event.target.getAttribute('data-week-key'), true);
+        }
+    });
+    document.body.addEventListener('hidden.bs.collapse', function (event) {
+        if (event.target && event.target.hasAttribute('data-week-key')) {
+            writeStoredWeekState(event.target.getAttribute('data-week-key'), false);
+        }
+    });
+
+    // Für Inline-Skripte in Templates (z.B. die Reloads der Monatsansicht).
+    window.MoneyPlan = window.MoneyPlan || {};
+    window.MoneyPlan.formValues = formValues;
+
+    // HTMX tauscht Teile des DOM aus – Bootstrap-Komponenten in neu
+    // eingefügtem Markup müssen danach erneut initialisiert werden.
+    document.body.addEventListener('htmx:afterSwap', function (event) {
+        initTooltips(event.target);
+        initPopovers(event.target);
+        initWeekAccordionPersistence(event.target);
+    });
+})();
