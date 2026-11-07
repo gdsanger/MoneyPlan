@@ -369,6 +369,9 @@ def quick_create(request):
     return redirect('dashboard:index')
 
 
+DUPLICATE_DATE_WINDOW_DAYS = 7
+
+
 def _get_return_month_context(request):
     """
     Extract the optional month-view origin (year/month) a receipt upload was
@@ -386,6 +389,53 @@ def _get_return_month_context(request):
     except (TypeError, ValueError):
         return {'return_year': None, 'return_month': None}
     return {'return_year': return_year, 'return_month': return_month}
+
+
+def find_duplicate_bookings(booking_date, amount, description, file_name=None, file_size=None):
+    """
+    Find existing bookings that look like duplicates of a new receipt booking.
+
+    A booking is a candidate when it has the same amount and lies within
+    +/- DUPLICATE_DATE_WINDOW_DAYS of the date, or when it already carries an
+    attachment with the same file name and size. Returns a list of dicts
+    ``{'booking': Booking, 'reasons': [str, ...]}``, best matches first.
+    """
+    from datetime import timedelta
+    from django.contrib.contenttypes.models import ContentType
+    from attachments.models import Attachment
+
+    matches = {}
+
+    def add(booking, reason, score):
+        entry = matches.setdefault(booking.pk, {'booking': booking, 'reasons': [], 'score': 0})
+        entry['reasons'].append(reason)
+        entry['score'] += score
+
+    window = timedelta(days=DUPLICATE_DATE_WINDOW_DAYS)
+    qs = Booking.objects.filter(
+        amount=amount,
+        date__gte=booking_date - window,
+        date__lte=booking_date + window,
+    ).select_related('category')
+    desc = (description or '').strip().lower()
+    for b in qs:
+        if b.date == booking_date:
+            add(b, 'Gleicher Betrag und gleiches Datum', 3)
+        else:
+            add(b, f'Gleicher Betrag, Datum {(b.date - booking_date).days:+d} Tage', 1)
+        b_desc = b.description.strip().lower()
+        if desc and b_desc and (desc in b_desc or b_desc in desc):
+            add(b, 'Ähnliche Beschreibung', 2)
+
+    if file_name and file_size:
+        ct = ContentType.objects.get_for_model(Booking)
+        att_ids = Attachment.objects.filter(
+            content_type=ct, filename=file_name, file_size=file_size,
+        ).values_list('object_id', flat=True)
+        for b in Booking.objects.filter(pk__in=list(att_ids)).select_related('category'):
+            add(b, 'Gleicher Beleg (Dateiname und Größe) bereits angehängt', 4)
+
+    return sorted(matches.values(), key=lambda m: (-m['score'], m['booking'].date))
 
 
 @login_required
@@ -551,6 +601,26 @@ def receipt_confirm(request):
             **month_context,
         }
         return render(request, 'bookings/_receipt_form.html', context)
+
+    # Duplicate detection: warn unless the user already confirmed to proceed
+    if request.POST.get('confirm_duplicate') != '1':
+        duplicates = find_duplicate_bookings(
+            form.cleaned_data['date'],
+            form.cleaned_data['amount'],
+            form.cleaned_data['description'],
+            file_name=request.session.get('receipt_file_name'),
+            file_size=(len(request.session['receipt_file_data']) * 3) // 4
+            - request.session['receipt_file_data'].count('=', -2),
+        )
+        if duplicates:
+            receipt_result_data = request.session.get('receipt_result')
+            return render(request, 'bookings/_receipt_form.html', {
+                'form': form,
+                'receipt_result': type('obj', (object,), receipt_result_data)(),
+                'is_receipt_form': True,
+                'duplicates': duplicates,
+                **month_context,
+            })
 
     # Create booking
     booking = form.save()

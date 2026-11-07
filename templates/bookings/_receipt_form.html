@@ -6,6 +6,33 @@
             <i class="bi bi-check-circle text-success"></i> Beleg erkannt
         </h5>
 
+        {% if duplicates %}
+        <div class="alert alert-warning mb-3" role="alert">
+            <h6 class="alert-heading">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Mögliche Dublette erkannt
+            </h6>
+            <p class="mb-2 small">Es existieren bereits ähnliche Buchungen:</p>
+            <ul class="list-unstyled mb-2">
+                {% for d in duplicates %}
+                <li class="mb-2 border-start border-warning border-3 ps-2">
+                    <strong>{{ d.booking.description }}</strong>
+                    <span class="text-muted">&middot; {{ d.booking.date|date:"d.m.Y" }}
+                    &middot; {{ d.booking.amount }} &euro;
+                    &middot; {{ d.booking.category.name }}
+                    &middot; {{ d.booking.get_status_display }}</span>
+                    <a href="{% url 'bookings:edit' d.booking.pk %}" target="_blank" class="small ms-1">
+                        <i class="bi bi-box-arrow-up-right"></i> ansehen
+                    </a>
+                    <br>
+                    <small class="text-muted">{{ d.reasons|join:" · " }}</small>
+                </li>
+                {% endfor %}
+            </ul>
+            <div class="small">Trotzdem anlegen oder abbrechen?</div>
+        </div>
+        {% endif %}
+
         <!-- AI Recognition Summary -->
         <div class="alert alert-info mb-3">
             <div class="d-flex align-items-start">
@@ -25,6 +52,7 @@
               hx-target="#receipt-container"
               hx-swap="innerHTML">
             {% csrf_token %}
+            {% if duplicates %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
             {% if return_year and return_month %}
             <input type="hidden" name="return_year" value="{{ return_year }}">
             <input type="hidden" name="return_month" value="{{ return_month }}">
@@ -125,7 +153,7 @@
                     <i class="bi bi-x"></i> Abbrechen
                 </button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Buchung speichern
+                    {% if duplicates %}<i class="bi bi-exclamation-triangle"></i> Trotzdem anlegen{% else %}<i class="bi bi-save"></i> Buchung speichern{% endif %}
                 </button>
             </div>
         </form>
