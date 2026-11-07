@@ -305,3 +305,48 @@ class ReceiptUploadViewTestCase(TestCase):
         self.assertContains(response, 'Mai 2025')
         self.assertContains(response, 'Zur Monatsansicht')
         self.assertTrue(Booking.objects.filter(description='Other Month Receipt').exists())
+
+
+class ReceiptDuplicateDetectionTestCase(TestCase):
+    """Duplicate warning when confirming a booking created from a receipt."""
+
+    def setUp(self):
+        self.client = Client()
+        User.objects.create_user(username='dupuser', password='testpass')
+        self.client.login(username='dupuser', password='testpass')
+        self.category = Category.objects.create(name='Telefon', icon='bi-phone', color='#0066cc')
+        self.existing = Booking.objects.create(
+            date='2026-03-10', description='Telekom Rechnung', amount=Decimal('-39.99'),
+            category=self.category, status='booked',
+        )
+        session = self.client.session
+        session['receipt_result'] = {
+            'date': '2026-03-10', 'description': 'Telekom', 'amount': '-39.99',
+            'category_suggestion': 'Telefon', 'notes': '', 'confidence': {},
+            'raw_text': 'x', 'ai_provider': 'p', 'ai_model': 'm',
+        }
+        session['receipt_file_data'] = 'AAAA'
+        session['receipt_file_name'] = 'r.pdf'
+        session['receipt_file_mime_type'] = 'application/pdf'
+        session.save()
+        self.payload = {
+            'date': '2026-03-12', 'description': 'Telekom Mobilfunk', 'amount': '-39.99',
+            'category': self.category.pk, 'status': 'planned', 'notes': '',
+        }
+
+    def test_duplicate_shows_warning_and_does_not_save(self):
+        response = self.client.post(reverse('bookings:receipt_confirm'), self.payload)
+        self.assertContains(response, 'Mögliche Dublette erkannt')
+        self.assertContains(response, 'Telekom Rechnung')
+        self.assertContains(response, 'confirm_duplicate')
+        self.assertEqual(Booking.objects.count(), 1)
+
+    def test_confirm_duplicate_creates_booking(self):
+        self.client.post(reverse('bookings:receipt_confirm'), {**self.payload, 'confirm_duplicate': '1'})
+        self.assertEqual(Booking.objects.count(), 2)
+
+    def test_no_warning_without_match(self):
+        response = self.client.post(
+            reverse('bookings:receipt_confirm'), {**self.payload, 'amount': '-12.00'})
+        self.assertNotContains(response, 'Dublette', status_code=302)
+        self.assertEqual(Booking.objects.count(), 2)
