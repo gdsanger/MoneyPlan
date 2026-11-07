@@ -63,7 +63,7 @@ class DashboardViewTest(TestCase):
         self.assertContains(response, 'Ist-Saldo')
         self.assertContains(response, 'Offene Ausgaben')
         self.assertContains(response, 'Offene Einnahmen')
-        self.assertContains(response, 'Forecast +6 Monate')
+        self.assertContains(response, 'Forecast +12 Monate')
         self.assertContains(response, 'Planung')
         self.assertContains(response, 'Vermögen')
 
@@ -103,7 +103,7 @@ class ChartDataTest(TestCase):
         data = response.json()
         self.assertIn('labels', data)
         self.assertIn('datasets', data)
-        self.assertEqual(len(data['labels']), 7)
+        self.assertEqual(len(data['labels']), 13)
         self.assertEqual(data['currentMonthIndex'], 0)
         self.assertIn('summary', data)
         self.assertIn('endBalance', data['summary'])

@@ -42,107 +42,6 @@
         {% include 'dashboard/_kpi_cards.html' %}
     </div>
 
-    <!-- Operational Widgets -->
-    <div class="row mb-4">
-        <div class="col-lg-6 mb-4 mb-lg-0">
-            <div class="card h-100 dashboard-operational-card">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-calendar-check"></i> Fälligkeitsliste ({{ due_bookings.count }} Einträge)
-                    </h5>
-                    {% if due_bookings %}
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm table-stack">
-                            <thead>
-                                <tr>
-                                    <th>Datum</th>
-                                    <th>Beschreibung</th>
-                                    <th>Betrag</th>
-                                    <th>Kategorie</th>
-                                    <th>Aktion</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for booking in due_bookings %}
-                                {% include 'dashboard/_booking_row.html' %}
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-muted mb-0">Keine fälligen Buchungen im aktuellen Monat.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="card h-100 dashboard-operational-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-check2-square"></i> Offene Aufgaben
-                        </h5>
-                        <a href="{% url 'tasks:list' %}" class="btn btn-sm btn-outline-primary">
-                            Alle anzeigen →
-                        </a>
-                    </div>
-                    {% if open_tasks %}
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm table-stack">
-                            <thead>
-                                <tr>
-                                    <th style="width: 90px;">Priorität</th>
-                                    <th>Titel</th>
-                                    <th style="width: 100px;">Fälligkeit</th>
-                                    <th style="width: 100px;">Aktion</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for task in open_tasks %}
-                                <tr id="task-row-{{ task.id }}" class="{% if task.is_overdue %}table-danger{% elif task.is_due_soon %}table-warning{% endif %}">
-                                    <td data-label="Priorität">
-                                        {% if task.priority == 'high' %}
-                                        <span class="badge text-bg-danger">Hoch</span>
-                                        {% elif task.priority == 'medium' %}
-                                        <span class="badge text-bg-warning">Mittel</span>
-                                        {% else %}
-                                        <span class="badge text-bg-secondary">Niedrig</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="table-stack-heading">{{ task.title }}</td>
-                                    <td data-label="Fälligkeit">
-                                        {% if task.due_date %}
-                                            {{ task.due_date|date:"d.m.Y" }}
-                                        {% else %}
-                                            <span class="text-muted">—</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="table-stack-actions">
-                                        <button
-                                            class="btn btn-sm btn-outline-success"
-                                            hx-post="{% url 'tasks:toggle_done' task.id %}"
-                                            hx-target="#task-row-{{ task.id }}"
-                                            hx-swap="outerHTML"
-                                            title="Als erledigt markieren">
-                                            <i class="bi bi-check-square"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="alert alert-success text-center mb-0">
-                        <i class="bi bi-check-circle"></i>
-                        <strong>Keine offenen Aufgaben — alles erledigt ✓</strong>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Forecast Chart -->
     <div class="row mb-4">
         <div class="col-12">
@@ -167,6 +66,41 @@
                     <div class="forecast-chart-container">
                         <canvas id="forecastChart"></canvas>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operational Widgets -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card h-100 dashboard-operational-card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-calendar-check"></i> Fälligkeitsliste – nächste 7 Tage ({{ due_bookings.count }} Einträge)
+                    </h5>
+                    {% if due_bookings %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm table-stack">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Beschreibung</th>
+                                    <th>Betrag</th>
+                                    <th>Kategorie</th>
+                                    <th>Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in due_bookings %}
+                                {% include 'dashboard/_booking_row.html' %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Keine fälligen Buchungen in den nächsten 7 Tagen.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>

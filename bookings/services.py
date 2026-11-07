@@ -5,7 +5,7 @@ All monetary values are Decimal. All dates are datetime.date.
 Positive amounts = income, negative amounts = expenses.
 """
 from decimal import Decimal
-from datetime import date
+from datetime import timedelta, date
 from calendar import monthrange
 from django.db.models import Sum, Q, Count, QuerySet
 from django.db.models.functions import Coalesce
@@ -223,6 +223,16 @@ def get_due_this_month() -> QuerySet:
         status='planned',
         date__gte=today,
         date__lte=last_day
+    ).order_by('date')
+
+
+def get_due_next_days(days: int = 7) -> QuerySet:
+    """All `planned` bookings from today through today + `days` days (inclusive)."""
+    today = date.today()
+    return Booking.objects.filter(
+        status='planned',
+        date__gte=today,
+        date__lte=today + timedelta(days=days),
     ).order_by('date')
 
 
