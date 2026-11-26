@@ -314,3 +314,110 @@ def client_delete(request, client_id):
     # For GET, should not happen but redirect to list
     return redirect('timetracking:client_list')
 
+
+
+# ---------------------------------------------------------------------------
+# Minijob – reiner Zeitnachweis
+# ---------------------------------------------------------------------------
+import csv
+from datetime import date as _date
+from .forms import MinijobShiftForm, MinijobSettingsForm
+from .models import MinijobShift
+from .services import get_minijob_month
+
+
+def _parse_month(request):
+    """Liest ?month=YYYY-MM, Standard: aktueller Monat."""
+    today = _date.today()
+    try:
+        year, month = request.GET.get('month', '').split('-')
+        year, month = int(year), int(month)
+        if not (1 <= month <= 12 and 2000 <= year <= 2100):
+            raise ValueError
+    except ValueError:
+        year, month = today.year, today.month
+    return year, month
+
+
+def _month_nav(year, month):
+    prev_y, prev_m = (year - 1, 12) if month == 1 else (year, month - 1)
+    next_y, next_m = (year + 1, 1) if month == 12 else (year, month + 1)
+    return f"{prev_y}-{prev_m:02d}", f"{next_y}-{next_m:02d}"
+
+
+@login_required
+def minijob_month(request):
+    year, month = _parse_month(request)
+    data = get_minijob_month(year, month)
+    prev_month, next_month = _month_nav(year, month)
+    data.update({
+        'year': year, 'month': month,
+        'month_value': f"{year}-{month:02d}",
+        'month_date': _date(year, month, 1),
+        'prev_month': prev_month, 'next_month': next_month,
+    })
+    return render(request, 'timetracking/minijob.html', data)
+
+
+def _shift_form_view(request, shift=None):
+    if request.method == 'POST':
+        form = MinijobShiftForm(request.POST, instance=shift)
+        if form.is_valid():
+            obj = form.save()
+            return redirect(f"{reverse('timetracking:minijob')}?month={obj.date:%Y-%m}")
+    else:
+        form = MinijobShiftForm(instance=shift)
+    return render(request, 'timetracking/minijob_form.html', {'form': form, 'shift': shift})
+
+
+@login_required
+def minijob_shift_create(request):
+    return _shift_form_view(request)
+
+
+@login_required
+def minijob_shift_edit(request, shift_id):
+    return _shift_form_view(request, get_object_or_404(MinijobShift, pk=shift_id))
+
+
+@login_required
+def minijob_shift_delete(request, shift_id):
+    shift = get_object_or_404(MinijobShift, pk=shift_id)
+    if request.method == 'POST':
+        month = f"{shift.date:%Y-%m}"
+        shift.delete()
+        return redirect(f"{reverse('timetracking:minijob')}?month={month}")
+    return redirect('timetracking:minijob')
+
+
+@login_required
+def minijob_settings(request):
+    from .models import MinijobSettings
+    obj = MinijobSettings.get()
+    if request.method == 'POST':
+        form = MinijobSettingsForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Minijob-Einstellungen gespeichert.')
+            return redirect('timetracking:minijob')
+    else:
+        form = MinijobSettingsForm(instance=obj)
+    return render(request, 'timetracking/minijob_settings.html', {'form': form})
+
+
+@login_required
+def minijob_export_csv(request):
+    year, month = _parse_month(request)
+    data = get_minijob_month(year, month)
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="minijob-zeiten-{year}-{month:02d}.csv"'
+    response.write('﻿')
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow(['Datum', 'Beginn', 'Ende', 'Pause (min)', 'Stunden', 'Tätigkeit'])
+    for s in data['shifts']:
+        writer.writerow([s.date.strftime('%d.%m.%Y'), s.start_time.strftime('%H:%M'),
+                         s.end_time.strftime('%H:%M'), s.break_minutes,
+                         str(s.hours).replace('.', ','), s.notes])
+    writer.writerow([])
+    writer.writerow(['Summe', '', '', '', str(data['total_hours']).replace('.', ',')])
+    return response

@@ -4,7 +4,7 @@ from django.db.models import Q
 from datetime import date
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, HTML
-from .models import TimeEntry, Client
+from .models import TimeEntry, Client, MinijobShift, MinijobSettings
 from tags.models import Tag
 
 
@@ -107,3 +107,40 @@ class ClientForm(forms.ModelForm):
         # Set required fields
         self.fields['name'].required = True
         self.fields['notes'].required = False
+
+
+class MinijobShiftForm(forms.ModelForm):
+    class Meta:
+        model = MinijobShift
+        fields = ['date', 'start_time', 'end_time', 'break_minutes', 'notes']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}, format='%H:%M'),
+            'end_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}, format='%H:%M'),
+            'break_minutes': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '5'}),
+            'notes': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['notes'].required = False
+        if not self.instance.pk:
+            self.initial.setdefault('date', date.today())
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get('start_time'), cleaned.get('end_time')
+        if start and end and start == end:
+            raise forms.ValidationError('Beginn und Ende dürfen nicht identisch sein.')
+        return cleaned
+
+
+class MinijobSettingsForm(forms.ModelForm):
+    class Meta:
+        model = MinijobSettings
+        fields = ['employer', 'hourly_rate', 'monthly_limit']
+        widgets = {
+            'employer': forms.TextInput(attrs={'class': 'form-control'}),
+            'hourly_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'monthly_limit': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+        }
