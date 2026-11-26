@@ -26,3 +26,9 @@ class TimeEntryAdmin(admin.ModelAdmin):
         return f"{obj.amount:.2f} €"
     amount.short_description = 'Betrag'
 
+
+
+from .models import MinijobShift, MinijobSettings  # noqa: E402
+
+admin.site.register(MinijobShift)
+admin.site.register(MinijobSettings)

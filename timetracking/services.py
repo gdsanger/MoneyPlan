@@ -133,3 +133,35 @@ def get_client_summary() -> list[dict]:
         })
 
     return result
+
+
+def get_minijob_month(year: int, month: int) -> dict:
+    """Monatsauswertung Minijob: Stunden, Pauschale, Überstunden (für Gewerbe-Rechnung)."""
+    from .models import MinijobShift, MinijobSettings
+
+    settings = MinijobSettings.get()
+    shifts = list(MinijobShift.objects.filter(date__year=year, date__month=month).order_by('date', 'start_time'))
+    total_minutes = sum(s.minutes for s in shifts)
+    total_hours = (Decimal(total_minutes) / 60).quantize(Decimal('0.01'))
+    limit_hours = settings.limit_hours
+    over_hours = max(total_hours - limit_hours, Decimal('0.00'))
+    covered_hours = min(total_hours, limit_hours)
+    rate = settings.hourly_rate
+    percent = int(min(total_hours / limit_hours * 100, 100)) if limit_hours else 0
+
+    def fmt(minutes):
+        h, m = divmod(int(minutes), 60)
+        return f"{h}h {m:02d}min"
+
+    return {
+        'settings': settings,
+        'shifts': shifts,
+        'total_hours': total_hours,
+        'total_display': fmt(total_minutes),
+        'limit_hours': limit_hours,
+        'remaining_hours': max(limit_hours - total_hours, Decimal('0.00')),
+        'over_hours': over_hours,
+        'over_amount': (over_hours * rate).quantize(Decimal('0.01')),
+        'covered_amount': (covered_hours * rate).quantize(Decimal('0.01')),
+        'percent': percent,
+    }
