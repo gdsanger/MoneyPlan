@@ -78,6 +78,8 @@ class TimeEntry(models.Model):
 
 class MinijobSettings(models.Model):
     """Einstellungen für den Minijob (Singleton, nur Nachweis – keine Prognose)."""
+    full_name = models.CharField(max_length=255, blank=True, default='', verbose_name="Name",
+                                 help_text="Erscheint auf dem Nachweis (Druck/CSV).")
     employer = models.CharField(max_length=255, blank=True, default='', verbose_name="Arbeitgeber")
     hourly_rate = models.DecimalField(
         max_digits=8, decimal_places=2, default=Decimal('25.00'), verbose_name="Stundensatz (€)"

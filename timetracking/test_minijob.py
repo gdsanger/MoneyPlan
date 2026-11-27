@@ -58,3 +58,21 @@ class MinijobTests(TestCase):
         self.assertEqual(self.client.get(reverse('timetracking:minijob_edit', args=[s.pk])).status_code, 200)
         self.client.post(reverse('timetracking:minijob_delete', args=[s.pk]))
         self.assertEqual(MinijobShift.objects.count(), 0)
+
+
+class MinijobPrintNameTests(TestCase):
+    def setUp(self):
+        User.objects.create_user('u', password='p')
+        self.client.login(username='u', password='p')
+
+    def test_name_in_settings_print_and_csv(self):
+        r = self.client.post(reverse('timetracking:minijob_settings'), {
+            'full_name': 'Max Mustermann', 'employer': 'Firma X',
+            'hourly_rate': '25.00', 'monthly_limit': '300.00'})
+        self.assertEqual(r.status_code, 302)
+        r = self.client.get(reverse('timetracking:minijob'), {'month': '2026-11'})
+        self.assertContains(r, 'Max Mustermann')
+        self.assertContains(r, 'mobile-quick-actions')  # Element existiert, wird im Druck ausgeblendet
+        self.assertContains(r, '.mobile-quick-actions')  # ... per Print-CSS
+        r = self.client.get(reverse('timetracking:minijob_export'), {'month': '2026-11'})
+        self.assertContains(r, 'Max Mustermann')
