@@ -138,8 +138,9 @@ class MinijobShiftForm(forms.ModelForm):
 class MinijobSettingsForm(forms.ModelForm):
     class Meta:
         model = MinijobSettings
-        fields = ['employer', 'hourly_rate', 'monthly_limit']
+        fields = ['full_name', 'employer', 'hourly_rate', 'monthly_limit']
         widgets = {
+            'full_name': forms.TextInput(attrs={'class': 'form-control'}),
             'employer': forms.TextInput(attrs={'class': 'form-control'}),
             'hourly_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'monthly_limit': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),

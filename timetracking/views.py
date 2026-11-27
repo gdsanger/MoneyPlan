@@ -413,6 +413,12 @@ def minijob_export_csv(request):
     response['Content-Disposition'] = f'attachment; filename="minijob-zeiten-{year}-{month:02d}.csv"'
     response.write('﻿')
     writer = csv.writer(response, delimiter=';')
+    if data['settings'].full_name:
+        writer.writerow(['Name', data['settings'].full_name])
+    if data['settings'].employer:
+        writer.writerow(['Arbeitgeber', data['settings'].employer])
+    writer.writerow(['Zeitraum', f'{month:02d}/{year}'])
+    writer.writerow([])
     writer.writerow(['Datum', 'Beginn', 'Ende', 'Pause (min)', 'Stunden', 'Tätigkeit'])
     for s in data['shifts']:
         writer.writerow([s.date.strftime('%d.%m.%Y'), s.start_time.strftime('%H:%M'),

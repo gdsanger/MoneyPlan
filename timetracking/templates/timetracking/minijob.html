@@ -1,9 +1,31 @@
 {% extends "base.html" %}
 {% block title %}Minijob-Zeiten - MoneyPlan{% endblock %}
+{% block extra_head %}
+<style>
+@page { size: A4; margin: 0; }
+.print-only { display: none; }
+@media print {
+    .no-print, .navbar, nav, .offcanvas, .mobile-quick-actions, .alert, #delete-error-container { display: none !important; }
+    .print-only { display: block !important; }
+    main { padding: 15mm !important; margin: 0 !important; }
+    body { background: #fff !important; color: #000 !important; padding: 0 !important; }
+    .card, .table, .table > :not(caption) > * > * { background: #fff !important; color: #000 !important; border-color: #999 !important; box-shadow: none !important; }
+    .text-muted { color: #444 !important; }
+    .text-warning { color: #000 !important; }
+    tr { break-inside: avoid; }
+}
+</style>
+{% endblock %}
 {% block content %}
-<style>@media print {.no-print, .navbar, nav {display:none !important} body {background:#fff !important; color:#000 !important} .card {border:1px solid #999 !important; background:#fff !important; color:#000 !important}}</style>
+
+<div class="print-only mb-3">
+    <h3 class="mb-1">Arbeitszeitnachweis</h3>
+    <div>{% if settings.full_name %}<strong>Name:</strong> {{ settings.full_name }}<br>{% endif %}
+    {% if settings.employer %}<strong>Arbeitgeber:</strong> {{ settings.employer }}<br>{% endif %}
+    <strong>Zeitraum:</strong> {{ month_date|date:"F Y" }}</div>
+</div>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h2 class="mb-0"><i class="bi bi-briefcase"></i> Minijob-Zeiten
+    <h2 class="mb-0 no-print"><i class="bi bi-briefcase"></i> Minijob-Zeiten
         {% if settings.employer %}<small class="text-muted fs-6">· {{ settings.employer }}</small>{% endif %}</h2>
     <div class="d-flex gap-2 no-print">
         <a href="{% url 'timetracking:minijob_create' %}?month={{ month_value }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Einsatz erfassen</a>
@@ -15,7 +37,7 @@
 
 <div class="d-flex align-items-center gap-3 mb-3">
     <a class="btn btn-sm btn-outline-secondary no-print" href="?month={{ prev_month }}"><i class="bi bi-chevron-left"></i></a>
-    <h4 class="mb-0">{{ month_date|date:"F Y" }}</h4>
+    <h4 class="mb-0 no-print">{{ month_date|date:"F Y" }}</h4>
     <a class="btn btn-sm btn-outline-secondary no-print" href="?month={{ next_month }}"><i class="bi bi-chevron-right"></i></a>
 </div>
 
